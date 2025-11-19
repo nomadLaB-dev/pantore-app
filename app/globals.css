@@ -1,26 +1,42 @@
 @import "tailwindcss";
 
+/* 🎨 Pantore テーマカラー定義 (v4スタイル) */
+@theme {
+  /* ベースカラー（トレー） */
+  --color-pantore-50: #fafaf9;
+  --color-pantore-100: #f5f5f4;
+  --color-pantore-200: #e7e5e4;
+  --color-pantore-300: #d6d3d1;
+
+  /* アクセントカラー（パンの焼き色） */
+  --color-pantore-400: #fbbf24;
+  --color-pantore-500: #f59e0b;
+  --color-pantore-600: #d97706;
+  --color-pantore-700: #b45309;
+  --color-pantore-800: #92400e;
+  --color-pantore-900: #78350f;
+}
+
+/* 基本設定 */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* 全体の背景色を pantore-50 に */
+  --background: #fafaf9;
+  /* 文字色を pantore-900 に */
+  --foreground: #78350f;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* 共通コンポーネントスタイル */
+@layer components {
+  .btn-primary {
+    @apply bg-pantore-600 text-white hover:bg-pantore-700 transition-colors shadow-sm rounded-lg px-4 py-2 font-bold;
+  }
+  .card {
+    @apply bg-white rounded-xl border border-pantore-200 shadow-sm;
+  }
 }
