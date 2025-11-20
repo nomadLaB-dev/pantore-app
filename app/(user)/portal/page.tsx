@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { 
   Monitor, 
@@ -10,12 +10,13 @@ import {
   CheckCircle2, 
   Clock,
   Laptop,
-  PackageOpen // 箱アイコン
+  PackageOpen 
 } from 'lucide-react';
 
 import { 
   MOCK_USER_DETAIL_DATA, 
   MOCK_REQUESTS,
+  CURRENT_USER,
   type RequestStatus
 } from '@/lib/demo';
 
@@ -44,13 +45,31 @@ const StatusBadge = ({ status }: { status: RequestStatus }) => {
 };
 
 export default function UserPortalPage() {
+  // 表示用プロフィールなどは詳細データを使う（デモ用）
   const user = MOCK_USER_DETAIL_DATA;
-  // 自分の申請だけに絞り込み（モック用ロジック）
-  const myRequests = MOCK_REQUESTS.filter(req => req.userId === 'U001' || req.userId === 'U999');
+
+  // 申請履歴のフィルタリングロジック
+  const myRequests = useMemo(() => {
+    const now = new Date();
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(now.getMonth() - 1);
+
+    return MOCK_REQUESTS
+      .filter(req => {
+        if (req.userId !== CURRENT_USER.id) return false;
+
+        const requestDate = new Date(req.date);
+        const isRecent = requestDate >= oneMonthAgo;
+        const isUnfinished = req.status === 'pending' || req.status === 'approved';
+
+        return isRecent || isUnfinished;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, []);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
-      {/* Welcome Header: パンの焼き色グラデーション */}
+      {/* Welcome Header */}
       <div className="flex items-center justify-between bg-gradient-to-r from-pantore-600 to-pantore-500 p-8 rounded-2xl text-white shadow-lg shadow-pantore-200">
         <div>
           <h2 className="text-3xl font-bold mb-2">Hello, {user.name} 👋</h2>
@@ -83,16 +102,13 @@ export default function UserPortalPage() {
                 </div>
               </div>
               <div className="mt-4 flex gap-3">
-                {/* 故障・不具合報告へのリンク */}
+                {/* 故障・不具合報告へのリンク（マニュアルボタン削除により全幅表示） */}
                 <Link
                   href="/portal/request/repair"
                   className="flex-1 py-2.5 text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
                 >
-                  <AlertCircle className="w-4 h-4" /> 故障・不具合
+                  <AlertCircle className="w-4 h-4" /> 故障・不具合を報告する
                 </Link>
-                <button className="flex-1 py-2.5 text-sm font-bold text-pantore-600 bg-white border border-pantore-200 rounded-xl hover:bg-pantore-50 transition-colors">
-                  マニュアル
-                </button>
               </div>
             </>
           ) : (
@@ -109,7 +125,7 @@ export default function UserPortalPage() {
             申請メニュー
           </h3>
           <div className="space-y-3">
-            {/* 新規貸出申請へのリンク */}
+            {/* 新規貸出申請 */}
             <Link 
               href="/portal/request/new"
               className="block w-full text-left p-4 rounded-xl border border-pantore-200 hover:border-pantore-400 hover:bg-pantore-50 transition-all group bg-white"
@@ -121,7 +137,7 @@ export default function UserPortalPage() {
               <p className="text-xs text-pantore-500 mt-1 font-medium">入社・異動に伴う新規貸出はこちら</p>
             </Link>
             
-            {/* 返却申請へのリンク */}
+            {/* 返却申請 */}
             <Link 
               href="/portal/request/return"
               className="block w-full text-left p-4 rounded-xl border border-pantore-200 hover:border-pantore-400 hover:bg-pantore-50 transition-all group bg-white"
@@ -138,7 +154,7 @@ export default function UserPortalPage() {
 
       {/* Request History */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-pantore-200">
-        <h3 className="font-bold text-pantore-800 mb-4">最近の申請履歴</h3>
+        <h3 className="font-bold text-pantore-800 mb-4">申請履歴（直近・未完了）</h3>
         <div className="space-y-3">
           {myRequests.length > 0 ? (
             myRequests.map(req => (
@@ -166,7 +182,7 @@ export default function UserPortalPage() {
               </div>
             ))
           ) : (
-            <p className="text-center py-8 text-pantore-400">申請履歴はありません</p>
+            <p className="text-center py-8 text-pantore-400">該当する申請履歴はありません</p>
           )}
         </div>
       </div>
