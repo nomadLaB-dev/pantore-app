@@ -1,7 +1,7 @@
 import {
   MOCK_ASSETS,
   MOCK_REQUESTS,
-} from './demo';
+} from '@/lib/demo';
 
 // ==========================================
 // Type Definitions for Dashboard
@@ -24,9 +24,11 @@ export interface DashboardKpi {
  * 指定された年月のレンタル費用を計算します。
  */
 const calculateMonthlyCost = (year: number, month: number): number => {
-  // 簡単化のため、常に全レンタル資産の費用を返す
-  // 本来は、その月に存在した資産のみを対象にすべき
-  return MOCK_ASSETS.filter(asset => asset.isRental).reduce((total, asset) => {
+  // 🚨 修正ポイント: isRental ではなく ownership をチェックするように変更！
+  // レンタルまたはリースの場合のみ、月額コストを集計
+  return MOCK_ASSETS.filter(asset => 
+    asset.ownership === 'rental' || asset.ownership === 'lease'
+  ).reduce((total, asset) => {
     return total + (asset.monthlyCost || 0);
   }, 0);
 };
