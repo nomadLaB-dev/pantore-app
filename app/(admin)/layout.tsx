@@ -21,7 +21,12 @@ export default function AdminLayout({
         onClose={() => setIsSidebarOpen(false)} 
       />
       
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* メインコンテンツエリア
+          🚨 修正ポイント: md:ml-64 を追加しました！
+          これでPC表示の時だけ、左側にサイドバー分のスペースが確保されます✨
+      */}
+      <div className="flex-1 flex flex-col min-w-0 md:ml-64 transition-all duration-300">
+        
         {/* 🆕 モバイル用ヘッダー（PCでは隠す） */}
         <header className="md:hidden bg-white border-b border-gray-200 p-4 flex items-center sticky top-0 z-30">
           <button 
@@ -33,7 +38,7 @@ export default function AdminLayout({
           <span className="ml-3 font-bold text-lg text-pantore-900">Pantore Admin</span>
         </header>
 
-        {/* メインコンテンツエリア */}
+        {/* コンテンツの中身 */}
         <main className="flex-1 p-4 md:p-8 overflow-x-hidden">
           {children}
         </main>
