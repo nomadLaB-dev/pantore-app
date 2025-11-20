@@ -2,10 +2,10 @@ import {
   MOCK_ASSETS,
   MOCK_USERS_LIST,
   MOCK_REQUESTS,
-  Asset,
-  UserSummary,
-  Request,
-} from './demo';
+  type Asset,
+  type UserSummary,
+  type Request,
+} from '@/lib/demo'; // 👈 ここを絶対パスに変更！
 
 // ==========================================
 // Type Definitions for Reports
@@ -23,16 +23,12 @@ export interface IncidentReportData {
   requests: Request[];
 }
 
-
 // ==========================================
 // Report Generation Functions
 // ==========================================
 
 /**
- * 指定された年月のレンタルPCコストレポートを生成します。
- * @param year - 年
- * @param month - 月 (1-12)
- * @returns 部署ごとのコストデータ
+ * 指定された年月のレンタル・リースPCコストレポートを生成します。
  */
 export const getCostReport = (year: number, month: number): CostReportRow[] => {
   const userMap = new Map<string, UserSummary>(
@@ -43,14 +39,14 @@ export const getCostReport = (year: number, month: number): CostReportRow[] => {
 
   MOCK_ASSETS.filter(
     (asset) =>
-      asset.isRental &&
+      (asset.ownership === 'rental' || asset.ownership === 'lease') && 
       asset.userId &&
       (asset.status === 'in_use' || asset.status === 'maintenance')
   ).forEach((asset) => {
     const user = userMap.get(asset.userId!);
     if (!user) return;
 
-    const cost = asset.monthlyCost || 0; // MOCK_RENTAL_COSTSからasset.monthlyCostに変更
+    const cost = asset.monthlyCost || 0;
     const key = `${user.company}-${user.dept}`;
 
     if (!report[key]) {
@@ -70,9 +66,6 @@ export const getCostReport = (year: number, month: number): CostReportRow[] => {
 
 /**
  * 指定された年月のインシデントレポートを生成します。
- * @param year - 年
- * @param month - 月 (1-12)
- * @returns インシデント件数と該当リクエストのリスト
  */
 export const getIncidentReport = (year: number, month: number): IncidentReportData => {
   const targetMonth = `${year}-${String(month).padStart(2, '0')}`;

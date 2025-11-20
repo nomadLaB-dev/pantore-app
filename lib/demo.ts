@@ -10,7 +10,9 @@ export type RequestType = 'new_hire' | 'breakdown' | 'return';
 
 export type RequestStatus = 'pending' | 'approved' | 'completed' | 'rejected';
 
-// 🆕 所有形態の定義
+export type UserStatus = 'active' | 'inactive';
+
+// 所有形態の定義
 export type OwnershipType = 'owned' | 'rental' | 'lease' | 'byod';
 
 export const OWNERSHIP_LABELS: Record<OwnershipType, string> = {
@@ -20,16 +22,37 @@ export const OWNERSHIP_LABELS: Record<OwnershipType, string> = {
   byod: 'BYOD (私物)',
 };
 
-// 🆕 組織設定
-export interface OrganizationSettings {
-  id: string;
-  name: string; // 会社名
-  allowedOwnerships: OwnershipType[]; // 許可する所有形態
-  contactLabel: string; // 連絡先ラベル (例: 情シス内線)
-  contactValue: string; // 連絡先 (例: 9999)
+// 付属品リストの定義
+export const ASSET_ACCESSORIES = [
+  '充電アダプタ',
+  '電源ケーブル',
+  'マウス',
+  'マウスパッド',
+  'HDMIケーブル',
+  '変換アダプタ',
+  '外箱',
+  '保証書',
+  'キーボード',
+  'ケース/バッグ'
+];
+
+// 🆕 マスタデータの型定義
+export interface MasterData {
+  companies: string[];
+  departments: string[];
+  branches: string[];
 }
 
-// 資産（PC）データ型 (Update!)
+// 組織設定
+export interface OrganizationSettings {
+  id: string;
+  name: string;
+  allowedOwnerships: OwnershipType[];
+  contactLabel: string;
+  contactValue: string;
+}
+
+// 資産（PC）データ型
 export interface Asset {
   id: string;
   managementId: string;
@@ -39,16 +62,15 @@ export interface Asset {
   userName: string | null;
   status: AssetStatus;
   
-  // --- 所有・コスト情報 ---
-  ownership: OwnershipType; // isRental の代わりにこれを使用
-  purchaseDate: string; // 購入日 or 契約開始日
+  ownership: OwnershipType;
+  purchaseDate: string;
   
-  // 契約・コスト関連 (Optional)
-  contractEndDate?: string; // レンタル/リース終了日
-  purchaseCost?: number;    // 購入価格 (ownedの場合)
-  monthlyCost?: number;     // 月額コスト (rental/leaseの場合)
-  months?: number;          // 契約月数 (leaseの場合など)
+  contractEndDate?: string;
+  purchaseCost?: number;
+  monthlyCost?: number;
+  months?: number;
   
+  accessories?: string[];
   note?: string;
 }
 
@@ -61,8 +83,8 @@ export interface UserSummary {
   company: string;
   dept: string;
   deviceCount: number;
-  status: 'active' | 'inactive';
-  avatar?: string; // イニシャル表示用
+  status: UserStatus;
+  avatar?: string;
 }
 
 // 所属履歴型
@@ -118,41 +140,42 @@ export interface KPIData {
 // Mock Data (demo data)
 // ==========================================
 
-// 🆕 組織設定モック
+// 🆕 会社・部署マスタ（可変にするため const オブジェクトの中身を操作します）
+export const MOCK_MASTER_DATA: MasterData = {
+  companies: ['親会社HD', '子会社テック', '関連会社デザイン'],
+  departments: ['開発部', '営業部', '人事部', '総務部', 'マーケティング部', 'デザイン部', '情シス', 'インフラ部'],
+  branches: ['本社', '大阪支社', '福岡オフィス', 'リモート']
+};
+
+// 組織設定モック
 export let MOCK_SETTINGS: OrganizationSettings = {
   id: 'ORG001',
   name: '親会社HD',
-  allowedOwnerships: ['owned', 'rental', 'lease'], // デフォルト設定
-  contactLabel: '貞末',
-  contactValue: '080-0000-0000',
+  allowedOwnerships: ['owned', 'rental', 'lease'],
+  contactLabel: '情シス内線',
+  contactValue: '9999',
 };
 
-// デフォルトユーザー（Admin画面の表示用）
+// デフォルトユーザー
 export const CURRENT_USER = {
   id: 'U000',
   name: '貞末 麗斗',
   email: 'yoshito.s.0717@gmail.com',
   role: 'admin' as Role,
-  company: 'ノマドLaB',
-  dept: 'CIO',
-  avatar: 'RL', // Reito (or YS)
+  company: '親会社HD',
+  dept: '情シス',
+  avatar: 'RL',
   deviceCount: 1,
-  status: 'active' as const
+  status: 'active' as UserStatus
 };
 
-// ユーザーリスト（ログイン判定用）
+// ユーザーリスト
 let MOCK_USERS_LIST: UserSummary[] = [
-  // 1. 麗斗センパイ (Admin)
   { id: 'U000', name: '貞末 麗斗', email: 'yoshito.s.0717@gmail.com', role: 'admin', company: '親会社HD', dept: '情シス', deviceCount: 0, status: 'active', avatar: 'RL' },
-  // 2. 現場マネージャー (Manager)
   { id: 'U001', name: '佐藤 花子', email: 'hanako.sato@tech-sol.co.jp', role: 'manager', company: '子会社テック', dept: '営業部', deviceCount: 0, status: 'active', avatar: 'HS' },
-  // 3. クリエイティブ職 (User)
   { id: 'U002', name: '伊集院 健児', email: 'kenji.ijuin@parent-corp.jp', role: 'user', company: '親会社HD', dept: 'デザイン部', deviceCount: 0, status: 'active', avatar: 'KI' },
-  // 4. 新入社員 (User)
   { id: 'U003', name: '新人 太郎', email: 'taro.shinjin@tech-sol.co.jp', role: 'user', company: '子会社テック', dept: '開発部', deviceCount: 0, status: 'active', avatar: 'ST' },
-  // 5. 退職者 (Inactive)
   { id: 'U004', name: '鈴木 一郎', email: 'ichiro.suzuki@parent-corp.jp', role: 'user', company: '親会社HD', dept: '総務部', deviceCount: 0, status: 'inactive', avatar: 'IS' },
-  // --- 追加データ ---
   { id: 'U005', name: '田中 健太', email: 'kenta.tanaka@tech-sol.co.jp', role: 'user', company: '子会社テック', dept: '開発部', deviceCount: 0, status: 'active', avatar: 'KT' },
   { id: 'U006', name: '中村 美咲', email: 'misaki.nakamura@parent-corp.jp', role: 'user', company: '親会社HD', dept: 'デザイン部', deviceCount: 0, status: 'active', avatar: 'MN' },
   { id: 'U007', name: '小林 誠', email: 'makoto.kobayashi@tech-sol.co.jp', role: 'manager', company: '子会社テック', dept: '営業部', deviceCount: 0, status: 'active', avatar: 'MK' },
@@ -162,17 +185,20 @@ let MOCK_USERS_LIST: UserSummary[] = [
   { id: 'U011', name: '渡辺 拓也', email: 'takuya.watanabe@tech-sol.co.jp', role: 'user', company: '子会社テック', dept: 'インフラ部', deviceCount: 0, status: 'active', avatar: 'WT' },
 ];
 
-// 資産モックデータ (Update!)
+// 資産データ
 export let MOCK_ASSETS: Asset[] = [
   { 
     id: 'A001', managementId: 'PC-24-001', serial: 'C02X12345', model: 'MacBook Pro 14 (M3)', 
     userId: 'U000', userName: '貞末 麗斗', status: 'in_use', 
-    ownership: 'rental', purchaseDate: '2024-04-01', monthlyCost: 15000, contractEndDate: '2026-03-31' 
+    ownership: 'rental', purchaseDate: '2024-04-01', monthlyCost: 15000, contractEndDate: '2026-03-31',
+    accessories: ['充電アダプタ', '電源ケーブル', '外箱']
   },
   { 
     id: 'A002', managementId: 'PC-23-055', serial: 'DELL-9999', model: 'Dell Latitude 5420', 
     userId: null, userName: '-', status: 'available', 
-    ownership: 'lease', purchaseDate: '2023-01-15', monthlyCost: 8000, months: 48, contractEndDate: '2027-01-14' 
+    ownership: 'lease', purchaseDate: '2023-01-15', monthlyCost: 8000, months: 48, contractEndDate: '2027-01-14',
+    accessories: ['充電アダプタ', 'マウス'],
+    note: 'マウスのホイール反応悪し。予備機として保管。'
   },
   { 
     id: 'A003', managementId: 'PC-23-089', serial: 'C02Y67890', model: 'MacBook Air M2', 
@@ -182,7 +208,8 @@ export let MOCK_ASSETS: Asset[] = [
   { 
     id: 'A004', managementId: 'OWN-22-010', serial: 'HP-8888', model: 'HP EliteBook', 
     userId: 'U002', userName: '伊集院 健児', status: 'in_use', 
-    ownership: 'byod', purchaseDate: '2022-11-01', note: '個人所有端末許可済み'
+    ownership: 'byod', purchaseDate: '2022-11-01', 
+    note: '個人所有端末許可済み。付属品管理対象外。'
   },
   { 
     id: 'A005', managementId: 'PC-23-112', serial: 'C02Z11111', model: 'MacBook Pro 16 (M2)', 
@@ -226,7 +253,7 @@ export let MOCK_ASSETS: Asset[] = [
   },
 ];
 
-// 資産の割り当て状況から、各ユーザーのデバイス保有台数を再計算して更新
+// デバイスカウント計算
 const deviceCounts = MOCK_ASSETS.reduce((acc, asset) => {
   if (asset.userId) {
     acc[asset.userId] = (acc[asset.userId] || 0) + 1;
@@ -239,14 +266,13 @@ MOCK_USERS_LIST = MOCK_USERS_LIST.map(user => ({
   deviceCount: deviceCounts[user.id] || 0,
 }));
 
-// 整合性のため、CURRENT_USERのdeviceCountも更新
 const adminUser = MOCK_USERS_LIST.find(u => u.id === CURRENT_USER.id);
 if (adminUser) {
   CURRENT_USER.deviceCount = adminUser.deviceCount;
 }
 
 export const MOCK_USER_DETAIL_DATA: UserDetail = {
-  ...MOCK_USERS_LIST[0], // 貞末 麗斗のデータを継承
+  ...MOCK_USERS_LIST[0], 
   currentDevice: { 
     model: 'MacBook Pro 14 (M3 Max)', 
     serial: 'C02X_ADMIN_01', 
