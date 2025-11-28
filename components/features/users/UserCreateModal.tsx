@@ -2,22 +2,30 @@
 
 import React, { useState } from 'react';
 import { Plus, X, Save } from 'lucide-react';
-import { type UserSummary, type Role } from '@/lib/demo';
+import { type UserSummary, type Role, type MasterData } from '@/lib/types';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSave: (user: UserSummary) => void;
+  masterData?: MasterData;
 }
 
-export const UserCreateModal = ({ isOpen, onClose, onSave }: Props) => {
+export const UserCreateModal = ({ isOpen, onClose, onSave, masterData }: Props) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    company: '親会社HD',
+    company: masterData?.companies[0] || '', // Default to first company or empty
     dept: '',
     role: 'user'
   });
+
+  // Update default company when masterData loads
+  React.useEffect(() => {
+    if (masterData?.companies.length && !formData.company) {
+      setFormData(prev => ({ ...prev, company: masterData.companies[0] }));
+    }
+  }, [masterData]);
 
   if (!isOpen) return null;
 
@@ -37,7 +45,7 @@ export const UserCreateModal = ({ isOpen, onClose, onSave }: Props) => {
       status: 'active'
     });
     onClose();
-    setFormData({ name: '', email: '', company: '親会社HD', dept: '', role: 'user' });
+    setFormData({ name: '', email: '', company: masterData?.companies[0] || '', dept: '', role: 'user' });
   };
 
   return (
@@ -50,17 +58,25 @@ export const UserCreateModal = ({ isOpen, onClose, onSave }: Props) => {
           <button onClick={onClose} className="text-gray-400 hover:bg-gray-100 p-1 rounded-full"><X className="w-5 h-5" /></button>
         </div>
         <div className="space-y-3">
-          <input className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-            placeholder="氏名" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-          <input className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-            placeholder="メール" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+          <input className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            placeholder="氏名" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+          <input className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            placeholder="メール" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
           <div className="grid grid-cols-2 gap-3">
-            <select className="border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-              value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})}>
-              <option>親会社HD</option><option>子会社テック</option>
+            <select className="border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              value={formData.company} onChange={e => setFormData({ ...formData, company: e.target.value })}>
+              <option value="">会社を選択</option>
+              {masterData?.companies.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
-            <input className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-              placeholder="部署" value={formData.dept} onChange={e => setFormData({...formData, dept: e.target.value})} />
+            <input className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="部署" list="dept-options" value={formData.dept} onChange={e => setFormData({ ...formData, dept: e.target.value })} />
+            <datalist id="dept-options">
+              {masterData?.departments.map(d => (
+                <option key={d} value={d} />
+              ))}
+            </datalist>
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-2">

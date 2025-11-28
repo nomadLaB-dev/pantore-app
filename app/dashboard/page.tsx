@@ -1,17 +1,21 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Monitor, 
-  AlertCircle, 
+import {
+  Monitor,
+  AlertCircle,
   BarChart3,
   Plus,
   ArrowRightLeft,
   FileText
 } from 'lucide-react';
 
-import { MOCK_REQUESTS } from '@/lib/demo';
-import { getDashboardKpi, type DashboardKpi } from '@/lib/dashboard';
+import {
+  fetchDashboardKpiAction,
+  fetchRequestsAction,
+  type DashboardKpi
+} from '@/app/actions';
+import { type Request } from '@/lib/types';
 
 // --- Components ---
 const StatusBadge = ({ status }: { status: string }) => {
@@ -45,11 +49,18 @@ const RequestTypeIcon = ({ type }: { type: string }) => {
 
 export default function DashboardPage() {
   const [kpiData, setKpiData] = useState<DashboardKpi | null>(null);
+  const [requests, setRequests] = useState<Request[]>([]);
 
   useEffect(() => {
-    // 2025年11月のKPIを計算
-    const data = getDashboardKpi(2025, 11);
-    setKpiData(data);
+    const fetchData = async () => {
+      // 2025年11月のKPIを計算
+      const kpi = await fetchDashboardKpiAction(2025, 11);
+      setKpiData(kpi);
+
+      const reqs = await fetchRequestsAction();
+      setRequests(reqs);
+    };
+    fetchData();
   }, []);
 
   const costDiffInMan = kpiData ? (kpiData.costDiff / 10000).toFixed(1) : 0;
@@ -58,7 +69,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <h2 className="text-2xl font-bold text-gray-800">運用レポート (2025年11月)</h2>
-      
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
@@ -119,7 +130,7 @@ export default function DashboardPage() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <h3 className="font-semibold text-gray-700 mb-4">未処理の申請</h3>
           <div className="space-y-4">
-            {MOCK_REQUESTS.filter(r => r.status === 'pending').map(req => (
+            {requests.filter(r => r.status === 'pending').map(req => (
               <div key={req.id} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
                 <div className="flex justify-between items-start">
                   <span className="text-sm font-medium text-gray-800">{req.userName}</span>
@@ -127,7 +138,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex justify-between items-center mt-1">
                   <span className="text-xs text-gray-600 flex items-center gap-1">
-                    <RequestTypeIcon type={req.type} /> 
+                    <RequestTypeIcon type={req.type} />
                     {req.type === 'new_hire' ? '新規貸出' : req.type === 'breakdown' ? '故障交換' : '返却'}
                   </span>
                   <StatusBadge status={req.status} />

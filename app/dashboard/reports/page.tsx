@@ -1,24 +1,23 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  getCostReport, 
-  getIncidentReport, 
-  getAssetDetailList, // 🆕 追加
-  type CostReportRow, 
-  type IncidentReportData 
-} from '@/lib/reports';
-import { 
-  BarChart, 
-  AlertTriangle, 
-  Calendar, 
-  Building2, 
+import {
+  fetchReportsAction,
+  type CostReportRow,
+  type IncidentReportData,
+  type AssetDetailRow
+} from '@/app/actions';
+import {
+  BarChart,
+  AlertTriangle,
+  Calendar,
+  Building2,
   Download,
   FileText,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  FileSpreadsheet // 🆕 アイコン追加
+  FileSpreadsheet
 } from 'lucide-react';
 
 type ReportType = 'cost' | 'incident';
@@ -30,7 +29,9 @@ export default function ReportsPage() {
   const [date, setDate] = useState({ year: 2025, month: 11 });
   const [costData, setCostData] = useState<CostReportRow[]>([]);
   const [incidentData, setIncidentData] = useState<IncidentReportData>({ count: 0, requests: [] });
-  
+  const [assetDetailList, setAssetDetailList] = useState<AssetDetailRow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
   // ソート設定
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({
     key: 'cost',
@@ -38,14 +39,22 @@ export default function ReportsPage() {
   });
 
   useEffect(() => {
-    if (reportType === 'cost') {
-      const data = getCostReport(date.year, date.month);
-      setCostData(data);
-    } else {
-      const data = getIncidentReport(date.year, date.month);
-      setIncidentData(data);
-    }
-  }, [reportType, date]);
+    const loadReports = async () => {
+      setIsLoading(true);
+      try {
+        const { costReport, incidentReport, assetDetailList } = await fetchReportsAction(date.year, date.month);
+        setCostData(costReport);
+        setIncidentData(incidentReport);
+        setAssetDetailList(assetDetailList);
+      } catch (error) {
+        console.error('Failed to fetch reports:', error);
+        alert('レポートの取得に失敗しました。');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadReports();
+  }, [date]);
 
   const totalCost = useMemo(() => {
     return costData.reduce((sum, row) => sum + row.cost, 0);
@@ -71,8 +80,8 @@ export default function ReportsPage() {
 
   const SortIcon = ({ targetKey }: { targetKey: SortKey }) => {
     if (sortConfig.key !== targetKey) return <ArrowUpDown className="w-3 h-3 text-gray-300" />;
-    return sortConfig.direction === 'asc' 
-      ? <ArrowUp className="w-3 h-3 text-pantore-600" /> 
+    return sortConfig.direction === 'asc'
+      ? <ArrowUp className="w-3 h-3 text-pantore-600" />
       : <ArrowDown className="w-3 h-3 text-pantore-600" />;
   };
 
@@ -104,14 +113,13 @@ export default function ReportsPage() {
 
   // 🆕 明細CSV (全資産リスト)
   const handleDownloadDetail = () => {
-    const detailList = getAssetDetailList();
     const fileName = `pantore_asset_detail_list_${new Date().toISOString().split('T')[0]}.csv`;
     const header = ['管理番号', '機種名', 'シリアル', '所有形態', 'ステータス', '利用者', '会社', '部署', '月額コスト', '導入日'];
-    const rows = detailList.map(row => [
+    const rows = assetDetailList.map(row => [
       row.managementId, row.model, row.serial, row.ownership, row.status,
       row.userName, row.company, row.dept, row.monthlyCost, row.purchaseDate
     ].map(v => `"${v}"`).join(','));
-    
+
     const csvContent = '\uFEFF' + [header.join(','), ...rows].join('\n');
     downloadCsv(fileName, csvContent);
   };
@@ -147,9 +155,13 @@ export default function ReportsPage() {
     </button>
   );
 
+  if (isLoading && costData.length === 0 && incidentData.requests.length === 0) {
+    return <div className="p-8 text-center text-gray-500">レポートを読み込み中...</div>;
+  }
+
   return (
     <div className="h-full w-full space-y-8 animate-in fade-in duration-500">
-      
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -157,8 +169,8 @@ export default function ReportsPage() {
           <p className="text-sm text-gray-500 mt-1">資産コストやインシデント状況の可視化</p>
         </div>
         <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border border-gray-100 shadow-sm">
-           <TabButton type="cost" icon={BarChart} label="コスト分析" />
-           <TabButton type="incident" icon={AlertTriangle} label="インシデント" />
+          <TabButton type="cost" icon={BarChart} label="コスト分析" />
+          <TabButton type="incident" icon={AlertTriangle} label="インシデント" />
         </div>
       </div>
 
@@ -186,12 +198,12 @@ export default function ReportsPage() {
             </select>
           </div>
         </div>
-        
+
         {/* 🆕 CSVダウンロードボタン群 */}
         <div className="flex gap-2">
           {reportType === 'cost' ? (
             <>
-              <button 
+              <button
                 onClick={handleDownloadSummary}
                 className="bg-pantore-50 text-pantore-700 border border-pantore-200 hover:bg-pantore-100 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
                 title="部署ごとの集計データをダウンロード"
@@ -199,7 +211,7 @@ export default function ReportsPage() {
                 <Download className="w-4 h-4" />
                 サマリーCSV
               </button>
-              <button 
+              <button
                 onClick={handleDownloadDetail}
                 className="bg-pantore-600 text-white hover:bg-pantore-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
                 title="全資産の明細データをダウンロード"
@@ -209,7 +221,7 @@ export default function ReportsPage() {
               </button>
             </>
           ) : (
-            <button 
+            <button
               onClick={handleDownloadIncident}
               className="bg-pantore-600 text-white hover:bg-pantore-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
             >
@@ -226,27 +238,27 @@ export default function ReportsPage() {
           <div className="space-y-6">
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-               <div className="bg-gradient-to-br from-pantore-500 to-pantore-600 p-6 rounded-2xl text-white shadow-lg shadow-pantore-200">
-                 <p className="text-pantore-100 text-sm font-medium mb-1">月額総コスト</p>
-                 <p className="text-3xl font-bold font-mono">¥{totalCost.toLocaleString()}</p>
-               </div>
-               <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                 <p className="text-gray-500 text-sm font-medium mb-1">課金対象台数 (レンタル/リース)</p>
-                 <p className="text-3xl font-bold text-gray-800 font-mono">
-                   {costData.reduce((acc, cur) => acc + cur.assetCount, 0)}
-                   <span className="text-sm font-normal text-gray-500 ml-1">台</span>
-                 </p>
-               </div>
+              <div className="bg-gradient-to-br from-pantore-500 to-pantore-600 p-6 rounded-2xl text-white shadow-lg shadow-pantore-200">
+                <p className="text-pantore-100 text-sm font-medium mb-1">月額総コスト</p>
+                <p className="text-3xl font-bold font-mono">¥{totalCost.toLocaleString()}</p>
+              </div>
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <p className="text-gray-500 text-sm font-medium mb-1">課金対象台数 (レンタル/リース)</p>
+                <p className="text-3xl font-bold text-gray-800 font-mono">
+                  {costData.reduce((acc, cur) => acc + cur.assetCount, 0)}
+                  <span className="text-sm font-normal text-gray-500 ml-1">台</span>
+                </p>
+              </div>
             </div>
 
             {/* Cost Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-                 <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                   <Building2 className="w-5 h-5 text-pantore-500" />
-                   部署別内訳
-                 </h3>
-                 <span className="text-xs text-gray-400">項目名クリックで並び替え</span>
+                <h3 className="font-bold text-gray-700 flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-pantore-500" />
+                  部署別内訳
+                </h3>
+                <span className="text-xs text-gray-400">項目名クリックで並び替え</span>
               </div>
               <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50/50 border-b border-gray-100">
@@ -261,7 +273,7 @@ export default function ReportsPage() {
                       <div className="flex items-center justify-end gap-1">利用台数 <SortIcon targetKey="assetCount" /></div>
                     </th>
                     <th onClick={() => handleSort('cost')} className="px-6 py-3 font-bold text-gray-500 text-right cursor-pointer hover:bg-gray-100 transition-colors">
-                       <div className="flex items-center justify-end gap-1">月額費用 <SortIcon targetKey="cost" /></div>
+                      <div className="flex items-center justify-end gap-1">月額費用 <SortIcon targetKey="cost" /></div>
                     </th>
                     <th className="px-6 py-3 font-bold text-gray-500">構成比</th>
                   </tr>
@@ -295,54 +307,54 @@ export default function ReportsPage() {
           </div>
         ) : (
           <div className="space-y-6">
-             {/* Incident Tab Content (既存のまま) */}
-             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 flex items-center justify-between relative overflow-hidden">
-                <div className="z-10">
-                   <h3 className="text-gray-500 font-bold mb-2 flex items-center gap-2">
-                     <AlertTriangle className="w-5 h-5 text-red-500" />
-                     当月の故障・不具合発生件数
-                   </h3>
-                   <div className="flex items-baseline gap-2">
-                     <p className="text-5xl font-extrabold text-gray-800">{incidentData.count}</p>
-                     <span className="text-lg font-bold text-gray-500">件</span>
-                   </div>
+            {/* Incident Tab Content (既存のまま) */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 flex items-center justify-between relative overflow-hidden">
+              <div className="z-10">
+                <h3 className="text-gray-500 font-bold mb-2 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-red-500" />
+                  当月の故障・不具合発生件数
+                </h3>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-5xl font-extrabold text-gray-800">{incidentData.count}</p>
+                  <span className="text-lg font-bold text-gray-500">件</span>
                 </div>
-                <AlertTriangle className="absolute -right-6 -bottom-6 w-48 h-48 text-red-50 opacity-50 rotate-12" />
-             </div>
-             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-               <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-                  <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-gray-400" />
-                    インシデント詳細リスト
-                  </h3>
-               </div>
-               <table className="w-full text-left text-sm">
-                 <thead className="bg-gray-50/50 border-b border-gray-100">
-                   <tr>
-                     <th className="px-6 py-3 font-bold text-gray-500">発生日</th>
-                     <th className="px-6 py-3 font-bold text-gray-500">申請者</th>
-                     <th className="px-6 py-3 font-bold text-gray-500">部署</th>
-                     <th className="px-6 py-3 font-bold text-gray-500">内容</th>
-                     <th className="px-6 py-3 font-bold text-gray-500">ステータス</th>
-                   </tr>
-                 </thead>
-                 <tbody className="divide-y divide-gray-100">
-                   {incidentData.requests.map((req) => (
-                     <tr key={req.id} className="hover:bg-gray-50">
-                       <td className="px-6 py-4 text-gray-600 font-mono">{req.date}</td>
-                       <td className="px-6 py-4 font-bold text-gray-800">{req.userName}</td>
-                       <td className="px-6 py-4 text-gray-600">{req.userDept}</td>
-                       <td className="px-6 py-4 text-gray-800">{req.detail}</td>
-                       <td className="px-6 py-4">
-                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${req.status === 'completed' ? 'bg-gray-100 text-gray-600' : 'bg-red-50 text-red-600'}`}>
-                           {req.status === 'completed' ? '対応完了' : '対応中'}
-                         </span>
-                       </td>
-                     </tr>
-                   ))}
-                 </tbody>
-               </table>
-             </div>
+              </div>
+              <AlertTriangle className="absolute -right-6 -bottom-6 w-48 h-48 text-red-50 opacity-50 rotate-12" />
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                <h3 className="font-bold text-gray-700 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-gray-400" />
+                  インシデント詳細リスト
+                </h3>
+              </div>
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50/50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-6 py-3 font-bold text-gray-500">発生日</th>
+                    <th className="px-6 py-3 font-bold text-gray-500">申請者</th>
+                    <th className="px-6 py-3 font-bold text-gray-500">部署</th>
+                    <th className="px-6 py-3 font-bold text-gray-500">内容</th>
+                    <th className="px-6 py-3 font-bold text-gray-500">ステータス</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {incidentData.requests.map((req) => (
+                    <tr key={req.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-gray-600 font-mono">{req.date}</td>
+                      <td className="px-6 py-4 font-bold text-gray-800">{req.userName}</td>
+                      <td className="px-6 py-4 text-gray-600">{req.userDept}</td>
+                      <td className="px-6 py-4 text-gray-800">{req.detail}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${req.status === 'completed' ? 'bg-gray-100 text-gray-600' : 'bg-red-50 text-red-600'}`}>
+                          {req.status === 'completed' ? '対応完了' : '対応中'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

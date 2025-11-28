@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building2, X, Save } from 'lucide-react';
-import { type EmploymentHistory, MOCK_MASTER_DATA } from '@/lib/demo';
+import { type EmploymentHistory, type MasterData } from '@/lib/types';
+import { fetchMasterDataAction } from '@/app/actions';
 
 interface Props {
   isOpen: boolean;
@@ -11,14 +12,33 @@ interface Props {
 }
 
 export const HistoryModal = ({ isOpen, onClose, onSave }: Props) => {
+  const [masterData, setMasterData] = useState<MasterData>({
+    companies: [],
+    departments: [],
+    branches: []
+  });
+
   const [formData, setFormData] = useState({
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
-    company: MOCK_MASTER_DATA.companies[0],
+    company: '',
     dept: '',
     branch: '',
     position: ''
   });
+
+  // Fetch master data when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchMasterDataAction().then(data => {
+        setMasterData(data);
+        // Set default company if empty
+        if (!formData.company && data.companies.length > 0) {
+          setFormData(prev => ({ ...prev, company: data.companies[0] }));
+        }
+      });
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -39,12 +59,12 @@ export const HistoryModal = ({ isOpen, onClose, onSave }: Props) => {
     onClose();
     // リセット
     setFormData({
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: '',
-        company: MOCK_MASTER_DATA.companies[0],
-        dept: '',
-        branch: '',
-        position: ''
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: '',
+      company: masterData.companies[0] || '',
+      dept: '',
+      branch: '',
+      position: ''
     });
   };
 
@@ -60,53 +80,53 @@ export const HistoryModal = ({ isOpen, onClose, onSave }: Props) => {
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-               <label className="text-xs font-bold text-gray-500">開始日</label>
-               <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-                 value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
+              <label className="text-xs font-bold text-gray-500">開始日</label>
+              <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                value={formData.startDate} onChange={e => setFormData({ ...formData, startDate: e.target.value })} />
             </div>
             <div className="space-y-1">
-               <label className="text-xs font-bold text-gray-500">終了日 (任意)</label>
-               <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-                 value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+              <label className="text-xs font-bold text-gray-500">終了日 (任意)</label>
+              <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                value={formData.endDate} onChange={e => setFormData({ ...formData, endDate: e.target.value })} />
             </div>
           </div>
-          
+
           <div className="space-y-1">
             <label className="text-xs font-bold text-gray-500">会社 (マスタ選択)</label>
-            <select className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-              value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})}>
-              {MOCK_MASTER_DATA.companies.map(c => (
-                  <option key={c} value={c}>{c}</option>
+            <select className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              value={formData.company} onChange={e => setFormData({ ...formData, company: e.target.value })}>
+              {masterData.companies.map(c => (
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-             <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500">拠点</label>
-                <select className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-                  value={formData.branch} onChange={e => setFormData({...formData, branch: e.target.value})}>
-                   <option value="">選択</option>
-                   {MOCK_MASTER_DATA.branches.map(b => (
-                       <option key={b} value={b}>{b}</option>
-                   ))}
-                </select>
-             </div>
-             <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500">部署</label>
-                <input list="depts" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-                  placeholder="入力または選択" value={formData.dept} onChange={e => setFormData({...formData, dept: e.target.value})} />
-                <datalist id="depts">
-                    {MOCK_MASTER_DATA.departments.map(d => (
-                        <option key={d} value={d} />
-                    ))}
-                </datalist>
-             </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500">拠点</label>
+              <select className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                value={formData.branch} onChange={e => setFormData({ ...formData, branch: e.target.value })}>
+                <option value="">選択</option>
+                {masterData.branches.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500">部署</label>
+              <input list="depts" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="入力または選択" value={formData.dept} onChange={e => setFormData({ ...formData, dept: e.target.value })} />
+              <datalist id="depts">
+                {masterData.departments.map(d => (
+                  <option key={d} value={d} />
+                ))}
+              </datalist>
+            </div>
           </div>
           <div className="space-y-1">
             <label className="text-xs font-bold text-gray-500">役職</label>
-            <input className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-              placeholder="例: マネージャー" value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} />
+            <input className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="例: マネージャー" value={formData.position} onChange={e => setFormData({ ...formData, position: e.target.value })} />
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-2">

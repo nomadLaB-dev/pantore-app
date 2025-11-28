@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Search, Plus, Filter, Monitor, ChevronRight } from 'lucide-react';
-import { type UserSummary } from '@/lib/demo';
+import { type UserSummary } from '@/lib/types';
 
 interface Props {
   users: UserSummary[];
@@ -21,8 +21,8 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 export const UserList = ({ users, searchTerm, setSearchTerm, onUserClick, onOpenCreateModal }: Props) => {
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredUsers = users.filter(u =>
+    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.dept.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -33,7 +33,7 @@ export const UserList = ({ users, searchTerm, setSearchTerm, onUserClick, onOpen
         <div className="flex gap-2">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+            <input className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               placeholder="検索..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           </div>
           <button className="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm flex items-center gap-2 hover:bg-gray-50">

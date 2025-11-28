@@ -1,24 +1,26 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation'; // Add this
 import Link from 'next/link';
-import { 
-  Monitor, 
-  FileText, 
-  ChevronRight, 
-  AlertCircle, 
-  CheckCircle2, 
+import {
+  Monitor,
+  FileText,
+  ChevronRight,
+  AlertCircle,
+  CheckCircle2,
   Clock,
   Laptop,
-  PackageOpen 
+  PackageOpen
 } from 'lucide-react';
 
-import { 
-  MOCK_USER_DETAIL_DATA, 
-  MOCK_REQUESTS,
-  CURRENT_USER,
-  type RequestStatus
-} from '@/lib/demo';
+import {
+  type RequestStatus,
+  type Request,
+  type UserDetail
+} from '@/lib/types';
+import { fetchRequestsAction, fetchUserDetailAction, fetchCurrentUserAction } from '@/app/actions';
+import { createClient } from '@/utils/supabase/client';
 
 // --- Components ---
 
@@ -29,7 +31,7 @@ const StatusBadge = ({ status }: { status: RequestStatus }) => {
     completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     rejected: 'bg-red-50 text-red-700 border-red-200',
   };
-  
+
   const labels: Record<string, string> = {
     pending: '承認待ち',
     approved: '手配中',
@@ -45,18 +47,51 @@ const StatusBadge = ({ status }: { status: RequestStatus }) => {
 };
 
 export default function UserPortalPage() {
-  // 表示用プロフィールなどは詳細データを使う（デモ用）
-  const user = MOCK_USER_DETAIL_DATA;
+  const router = useRouter(); // Add this
+  const [user, setUser] = useState<UserDetail | null>(null);
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [reqs, userData] = await Promise.all([
+          fetchRequestsAction(),
+          fetchCurrentUserAction()
+        ]);
+
+        if (!userData) {
+          const supabase = createClient();
+          await supabase.auth.signOut();
+          router.push('/login');
+          return;
+        }
+
+        setRequests(reqs);
+        setUser(userData);
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+        const supabase = createClient();
+        await supabase.auth.signOut();
+        router.push('/login');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   // 申請履歴のフィルタリングロジック
   const myRequests = useMemo(() => {
+    if (!user) return []; // User not loaded yet
+
     const now = new Date();
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(now.getMonth() - 1);
 
-    return MOCK_REQUESTS
+    return requests
       .filter(req => {
-        if (req.userId !== CURRENT_USER.id) return false;
+        if (req.userId !== user.id) return false;
 
         const requestDate = new Date(req.date);
         const isRecent = requestDate >= oneMonthAgo;
@@ -65,7 +100,15 @@ export default function UserPortalPage() {
         return isRecent || isUnfinished;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, []);
+  }, [requests]);
+
+  if (isLoading) {
+    return <div className="p-10 text-center text-gray-500">読み込み中...</div>;
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
@@ -89,7 +132,7 @@ export default function UserPortalPage() {
             <Monitor className="w-5 h-5 text-pantore-500" />
             あなたの利用デバイス
           </h3>
-          
+
           {user.currentDevice ? (
             <>
               <div className="flex items-center gap-4 p-4 bg-pantore-50 rounded-xl border border-pantore-100">
@@ -120,13 +163,13 @@ export default function UserPortalPage() {
 
         {/* Quick Actions */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-pantore-200">
-           <h3 className="font-bold text-pantore-800 mb-4 flex items-center gap-2">
+          <h3 className="font-bold text-pantore-800 mb-4 flex items-center gap-2">
             <FileText className="w-5 h-5 text-pantore-500" />
             申請メニュー
           </h3>
           <div className="space-y-3">
             {/* 新規貸出申請 */}
-            <Link 
+            <Link
               href="/portal/request/new"
               className="block w-full text-left p-4 rounded-xl border border-pantore-200 hover:border-pantore-400 hover:bg-pantore-50 transition-all group bg-white"
             >
@@ -136,13 +179,13 @@ export default function UserPortalPage() {
               </div>
               <p className="text-xs text-pantore-500 mt-1 font-medium">入社・異動に伴う新規貸出はこちら</p>
             </Link>
-            
+
             {/* 返却申請 */}
-            <Link 
+            <Link
               href="/portal/request/return"
               className="block w-full text-left p-4 rounded-xl border border-pantore-200 hover:border-pantore-400 hover:bg-pantore-50 transition-all group bg-white"
             >
-               <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center">
                 <span className="font-bold text-pantore-700 group-hover:text-pantore-900">📦 返却申請</span>
                 <ChevronRight className="w-4 h-4 text-pantore-300 group-hover:text-pantore-500" />
               </div>
@@ -159,26 +202,25 @@ export default function UserPortalPage() {
           {myRequests.length > 0 ? (
             myRequests.map(req => (
               <div key={req.id} className="flex items-center justify-between p-4 bg-pantore-50 rounded-xl border border-pantore-100 hover:border-pantore-200 transition-colors">
-                 <div className="flex items-center gap-4">
-                    <div className={`p-2.5 rounded-full ${
-                      req.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : 
-                      req.status === 'pending' ? 'bg-yellow-100 text-yellow-600' : 'bg-pantore-200 text-pantore-600'
+                <div className="flex items-center gap-4">
+                  <div className={`p-2.5 rounded-full ${req.status === 'completed' ? 'bg-emerald-100 text-emerald-600' :
+                    req.status === 'pending' ? 'bg-yellow-100 text-yellow-600' : 'bg-pantore-200 text-pantore-600'
                     }`}>
-                      {req.status === 'completed' ? <CheckCircle2 className="w-5 h-5" /> :
-                       req.status === 'pending' ? <Clock className="w-5 h-5" /> :
-                       <FileText className="w-5 h-5" />
-                      }
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-pantore-800">
-                        {req.type === 'new_hire' ? '新規貸出申請' : req.type === 'breakdown' ? '故障修理申請' : '返却申請'}
-                      </p>
-                      <p className="text-xs text-pantore-500 mt-0.5 font-medium">
-                        申請日: {req.date} ・ {req.detail}
-                      </p>
-                    </div>
-                 </div>
-                 <StatusBadge status={req.status} />
+                    {req.status === 'completed' ? <CheckCircle2 className="w-5 h-5" /> :
+                      req.status === 'pending' ? <Clock className="w-5 h-5" /> :
+                        <FileText className="w-5 h-5" />
+                    }
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-pantore-800">
+                      {req.type === 'new_hire' ? '新規貸出申請' : req.type === 'breakdown' ? '故障修理申請' : '返却申請'}
+                    </p>
+                    <p className="text-xs text-pantore-500 mt-0.5 font-medium">
+                      申請日: {req.date} ・ {req.detail}
+                    </p>
+                  </div>
+                </div>
+                <StatusBadge status={req.status} />
               </div>
             ))
           ) : (

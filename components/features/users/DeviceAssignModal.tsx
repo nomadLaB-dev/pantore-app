@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Laptop, X, Monitor } from 'lucide-react';
-import { type DeviceHistory, type Asset } from '@/lib/demo';
+import { type DeviceHistory, type Asset } from '@/lib/types';
 
 interface Props {
   isOpen: boolean;
@@ -42,14 +42,14 @@ export const DeviceAssignModal = ({ isOpen, onClose, onSave, assets }: Props) =>
         </div>
         <div className="space-y-3">
           <label className="text-sm font-medium text-gray-700">貸出対象 (在庫)</label>
-          <select className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+          <select className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
             value={selectedAssetId} onChange={e => setSelectedAssetId(e.target.value)}>
             <option value="">選択してください</option>
             {availableAssets.map(a => <option key={a.id} value={a.id}>{a.model} ({a.serial})</option>)}
             {availableAssets.length === 0 && <option disabled>在庫なし</option>}
           </select>
           <label className="text-sm font-medium text-gray-700">貸出日</label>
-          <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+          <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             value={assignedAt} onChange={e => setAssignedAt(e.target.value)} />
         </div>
         <div className="flex justify-end gap-2 pt-2">

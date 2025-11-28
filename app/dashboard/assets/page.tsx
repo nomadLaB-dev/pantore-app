@@ -1,16 +1,25 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Search, Plus, ChevronRight, X, Save, Trash2, Monitor, User, 
-  DollarSign, Calendar, Calculator, Package, FileText
+import {
+  Search, Plus, ChevronRight, X, Save, Trash2, Monitor, User,
+  DollarSign, Calendar, Calculator, Package, FileText, Paperclip
 } from 'lucide-react';
 
 // モックデータ & 新しい型定義のインポート
-import { 
-  MOCK_ASSETS, MOCK_USERS_LIST, MOCK_SETTINGS, OWNERSHIP_LABELS, ASSET_ACCESSORIES,
-  type Asset, type AssetStatus, type OwnershipType
-} from '@/lib/demo';
+import {
+  OWNERSHIP_LABELS, ASSET_ACCESSORIES,
+  type Asset, type AssetStatus, type OwnershipType,
+  type UserSummary, type OrganizationSettings
+} from '@/lib/types';
+import {
+  fetchAssetsAction,
+  fetchUsersAction,
+  fetchSettingsAction,
+  createAssetAction,
+  updateAssetAction,
+  deleteAssetAction
+} from '@/app/actions';
 
 // --- Components (Badge) ---
 const StatusBadge = ({ status }: { status: string }) => {
@@ -38,14 +47,17 @@ interface AssetModalProps {
   asset: Asset | null;
   onSave: (asset: Asset) => void;
   onDelete?: (id: string) => void;
+  users: UserSummary[];
+  settings: OrganizationSettings | null;
 }
 
-const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProps) => {
+const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete, users, settings }: AssetModalProps) => {
   const [formData, setFormData] = useState<Partial<Asset>>({
     managementId: '', serial: '', model: '', status: 'available',
     ownership: 'owned', purchaseDate: new Date().toISOString().split('T')[0],
     purchaseCost: 0, monthlyCost: 0, months: 0, contractEndDate: '',
-    userId: '', 
+    depreciationMonths: 0, contractFile: '', // 🆕 追加
+    userId: '',
     accessories: [], // 初期値
     note: ''
   });
@@ -62,7 +74,8 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProp
           ownership: 'owned',
           purchaseDate: new Date().toISOString().split('T')[0],
           purchaseCost: 0, monthlyCost: 0, months: 0, contractEndDate: '',
-          userId: null, userName: '-', 
+          depreciationMonths: 0, contractFile: '', // 🆕 追加
+          userId: null, userName: '-',
           accessories: ['充電アダプタ', '電源ケーブル'], // 新規作成時のデフォルト
           note: ''
         });
@@ -94,7 +107,7 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProp
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const selectedUser = MOCK_USERS_LIST.find(u => u.id === formData.userId);
+    const selectedUser = users.find(u => u.id === formData.userId);
     const dataToSave = {
       ...formData,
       userName: selectedUser ? selectedUser.name : (formData.userId ? '不明なユーザー' : '-'),
@@ -109,7 +122,7 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProp
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-        
+
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 sticky top-0 z-10">
           <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -123,18 +136,18 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProp
 
         {/* Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          
+
           {/* 1. 基本情報 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">管理番号 (Asset Tag)</label>
               <input required type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                value={formData.managementId} onChange={(e) => setFormData({...formData, managementId: e.target.value})} />
+                value={formData.managementId} onChange={(e) => setFormData({ ...formData, managementId: e.target.value })} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">ステータス</label>
               <select className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
-                value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value as AssetStatus})}>
+                value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value as AssetStatus })}>
                 <option value="available">在庫 (Available)</option>
                 <option value="in_use">貸出中 (In Use)</option>
                 <option value="repair">修理中</option>
@@ -148,12 +161,12 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProp
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">機種名 (Model)</label>
               <input required type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                value={formData.model} onChange={(e) => setFormData({...formData, model: e.target.value})} />
+                value={formData.model} onChange={(e) => setFormData({ ...formData, model: e.target.value })} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">シリアル番号 (S/N)</label>
               <input required type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono"
-                value={formData.serial} onChange={(e) => setFormData({...formData, serial: e.target.value})} />
+                value={formData.serial} onChange={(e) => setFormData({ ...formData, serial: e.target.value })} />
             </div>
           </div>
 
@@ -167,8 +180,11 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProp
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">所有形態</label>
                 <select className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
-                  value={formData.ownership} onChange={(e) => setFormData({...formData, ownership: e.target.value as OwnershipType})}>
-                  {MOCK_SETTINGS.allowedOwnerships.map(type => (
+                  value={formData.ownership} onChange={(e) => setFormData({ ...formData, ownership: e.target.value as OwnershipType })}>
+                  {(settings?.allowedOwnerships && settings.allowedOwnerships.length > 0
+                    ? settings.allowedOwnerships
+                    : ['owned', 'rental', 'lease', 'byod'] as OwnershipType[]
+                  ).map(type => (
                     <option key={type} value={type}>{OWNERSHIP_LABELS[type]}</option>
                   ))}
                 </select>
@@ -178,20 +194,31 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProp
                   {formData.ownership === 'rental' || formData.ownership === 'lease' ? '契約開始日' : '購入日'}
                 </label>
                 <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  value={formData.purchaseDate} onChange={(e) => setFormData({...formData, purchaseDate: e.target.value})} />
+                  value={formData.purchaseDate || ''} onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })} />
               </div>
             </div>
 
             {/* コスト入力 */}
-             {formData.ownership === 'owned' && (
-               <div className="space-y-2 animate-in fade-in">
-                 <label className="text-sm font-medium text-gray-700">購入金額</label>
-                 <div className="relative">
-                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">¥</span>
-                   <input type="number" className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg"
-                     value={formData.purchaseCost || ''} onChange={(e) => setFormData({...formData, purchaseCost: parseInt(e.target.value) || 0})} />
-                 </div>
-               </div>
+            {formData.ownership === 'owned' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">購入金額</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">¥</span>
+                    <input type="number" className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg"
+                      value={formData.purchaseCost || ''} onChange={(e) => setFormData({ ...formData, purchaseCost: parseInt(e.target.value) || 0 })} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">償却期間 (ヶ月)</label>
+                  <div className="relative">
+                    <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder="例: 36, 48, 60"
+                      value={formData.depreciationMonths || ''} onChange={(e) => setFormData({ ...formData, depreciationMonths: parseInt(e.target.value) || 0 })} />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">ヶ月</span>
+                  </div>
+                </div>
+              </div>
             )}
 
             {(formData.ownership === 'rental' || formData.ownership === 'lease') && (
@@ -201,7 +228,7 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProp
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">¥</span>
                     <input type="number" className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg"
-                      value={formData.monthlyCost || ''} onChange={(e) => setFormData({...formData, monthlyCost: parseInt(e.target.value) || 0})} />
+                      value={formData.monthlyCost || ''} onChange={(e) => setFormData({ ...formData, monthlyCost: parseInt(e.target.value) || 0 })} />
                   </div>
                 </div>
                 {formData.ownership === 'lease' && (
@@ -209,7 +236,7 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProp
                     <label className="text-sm font-medium text-gray-700">契約月数</label>
                     <div className="relative">
                       <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        value={formData.months || ''} onChange={(e) => setFormData({...formData, months: parseInt(e.target.value) || 0})} />
+                        value={formData.months || ''} onChange={(e) => setFormData({ ...formData, months: parseInt(e.target.value) || 0 })} />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">ヶ月</span>
                     </div>
                   </div>
@@ -217,18 +244,18 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProp
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">契約終了日</label>
                   <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    value={formData.contractEndDate || ''} onChange={(e) => setFormData({...formData, contractEndDate: e.target.value})} />
+                    value={formData.contractEndDate || ''} onChange={(e) => setFormData({ ...formData, contractEndDate: e.target.value })} />
                 </div>
               </div>
             )}
 
             {formData.ownership !== 'byod' && estimatedTotalCost > 0 && (
-               <div className="flex justify-end text-sm text-gray-600 pt-2 border-t border-pantore-200 border-dashed">
-                 <span className="flex items-center gap-2">
-                   <Calculator className="w-4 h-4" />
-                   概算総コスト: <span className="font-bold text-lg text-pantore-700">¥{estimatedTotalCost.toLocaleString()}</span>
-                 </span>
-               </div>
+              <div className="flex justify-end text-sm text-gray-600 pt-2 border-t border-pantore-200 border-dashed">
+                <span className="flex items-center gap-2">
+                  <Calculator className="w-4 h-4" />
+                  概算総コスト: <span className="font-bold text-lg text-pantore-700">¥{estimatedTotalCost.toLocaleString()}</span>
+                </span>
+              </div>
             )}
           </div>
 
@@ -238,10 +265,10 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProp
               <User className="w-4 h-4" /> 現在の利用者
             </label>
             <select className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
-              value={formData.userId || ''} onChange={(e) => setFormData({...formData, userId: e.target.value})}>
+              value={formData.userId || ''} onChange={(e) => setFormData({ ...formData, userId: e.target.value })}>
               <option value="">(未割当 - 在庫)</option>
               <optgroup label="社員リスト">
-                {MOCK_USERS_LIST.map(user => (
+                {users.map(user => (
                   <option key={user.id} value={user.id}>{user.name} ({user.dept})</option>
                 ))}
               </optgroup>
@@ -265,8 +292,8 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProp
                       onClick={() => toggleAccessory(item)}
                       className={`
                         px-3 py-1.5 rounded-full text-xs font-bold border transition-all
-                        ${isSelected 
-                          ? 'bg-pantore-500 text-white border-pantore-500 shadow-sm' 
+                        ${isSelected
+                          ? 'bg-pantore-500 text-white border-pantore-500 shadow-sm'
                           : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}
                       `}
                     >
@@ -284,37 +311,74 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProp
               )}
             </div>
 
+            {/* 契約書添付 (🆕 追加) */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <Paperclip className="w-4 h-4" /> 契約書・証憑 (Contract)
+              </label>
+              <div className="flex items-center gap-3">
+                <label className="cursor-pointer bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+                  ファイルを選択
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setFormData({ ...formData, contractFile: file.name });
+                      }
+                    }}
+                  />
+                </label>
+                {formData.contractFile ? (
+                  <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm border border-blue-100">
+                    <FileText className="w-4 h-4" />
+                    <span className="truncate max-w-[200px]">{formData.contractFile}</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, contractFile: '' })}
+                      className="hover:bg-blue-100 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-400">未添付</span>
+                )}
+              </div>
+            </div>
+
             {/* メモ */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <FileText className="w-4 h-4" /> 備考・メモ (Notes)
               </label>
-              <textarea 
+              <textarea
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pantore-500 resize-none bg-pantore-50/50"
                 placeholder="例: マウスは故障したため情シスで保管済み / 画面に小さな傷あり"
                 value={formData.note || ''}
-                onChange={(e) => setFormData({...formData, note: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, note: e.target.value })}
               />
             </div>
           </div>
 
           {/* Footer Buttons */}
           <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
-             <div>
-               {asset && onDelete && (
-                 <button type="button" onClick={() => { if(confirm('削除しますか？')) { onDelete(asset.id); onClose(); } }}
-                   className="text-red-500 hover:bg-red-50 px-3 py-2 rounded text-sm flex items-center gap-1 transition-colors">
-                   <Trash2 className="w-4 h-4" /> 削除
-                 </button>
-               )}
-             </div>
-             <div className="flex gap-3">
-               <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">キャンセル</button>
-               <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm flex items-center gap-2">
-                 <Save className="w-4 h-4" /> 保存する
-               </button>
-             </div>
+            <div>
+              {asset && onDelete && (
+                <button type="button" onClick={() => { if (confirm('削除しますか？')) { onDelete(asset.id); onClose(); } }}
+                  className="text-red-500 hover:bg-red-50 px-3 py-2 rounded text-sm flex items-center gap-1 transition-colors">
+                  <Trash2 className="w-4 h-4" /> 削除
+                </button>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">キャンセル</button>
+              <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm flex items-center gap-2">
+                <Save className="w-4 h-4" /> 保存する
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -325,9 +389,35 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete }: AssetModalProp
 // --- Main Page Component ---
 export default function AssetsPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [assets, setAssets] = useState<Asset[]>(MOCK_ASSETS);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [users, setUsers] = useState<UserSummary[]>([]);
+  const [settings, setSettings] = useState<OrganizationSettings | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+  const [costDisplayMode, setCostDisplayMode] = useState<'monthly' | 'total'>('monthly');
+
+  // Fetch data
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [assetsData, usersData, settingsData] = await Promise.all([
+          fetchAssetsAction(),
+          fetchUsersAction(),
+          fetchSettingsAction()
+        ]);
+        setAssets(assetsData);
+        setUsers(usersData);
+        setSettings(settingsData);
+      } catch (error) {
+        console.error('Failed to load data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
   const filteredAssets = assets.filter((asset) => {
     const term = searchTerm.toLowerCase();
@@ -338,29 +428,67 @@ export default function AssetsPage() {
     );
   });
 
-  const handleSave = (savedAsset: Asset) => {
-    if (editingAsset) {
-      setAssets(assets.map(a => a.id === savedAsset.id ? savedAsset : a));
-    } else {
-      setAssets([...assets, savedAsset]);
+  const handleSave = async (savedAsset: Asset) => {
+    try {
+      if (editingAsset) {
+        await updateAssetAction(savedAsset);
+      } else {
+        await createAssetAction(savedAsset);
+      }
+      // Reload assets
+      const updatedAssets = await fetchAssetsAction();
+      setAssets(updatedAssets);
+      setIsModalOpen(false);
+      alert('資産情報を保存しました！');
+    } catch (error) {
+      console.error('Failed to save asset:', error);
+      alert('保存に失敗しました。');
     }
-    setIsModalOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    setAssets(assets.filter(a => a.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteAssetAction(id);
+      // Reload assets
+      const updatedAssets = await fetchAssetsAction();
+      setAssets(updatedAssets);
+      alert('資産を削除しました。');
+    } catch (error) {
+      console.error('Failed to delete asset:', error);
+      alert('削除に失敗しました。');
+    }
   };
+
+  if (isLoading) {
+    return <div className="p-10 text-center text-gray-500">読み込み中...</div>;
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <AssetModal 
-        isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} 
+      <AssetModal
+        isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}
         asset={editingAsset} onSave={handleSave} onDelete={handleDelete}
+        users={users}
+        settings={settings}
       />
 
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">資産一覧</h2>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <div className="flex bg-gray-100 p-1 rounded-lg mr-2">
+            <button
+              onClick={() => setCostDisplayMode('monthly')}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${costDisplayMode === 'monthly' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              月額
+            </button>
+            <button
+              onClick={() => setCostDisplayMode('total')}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${costDisplayMode === 'total' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              総額
+            </button>
+          </div>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input type="text" placeholder="検索..." className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm w-64"
@@ -380,7 +508,7 @@ export default function AssetsPage() {
               <th className="px-6 py-3 font-medium text-gray-500">管理番号</th>
               <th className="px-6 py-3 font-medium text-gray-500">機種名</th>
               <th className="px-6 py-3 font-medium text-gray-500">所有形態</th>
-              <th className="px-6 py-3 font-medium text-gray-500 text-right">コスト(月額/総額)</th>
+              <th className="px-6 py-3 font-medium text-gray-500 text-right">コスト ({costDisplayMode === 'monthly' ? '月額' : '総額'})</th>
               <th className="px-6 py-3 font-medium text-gray-500">利用者</th>
               <th className="px-6 py-3 font-medium text-gray-500">ステータス</th>
               <th className="px-6 py-3 font-medium text-gray-500">期限</th>
@@ -394,31 +522,45 @@ export default function AssetsPage() {
                 <td className="px-6 py-4 font-mono font-medium">{asset.managementId}</td>
                 <td className="px-6 py-4 font-bold text-gray-700">{asset.model}</td>
                 <td className="px-6 py-4">
-                   <span className={`text-xs px-2 py-1 rounded border ${
-                     asset.ownership === 'rental' ? 'bg-orange-50 text-orange-700 border-orange-100' :
-                     asset.ownership === 'lease' ? 'bg-purple-50 text-purple-700 border-purple-100' :
-                     asset.ownership === 'owned' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                     'bg-gray-50 text-gray-600 border-gray-100'
-                   }`}>
-                     {OWNERSHIP_LABELS[asset.ownership]}
-                   </span>
+                  <span className={`text-xs px-2 py-1 rounded border ${asset.ownership === 'rental' ? 'bg-orange-50 text-orange-700 border-orange-100' :
+                    asset.ownership === 'lease' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                      asset.ownership === 'owned' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                        'bg-gray-50 text-gray-600 border-gray-100'
+                    }`}>
+                    {OWNERSHIP_LABELS[asset.ownership]}
+                  </span>
                 </td>
                 <td className="px-6 py-4 text-right font-mono text-gray-600">
-                  {asset.ownership === 'rental' || asset.ownership === 'lease' 
-                    ? `¥${(asset.monthlyCost || 0).toLocaleString()}/月`
-                    : asset.ownership === 'owned' 
-                    ? `¥${(asset.purchaseCost || 0).toLocaleString()}`
-                    : '-'}
+                  {(() => {
+                    if (asset.ownership === 'rental' || asset.ownership === 'lease') {
+                      if (costDisplayMode === 'monthly') {
+                        return `¥${(asset.monthlyCost || 0).toLocaleString()}/月`;
+                      } else {
+                        return `¥${((asset.monthlyCost || 0) * (asset.months || 0)).toLocaleString()}`;
+                      }
+                    } else if (asset.ownership === 'owned') {
+                      if (costDisplayMode === 'monthly') {
+                        const months = asset.depreciationMonths || 0;
+                        if (months > 0) {
+                          return `¥${Math.round((asset.purchaseCost || 0) / months).toLocaleString()}/月`;
+                        }
+                        return '-';
+                      } else {
+                        return `¥${(asset.purchaseCost || 0).toLocaleString()}`;
+                      }
+                    }
+                    return '-';
+                  })()}
                 </td>
                 <td className="px-6 py-4">
-                   {asset.userName !== '-' ? (
+                  {asset.userName !== '-' ? (
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-pantore-100 text-pantore-600 flex items-center justify-center text-xs font-bold">
                         {asset.userName?.charAt(0)}
                       </div>
                       <span>{asset.userName}</span>
                     </div>
-                   ) : <span className="text-gray-300 text-xs">未割当</span>}
+                  ) : <span className="text-gray-300 text-xs">未割当</span>}
                 </td>
                 <td className="px-6 py-4"><StatusBadge status={asset.status} /></td>
                 <td className="px-6 py-4 text-xs text-gray-500 font-mono">
