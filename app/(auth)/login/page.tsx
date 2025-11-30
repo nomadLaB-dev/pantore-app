@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Utensils,
   Lock,
@@ -8,23 +10,41 @@ import {
   ArrowRight,
   AlertCircle
 } from 'lucide-react';
-import { login } from '../actions';
 
 export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
-  const handleSubmit = async (formData: FormData) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    const result = await login(formData);
+    const formData = new FormData(e.currentTarget);
 
-    if (result?.error) {
-      setError(result.error);
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        body: formData, // Send form data directly
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError(result.error || 'An unexpected error occurred.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // On success, redirect to the portal
+      router.push('/portal');
+      router.refresh(); // Force a refresh to ensure server-side data is up-to-date
+
+    } catch (e) {
+      setError('Failed to connect to the server.');
       setIsLoading(false);
     }
-    // Success redirect is handled by the server action
   };
 
   return (
@@ -40,7 +60,7 @@ export default function LoginPage() {
         </div>
 
         <div className="p-8 pt-10">
-          <form action={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
 
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-2 animate-in slide-in-from-top-2">
@@ -93,13 +113,12 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-8 text-center">
-            <p className="text-xs text-pantore-400 mb-2">動作確認用アカウント</p>
-            <div className="flex flex-col gap-1 text-xs text-pantore-500 bg-pantore-50 p-3 rounded-lg border border-pantore-100">
-              <span>👑 yoshito.s.0717@gmail.com (Admin)</span>
-              <span>※ パスワードは設定したものを使用</span>
-            </div>
+          <div className="text-center text-sm mt-8">
+            <Link href="/signup" className="text-pantore-600 hover:underline">
+                アカウントをお持ちでないですか？ 新規登録
+            </Link>
           </div>
+
         </div>
       </div>
     </div>

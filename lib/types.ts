@@ -2,6 +2,11 @@
 // Type Definitions
 // ==========================================
 
+export type Tenant = {
+  id: string;
+  name: string;
+};
+
 export type Role = 'admin' | 'manager' | 'user';
 
 export type AssetStatus = 'available' | 'in_use' | 'maintenance' | 'repair' | 'disposed';
@@ -46,6 +51,7 @@ export interface MasterData {
 // 組織設定
 export interface OrganizationSettings {
     id?: string;
+    tenantId?: string;
     name: string;
     allowedOwnerships: OwnershipType[];
     contactLabel: string;
@@ -55,6 +61,7 @@ export interface OrganizationSettings {
 // 資産（PC）データ型
 export interface Asset {
     id: string;
+    tenantId?: string;
     managementId: string;
     serial: string;
     model: string;
@@ -81,6 +88,7 @@ export interface Asset {
 // ユーザー一覧用データ型
 export interface UserSummary {
     id: string;
+    tenantId?: string;
     name: string;
     email: string;
     role: Role;
@@ -94,6 +102,7 @@ export interface UserSummary {
 // 所属履歴型
 export interface EmploymentHistory {
     id: number;
+    tenantId?: string;
     startDate: string;
     endDate: string | null;
     company: string;
@@ -119,6 +128,7 @@ export interface UserDetail extends UserSummary {
 // 申請データ型
 export interface Request {
     id: string;
+    tenantId?: string;
     type: RequestType;
     userId: string;
     userName: string;

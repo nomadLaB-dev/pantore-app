@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -21,9 +21,10 @@ import { type UserDetail } from '@/lib/types';
 interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
+  tenantSwitcher?: ReactNode; // Tenant switcher component
 }
 
-export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
+export default function Sidebar({ isOpen = false, onClose, tenantSwitcher }: SidebarProps) {
   const pathname = usePathname();
   const [user, setUser] = useState<UserDetail | null>(null);
 
@@ -96,8 +97,13 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
               <X className="w-6 h-6" />
             </button>
           </div>
+          
+          {/* Tenant Switcher Slot */}
+          <div className="px-4 mt-2 mb-4">
+            {tenantSwitcher}
+          </div>
 
-          <nav className="px-4 space-y-1 mt-4">
+          <nav className="px-4 space-y-1">
             {menuItems.map((item) => {
               const isActive = pathname === item.href;
               return (

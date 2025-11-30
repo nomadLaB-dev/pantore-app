@@ -1,8 +1,9 @@
-"use client"; // 状態管理のためにクライアントコンポーネント化
+"use client";
 
 import { useState } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Menu } from "lucide-react"; // ハンバーガーアイコン
+import { Menu } from "lucide-react";
+import { TenantSwitcher } from "@/components/TenantSwitcher";
 
 export default function AdminLayout({
   children,
@@ -13,21 +14,17 @@ export default function AdminLayout({
 
   return (
     <div className="flex min-h-screen bg-gray-50/50">
-      {/* サイドバー
-        スマホ時は isSidebarOpen で出し入れ、PC時は常時表示 
-      */}
+      {/* サイドバー */}
       <Sidebar 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
+        tenantSwitcher={<TenantSwitcher />}
       />
       
-      {/* メインコンテンツエリア
-          🚨 修正ポイント: md:ml-64 を追加しました！
-          これでPC表示の時だけ、左側にサイドバー分のスペースが確保されます✨
-      */}
+      {/* メインコンテンツエリア */}
       <div className="flex-1 flex flex-col min-w-0 md:ml-64 transition-all duration-300">
         
-        {/* 🆕 モバイル用ヘッダー（PCでは隠す） */}
+        {/* モバイル用ヘッダー（PCでは隠す） */}
         <header className="md:hidden bg-white border-b border-gray-200 p-4 flex items-center sticky top-0 z-30">
           <button 
             onClick={() => setIsSidebarOpen(true)}

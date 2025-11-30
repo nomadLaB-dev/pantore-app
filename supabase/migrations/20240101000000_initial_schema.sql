@@ -1,3 +1,5 @@
+create extension if not exists moddatetime with schema extensions;
+
 -- Create Users table (extends auth.users)
 create table public.users (
   id uuid references auth.users on delete cascade not null primary key,

@@ -1,38 +1,65 @@
-'use server'
+'use server';
 
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
+import { cookies } from 'next/headers';
+import { createClient, createAdminClient } from '@/utils/supabase/server';
+import { redirect } from 'next/navigation';
 
+// --- Login Action ---
 export async function login(formData: FormData) {
-    const supabase = await createClient()
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
 
-    // Type-casting here for convenience
-    // In a real app, you might want to validate inputs with Zod
-    const email = formData.get('email') as string
-    const password = formData.get('password') as string
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-    const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-    })
+  if (error) {
+    return { error: 'Invalid login credentials. Please try again.' };
+  }
 
-    if (error) {
-        return { error: 'ログインに失敗しました。メールアドレスとパスワードを確認してください。' }
-    }
-
-    revalidatePath('/', 'layout')
-    redirect('/dashboard')
+  return redirect('/portal');
 }
 
-export async function signup(formData: FormData) {
-    const supabase = await createClient()
 
-    const email = formData.get('email') as string
-    const password = formData.get('password') as string
-    const name = formData.get('name') as string
+// --- Multi-Step Signup Actions ---
 
-    const { error } = await supabase.auth.signUp({
+const SHARED_DOMAINS = new Set([
+  'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 
+  'me.com', 'mac.com', 'live.com', 'msn.com', 'aol.com'
+]);
+
+export async function checkDomainForTenant(email: string): Promise<{ tenantId: string; tenantName: string } | null> {
+    if (!email) return null;
+    const domain = email.split('@')[1];
+    if (!domain || SHARED_DOMAINS.has(domain)) {
+        return null;
+    }
+
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+    const { data: tenant } = await supabase
+        .from('tenants')
+        .select('id, name')
+        .eq('domain', domain)
+        .single();
+    
+    if (tenant) {
+        return { tenantId: tenant.id, tenantName: tenant.name };
+    }
+    return null;
+}
+
+export async function standardSignup(formData: FormData) {
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    const name = formData.get('name') as string;
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+
+    const { data: { user }, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -40,19 +67,66 @@ export async function signup(formData: FormData) {
                 name: name,
             },
         },
-    })
+    });
 
     if (error) {
-        return { error: error.message }
+        return { error: 'Could not complete signup. Please try again.' };
     }
 
-    revalidatePath('/', 'layout')
-    redirect('/dashboard')
+    if (user) {
+        const supabaseAdmin = createAdminClient();
+        await supabaseAdmin.auth.admin.updateUserById(
+            user.id,
+            { email_confirm: true }
+        );
+    }
+
+    return { success: true };
 }
 
-export async function logout() {
-    const supabase = await createClient()
-    await supabase.auth.signOut()
-    revalidatePath('/', 'layout')
-    redirect('/login')
+export async function signupAndRequestToJoin(formData: FormData) {
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    const name = formData.get('name') as string;
+    const tenantId = formData.get('tenantId') as string;
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+
+    const { data: { user }, error: signupError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+            data: {
+                name: name,
+            },
+        },
+    });
+
+    if (signupError) {
+        return { error: 'Could not create user account. The email may be taken.' };
+    }
+    
+    if (!user) {
+        return { error: 'User was not created. Please try again.' };
+    }
+
+    const supabaseAdmin = createAdminClient();
+    await supabaseAdmin.auth.admin.updateUserById(
+        user.id,
+        { email_confirm: true }
+    );
+
+    const { error: requestError } = await supabase
+        .from('join_requests')
+        .insert({
+            email: user.email!,
+            tenant_id: tenantId,
+            status: 'pending',
+        });
+    
+    if (requestError) {
+        return { error: 'Your account was created, but the request to join failed. Please contact support.' };
+    }
+
+    return { success: true };
 }

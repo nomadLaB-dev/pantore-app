@@ -53,14 +53,14 @@ export default function LandingPage() {
                                 href="/login"
                                 className="w-full sm:w-auto px-8 py-4 bg-[#92400e] text-[#fffbeb] font-bold rounded-full hover:bg-[#78350f] transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2 border-2 border-[#92400e]"
                             >
-                                デモを試す <ArrowRight className="w-4 h-4" />
+                                ログイン <ArrowRight className="w-4 h-4" />
                             </Link>
-                            <a
-                                href="#features"
+                            <Link
+                                href="/signup"
                                 className="w-full sm:w-auto px-8 py-4 bg-white/80 backdrop-blur text-[#78350f] font-bold rounded-full border-2 border-[#d6d3d1] hover:bg-white hover:border-[#92400e] transition-all flex items-center justify-center shadow-sm"
                             >
-                                機能を見る
-                            </a>
+                                無料サインアップ
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -253,13 +253,20 @@ export default function LandingPage() {
                         アカウント登録は無料。クレジットカードも不要です。<br />
                         今すぐ、新しい資産管理の世界へ。
                     </p>
-                    <Link
-                        href="/login"
-                        className="inline-flex items-center justify-center px-8 py-4 bg-[#92400e] text-[#fffbeb] font-bold rounded-full hover:bg-[#78350f] transition-all shadow-lg hover:shadow-xl gap-2 border-2 border-[#92400e]"
-                    >
-                        無料でデモを試す <ArrowRight className="w-4 h-4" />
-                    </Link>
-                </div>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <Link
+                            href="/login"
+                            className="inline-flex items-center justify-center px-8 py-4 bg-[#92400e] text-[#fffbeb] font-bold rounded-full hover:bg-[#78350f] transition-all shadow-lg hover:shadow-xl gap-2 border-2 border-[#92400e]"
+                        >
+                            ログイン <ArrowRight className="w-4 h-4" />
+                        </Link>
+                        <Link
+                            href="/signup"
+                            className="inline-flex items-center justify-center px-8 py-4 bg-white/80 backdrop-blur text-[#78350f] font-bold rounded-full border-2 border-[#d6d3d1] hover:bg-white hover:border-[#92400e] transition-all shadow-sm"
+                        >
+                            無料サインアップ
+                        </Link>
+                    </div>                </div>
             </section>
         </div>
     );

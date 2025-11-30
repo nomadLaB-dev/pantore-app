@@ -2,37 +2,53 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/utils/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-    // 1. Update session (refresh token if needed)
-    const { response, user } = await updateSession(request)
+    // 1. Update session and get Supabase client & user
+    const { supabase, response, user } = await updateSession(request)
 
     const path = request.nextUrl.pathname
 
-    // 2. Define protected routes
-    // /dashboard, /portal are protected
+    // Define routes
     const isProtectedRoute = path.startsWith('/dashboard') || path.startsWith('/portal')
+    const isAuthRoute = path.startsWith('/login')
+    const isCreateTenantRoute = path === '/portal/create-tenant'
 
-    // 3. Define auth routes (login/signup)
-    // Users should not visit these if already logged in
-    const isAuthRoute = path.startsWith('/login') || path.startsWith('/signup')
+    // --- Main Redirect Logic ---
 
-    // 4. Redirect logic
-    if (isProtectedRoute && !user) {
-        // If trying to access protected route without user, redirect to login
+    // A. Handle unauthenticated users
+    if (!user && isProtectedRoute) {
         const redirectUrl = request.nextUrl.clone()
         redirectUrl.pathname = '/login'
-        redirectUrl.searchParams.set('next', path) // Save original path
+        redirectUrl.searchParams.set('next', path)
         return NextResponse.redirect(redirectUrl)
     }
 
-    if (isAuthRoute && user) {
-        // If trying to access login page with user, redirect to dashboard (or portal)
-        const redirectUrl = request.nextUrl.clone()
-        // TODO: Role based redirect (Admin -> Dashboard, User -> Portal)
-        // For now default to dashboard, or maybe check user metadata if available
-        redirectUrl.pathname = '/portal'
-        return NextResponse.redirect(redirectUrl)
+    // B. Handle authenticated users
+    if (user) {
+        // B1. Redirect away from auth routes if logged in
+        if (isAuthRoute) {
+            return NextResponse.redirect(new URL('/portal', request.url))
+        }
+
+        // B2. Check for tenant membership on protected routes
+        if (isProtectedRoute) {
+            const { count } = await supabase
+                .from('memberships')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', user.id)
+
+            // If user has no memberships and is not on the create-tenant page, redirect them.
+            if (count === 0 && !isCreateTenantRoute) {
+                return NextResponse.redirect(new URL('/portal/create-tenant', request.url))
+            }
+
+            // If user has memberships but somehow lands on create-tenant, redirect them away.
+            if (count !== null && count > 0 && isCreateTenantRoute) {
+                 return NextResponse.redirect(new URL('/portal', request.url))
+            }
+        }
     }
 
+    // C. If no redirects, continue with the response
     return response
 }
 
@@ -43,11 +59,9 @@ export const config = {
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
-         * - api (API routes - handled separately if needed, but usually we want middleware there too? 
-         *   Actually for API routes we might want to return 401 instead of redirect. 
-         *   For now let's exclude them from this redirect logic or handle them specifically.)
+         * - api (API routes)
          * Feel free to modify this pattern to include more paths.
          */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }
