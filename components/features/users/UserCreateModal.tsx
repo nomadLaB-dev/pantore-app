@@ -17,7 +17,7 @@ export const UserCreateModal = ({ isOpen, onClose, onSave, masterData }: Props) 
     email: '',
     company: masterData?.companies[0] || '', // Default to first company or empty
     dept: '',
-    role: 'user'
+    role: 'member' // Changed default role to 'member'
   });
 
   // Update default company when masterData loads
@@ -45,7 +45,7 @@ export const UserCreateModal = ({ isOpen, onClose, onSave, masterData }: Props) 
       status: 'active'
     });
     onClose();
-    setFormData({ name: '', email: '', company: masterData?.companies[0] || '', dept: '', role: 'user' });
+    setFormData({ name: '', email: '', company: masterData?.companies[0] || '', dept: '', role: 'member' });
   };
 
   return (
@@ -58,6 +58,18 @@ export const UserCreateModal = ({ isOpen, onClose, onSave, masterData }: Props) 
           <button onClick={onClose} className="text-gray-400 hover:bg-gray-100 p-1 rounded-full"><X className="w-5 h-5" /></button>
         </div>
         <div className="space-y-3">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">権限</label>
+            <select
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={formData.role}
+              onChange={e => setFormData({ ...formData, role: e.target.value as Role })}
+            >
+              <option value="member">一般 (User)</option>
+              <option value="admin">管理者 (Admin)</option>
+            </select>
+          </div>
           <input className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
             placeholder="氏名" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
           <input className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"

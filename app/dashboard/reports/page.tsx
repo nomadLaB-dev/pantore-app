@@ -23,9 +23,11 @@ import {
 type ReportType = 'cost' | 'incident';
 type SortKey = 'company' | 'dept' | 'assetCount' | 'cost';
 type SortDirection = 'asc' | 'desc';
+type ViewMode = 'branch' | 'dept';
 
 export default function ReportsPage() {
   const [reportType, setReportType] = useState<ReportType>('cost');
+  const [viewMode, setViewMode] = useState<ViewMode>('branch');
   const [date, setDate] = useState({ year: 2025, month: 11 });
   const [costData, setCostData] = useState<CostReportRow[]>([]);
   const [incidentData, setIncidentData] = useState<IncidentReportData>({ count: 0, requests: [] });
@@ -60,16 +62,40 @@ export default function ReportsPage() {
     return costData.reduce((sum, row) => sum + row.cost, 0);
   }, [costData]);
 
-  // ソート済みデータ
-  const sortedCostData = useMemo(() => {
-    return [...costData].sort((a, b) => {
-      const aValue = a[sortConfig.key];
-      const bValue = b[sortConfig.key];
+  // 集計 & ソート済みデータ
+  const aggregatedData = useMemo(() => {
+    // Aggregate based on viewMode
+    const map = new Map<string, CostReportRow>();
+    costData.forEach(row => {
+      const key = viewMode === 'branch' ? row.company : row.dept;
+      if (!map.has(key)) {
+        map.set(key, {
+          company: viewMode === 'branch' ? row.company : '-', // In dept view, company is mixed or ignored
+          dept: viewMode === 'dept' ? row.dept : '-', // In branch view, dept is mixed
+          assetCount: 0,
+          cost: 0
+        });
+      }
+      const entry = map.get(key)!;
+      entry.assetCount += row.assetCount;
+      entry.cost += row.cost;
+    });
+
+    const aggregated = Array.from(map.values());
+
+    return aggregated.sort((a, b) => {
+      const aValue = sortConfig.key === 'company' || sortConfig.key === 'dept'
+        ? (viewMode === 'branch' ? a.company : a.dept)
+        : a[sortConfig.key];
+      const bValue = sortConfig.key === 'company' || sortConfig.key === 'dept'
+        ? (viewMode === 'branch' ? b.company : b.dept)
+        : b[sortConfig.key];
+
       if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
       if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [costData, sortConfig]);
+  }, [costData, sortConfig, viewMode]);
 
   const handleSort = (key: SortKey) => {
     setSortConfig((current) => ({
@@ -99,12 +125,13 @@ export default function ReportsPage() {
 
   // サマリーCSV (コスト集計)
   const handleDownloadSummary = () => {
-    const fileName = `pantore_cost_summary_${date.year}-${String(date.month).padStart(2, '0')}.csv`;
-    const header = ['対象年月', '会社', '部署', '利用台数', '月額費用', '構成比(%)'];
-    const rows = sortedCostData.map(row => {
+    const fileName = `pantore_cost_summary_${viewMode}_${date.year}-${String(date.month).padStart(2, '0')}.csv`;
+    const header = ['対象年月', viewMode === 'branch' ? '拠点(会社)' : '部署', '利用台数', '月額費用', '構成比(%)'];
+    const rows = aggregatedData.map(row => {
       const percentage = totalCost > 0 ? (row.cost / totalCost) * 100 : 0;
+      const name = viewMode === 'branch' ? row.company : row.dept;
       return [
-        `${date.year}/${date.month}`, row.company, row.dept, row.assetCount, row.cost, percentage.toFixed(1)
+        `${date.year}/${date.month}`, name, row.assetCount, row.cost, percentage.toFixed(1)
       ].map(v => `"${v}"`).join(',');
     });
     const csvContent = '\uFEFF' + [header.join(','), ...rows].join('\n');
@@ -254,20 +281,33 @@ export default function ReportsPage() {
             {/* Cost Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-                <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-pantore-500" />
-                  部署別内訳
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-gray-700 flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-pantore-500" />
+                    コスト内訳
+                  </h3>
+                  <div className="flex bg-gray-200 p-0.5 rounded-lg text-xs">
+                    <button
+                      onClick={() => setViewMode('branch')}
+                      className={`px-2 py-1 rounded-md transition-all ${viewMode === 'branch' ? 'bg-white text-gray-800 shadow-sm font-bold' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      拠点別
+                    </button>
+                    <button
+                      onClick={() => setViewMode('dept')}
+                      className={`px-2 py-1 rounded-md transition-all ${viewMode === 'dept' ? 'bg-white text-gray-800 shadow-sm font-bold' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      部署別
+                    </button>
+                  </div>
+                </div>
                 <span className="text-xs text-gray-400">項目名クリックで並び替え</span>
               </div>
               <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50/50 border-b border-gray-100">
                   <tr>
-                    <th onClick={() => handleSort('company')} className="px-6 py-3 font-bold text-gray-500 cursor-pointer hover:bg-gray-100 transition-colors">
-                      <div className="flex items-center gap-1">会社 <SortIcon targetKey="company" /></div>
-                    </th>
-                    <th onClick={() => handleSort('dept')} className="px-6 py-3 font-bold text-gray-500 cursor-pointer hover:bg-gray-100 transition-colors">
-                      <div className="flex items-center gap-1">部署 <SortIcon targetKey="dept" /></div>
+                    <th onClick={() => handleSort(viewMode === 'branch' ? 'company' : 'dept')} className="px-6 py-3 font-bold text-gray-500 cursor-pointer hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-1">{viewMode === 'branch' ? '拠点(会社)' : '部署'} <SortIcon targetKey={viewMode === 'branch' ? 'company' : 'dept'} /></div>
                     </th>
                     <th onClick={() => handleSort('assetCount')} className="px-6 py-3 font-bold text-gray-500 text-right cursor-pointer hover:bg-gray-100 transition-colors">
                       <div className="flex items-center justify-end gap-1">利用台数 <SortIcon targetKey="assetCount" /></div>
@@ -279,12 +319,12 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {sortedCostData.map((row, i) => {
+                  {aggregatedData.map((row, i) => {
                     const percentage = totalCost > 0 ? (row.cost / totalCost) * 100 : 0;
+                    const name = viewMode === 'branch' ? row.company : row.dept;
                     return (
                       <tr key={i} className="hover:bg-pantore-50/30 transition-colors group">
-                        <td className="px-6 py-4 font-medium text-gray-800">{row.company}</td>
-                        <td className="px-6 py-4 text-gray-600">{row.dept}</td>
+                        <td className="px-6 py-4 font-medium text-gray-800">{name}</td>
                         <td className="px-6 py-4 text-gray-600 text-right font-mono">{row.assetCount}台</td>
                         <td className="px-6 py-4 text-gray-800 text-right font-mono font-bold">¥{row.cost.toLocaleString()}</td>
                         <td className="px-6 py-4 w-32">
@@ -298,8 +338,8 @@ export default function ReportsPage() {
                       </tr>
                     );
                   })}
-                  {sortedCostData.length === 0 && (
-                    <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">データがありません 💸</td></tr>
+                  {aggregatedData.length === 0 && (
+                    <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-400">データがありません 💸</td></tr>
                   )}
                 </tbody>
               </table>

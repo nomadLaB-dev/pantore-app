@@ -8,12 +8,15 @@ import {
   Lock,
   Mail,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -36,7 +39,7 @@ export default function LoginPage() {
         setIsLoading(false);
         return;
       }
-      
+
       // On success, redirect to the portal
       router.push('/portal');
       router.refresh(); // Force a refresh to ensure server-side data is up-to-date
@@ -89,11 +92,22 @@ export default function LoginPage() {
                 <Lock className="w-5 h-5 text-pantore-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   name="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   placeholder="••••"
-                  className="w-full pl-10 pr-4 py-3 bg-pantore-50 border border-pantore-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pantore-500 transition-all font-mono"
+                  className="w-full pl-10 pr-12 py-3 bg-pantore-50 border border-pantore-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pantore-500 transition-all font-mono"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-pantore-400 hover:text-pantore-600 focus:outline-none"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
               </div>
             </div>
 
@@ -115,7 +129,7 @@ export default function LoginPage() {
 
           <div className="text-center text-sm mt-8">
             <Link href="/signup" className="text-pantore-600 hover:underline">
-                アカウントをお持ちでないですか？ 新規登録
+              アカウントをお持ちでないですか？ 新規登録
             </Link>
           </div>
 

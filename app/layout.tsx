@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import AutoLogout from "@/components/features/auth/AutoLogout";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,6 +21,7 @@ export default function RootLayout({
         bg-white text-gray-900 で、ダークモードの影響を受けない白背景・黒文字に固定しています。
       */}
       <body className={`${inter.className} min-h-screen bg-white text-gray-900`}>
+        <AutoLogout />
         {children}
       </body>
     </html>

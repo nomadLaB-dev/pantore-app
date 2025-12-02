@@ -13,8 +13,28 @@ import {
 import {
   fetchDashboardKpiAction,
   fetchRequestsAction,
+  fetchAssetStatusStatsAction,
 } from '@/app/actions';
 import { type Request, type Tenant } from '@/lib/types';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Bar } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 // The DashboardKpi type seems to be defined in app/actions.ts, which is not ideal.
 // For now, we will assume its structure based on the previous file.
@@ -66,6 +86,7 @@ interface DashboardClientPageProps {
 export default function DashboardClientPage({ activeTenant }: DashboardClientPageProps) {
   const [kpiData, setKpiData] = useState<DashboardKpi | null>(null);
   const [requests, setRequests] = useState<Request[]>([]);
+  const [assetStats, setAssetStats] = useState({ in_use: 0, available: 0, repair: 0, maintenance: 0, disposed: 0 });
 
   useEffect(() => {
     if (!activeTenant?.id) return;
@@ -77,6 +98,9 @@ export default function DashboardClientPage({ activeTenant }: DashboardClientPag
 
       const reqs = await fetchRequestsAction(activeTenant.id);
       setRequests(reqs);
+
+      const stats = await fetchAssetStatusStatsAction(activeTenant.id);
+      setAssetStats(stats);
     };
     fetchData();
   }, [activeTenant]); // Re-run effect when activeTenant changes
@@ -130,19 +154,48 @@ export default function DashboardClientPage({ activeTenant }: DashboardClientPag
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* グラフエリア（モック） */}
+        {/* グラフエリア */}
         <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <h3 className="font-semibold text-gray-700 mb-4">デバイスステータス内訳</h3>
-          <div className="h-48 flex items-end justify-around gap-4 p-4 border-b border-l border-gray-100">
-            <div className="w-full bg-blue-50 rounded-t-lg h-[80%] flex items-end justify-center pb-2 group relative">
-              <span className="text-xs text-blue-800 font-bold">貸出中</span>
-            </div>
-            <div className="w-full bg-gray-100 rounded-t-lg h-[15%] flex items-end justify-center pb-2">
-              <span className="text-xs text-gray-600 font-bold">在庫</span>
-            </div>
-            <div className="w-full bg-red-50 rounded-t-lg h-[5%] flex items-end justify-center pb-2">
-              <span className="text-xs text-red-800 font-bold">修理</span>
-            </div>
+          <div className="h-64">
+            <Bar
+              data={{
+                labels: ['貸出中', '在庫', '修理・メンテ'],
+                datasets: [
+                  {
+                    label: '台数',
+                    data: [
+                      assetStats.in_use,
+                      assetStats.available,
+                      assetStats.repair + assetStats.maintenance
+                    ],
+                    backgroundColor: [
+                      'rgba(59, 130, 246, 0.8)', // Blue for In Use
+                      'rgba(156, 163, 175, 0.8)', // Gray for Available
+                      'rgba(239, 68, 68, 0.8)',   // Red for Repair/Maintenance
+                    ],
+                    borderRadius: 4,
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    display: false,
+                  },
+                },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    ticks: {
+                      stepSize: 1,
+                    },
+                  },
+                },
+              }}
+            />
           </div>
         </div>
 

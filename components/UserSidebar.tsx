@@ -10,10 +10,12 @@ import {
   ArrowRightLeft,
   LogOut,
   UtensilsCrossed,
-  X
+  X,
+  Settings
 } from 'lucide-react';
 import { fetchCurrentUserAction, signOutAction } from '@/app/actions';
 import { type UserDetail } from '@/lib/types';
+import { UserProfileModal } from './features/portal/UserProfileModal';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -23,6 +25,7 @@ interface SidebarProps {
 export default function UserSidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const [user, setUser] = useState<UserDetail | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -114,17 +117,37 @@ export default function UserSidebar({ isOpen = false, onClose }: SidebarProps) {
               );
             })}
           </nav>
+
+          {/* 管理者用ダッシュボードリンク */}
+          {(user?.role === 'owner' || user?.role === 'admin') && (
+            <div className="px-4 mt-4 pt-4 border-t border-pantore-200">
+              <Link
+                href="/dashboard"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-pantore-600 hover:bg-white/50 hover:text-pantore-800 rounded-lg transition-all"
+              >
+                <Settings className="w-5 h-5 text-pantore-400" />
+                管理画面へ
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* 下部エリア（プロフィール）: 最下部に固定 */}
         <div className="flex-shrink-0 p-4 bg-pantore-100/50 border-t border-pantore-200">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-xs font-bold text-pantore-600 border border-pantore-200 shadow-sm">
-              {user?.avatar || 'U'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-pantore-900 truncate">{user?.name || 'Loading...'}</p>
-              <p className="text-xs text-pantore-500 truncate">一般ユーザー</p>
+            <div
+              className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => setIsProfileOpen(true)}
+            >
+              <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-xs font-bold text-pantore-600 border border-pantore-200 shadow-sm">
+                {user?.avatar || 'U'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-pantore-900 truncate">{user ? user.name : 'Loading...'}</p>
+                <p className="text-xs text-pantore-500 truncate">
+                  {user ? (user.tenantName || (user.tenantId ? '一般ユーザー' : 'ワークスペース作成中...')) : ''}
+                </p>
+              </div>
             </div>
 
             <button
@@ -137,6 +160,13 @@ export default function UserSidebar({ isOpen = false, onClose }: SidebarProps) {
           </div>
         </div>
       </aside>
+
+      {/* プロフィール編集モーダル */}
+      <UserProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        initialUser={user}
+      />
     </>
   );
 }

@@ -20,6 +20,7 @@ import {
   updateAssetAction,
   deleteAssetAction
 } from '@/app/actions';
+import { calculateAssetCosts } from '@/lib/cost-utils';
 
 // --- Components (Badge) ---
 const StatusBadge = ({ status }: { status: string }) => {
@@ -189,13 +190,47 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete, users, settings 
                   ))}
                 </select>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  {formData.ownership === 'rental' || formData.ownership === 'lease' ? '契約開始日' : '購入日'}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* 購入日 / 契約開始日 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {formData.ownership === 'owned' || formData.ownership === 'byod' ? '購入日 (Purchase Date)' : '契約開始日 (Contract Start)'}
                 </label>
-                <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  value={formData.purchaseDate || ''} onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })} />
+                <input
+                  type="date"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pantore-500"
+                  value={formData.purchaseDate}
+                  onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
+                />
               </div>
+
+
+
+              {/* 返却日 (レンタルのみ) */}
+              {formData.ownership === 'rental' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    返却日 (Return Date)
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pantore-500"
+                    value={formData.returnDate || ''}
+                    onChange={(e) => {
+                      const newDate = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        returnDate: newDate,
+                        status: newDate ? 'disposed' : prev.status
+                      }));
+                    }}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">返却が完了した日付を入力してください</p>
+                </div>
+              )}
             </div>
 
             {/* コスト入力 */}
@@ -209,20 +244,27 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete, users, settings 
                       value={formData.purchaseCost || ''} onChange={(e) => setFormData({ ...formData, purchaseCost: parseInt(e.target.value) || 0 })} />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">償却期間 (ヶ月)</label>
+                {/* 減価償却期間 (自社保有のみ) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    減価償却期間 (Depreciation)
+                  </label>
                   <div className="relative">
-                    <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="例: 36, 48, 60"
-                      value={formData.depreciationMonths || ''} onChange={(e) => setFormData({ ...formData, depreciationMonths: parseInt(e.target.value) || 0 })} />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">ヶ月</span>
+                    <input
+                      type="number"
+                      min="1"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pantore-500 pr-12"
+                      value={formData.depreciationMonths || ''}
+                      onChange={(e) => setFormData({ ...formData, depreciationMonths: parseInt(e.target.value) || undefined })}
+                    />
+                    <span className="absolute right-3 top-2.5 text-gray-400 text-sm">ヶ月</span>
                   </div>
                 </div>
               </div>
             )}
 
             {(formData.ownership === 'rental' || formData.ownership === 'lease') && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">月額費用</label>
                   <div className="relative">
@@ -231,29 +273,42 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete, users, settings 
                       value={formData.monthlyCost || ''} onChange={(e) => setFormData({ ...formData, monthlyCost: parseInt(e.target.value) || 0 })} />
                   </div>
                 </div>
-                {formData.ownership === 'lease' && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">契約月数</label>
-                    <div className="relative">
-                      <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        value={formData.months || ''} onChange={(e) => setFormData({ ...formData, months: parseInt(e.target.value) || 0 })} />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">ヶ月</span>
-                    </div>
-                  </div>
-                )}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">契約終了日</label>
-                  <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    value={formData.contractEndDate || ''} onChange={(e) => setFormData({ ...formData, contractEndDate: e.target.value })} />
+                  <label className="text-sm font-medium text-gray-700">契約月数 (Months)</label>
+                  <div className="relative">
+                    <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder="例: 12, 24"
+                      value={formData.months || ''} onChange={(e) => setFormData({ ...formData, months: parseInt(e.target.value) || undefined })} />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">ヶ月</span>
+                  </div>
                 </div>
               </div>
             )}
 
-            {formData.ownership !== 'byod' && estimatedTotalCost > 0 && (
+            {formData.ownership !== 'byod' && (
               <div className="flex justify-end text-sm text-gray-600 pt-2 border-t border-pantore-200 border-dashed">
                 <span className="flex items-center gap-2">
                   <Calculator className="w-4 h-4" />
-                  概算総コスト: <span className="font-bold text-lg text-pantore-700">¥{estimatedTotalCost.toLocaleString()}</span>
+                  概算総コスト: <span className="font-bold text-lg text-pantore-700">
+                    ¥{(() => {
+                      if (formData.ownership === 'owned') {
+                        return formData.purchaseCost?.toLocaleString() || '-';
+                      }
+                      if (formData.ownership === 'rental' || formData.ownership === 'lease') {
+                        const monthly = formData.monthlyCost || 0;
+                        if (formData.returnDate && formData.purchaseDate && formData.ownership === 'rental') {
+                          const start = new Date(formData.purchaseDate);
+                          const end = new Date(formData.returnDate);
+                          let monthsDiff = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+                          if (end.getDate() >= start.getDate()) monthsDiff += 1;
+                          const actualMonths = Math.max(1, monthsDiff);
+                          return (monthly * actualMonths).toLocaleString();
+                        }
+                        return formData.months ? (monthly * formData.months).toLocaleString() : '-';
+                      }
+                      return '-';
+                    })()}
+                  </span>
                 </span>
               </div>
             )}
@@ -265,11 +320,20 @@ const AssetModal = ({ isOpen, onClose, asset, onSave, onDelete, users, settings 
               <User className="w-4 h-4" /> 現在の利用者
             </label>
             <select className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
-              value={formData.userId || ''} onChange={(e) => setFormData({ ...formData, userId: e.target.value })}>
+              value={formData.userId || ''}
+              onChange={(e) => {
+                const newUserId = e.target.value;
+                setFormData({
+                  ...formData,
+                  userId: newUserId,
+                  status: newUserId ? 'in_use' : 'available'
+                });
+              }}
+            >
               <option value="">(未割当 - 在庫)</option>
               <optgroup label="社員リスト">
                 {users.map(user => (
-                  <option key={user.id} value={user.id}>{user.name} ({user.dept})</option>
+                  <option key={user.id} value={user.id}>{user.name} ({user.branch || user.dept || '所属なし'})</option>
                 ))}
               </optgroup>
             </select>
@@ -511,7 +575,7 @@ export default function AssetsPage() {
               <th className="px-6 py-3 font-medium text-gray-500 text-right">コスト ({costDisplayMode === 'monthly' ? '月額' : '総額'})</th>
               <th className="px-6 py-3 font-medium text-gray-500">利用者</th>
               <th className="px-6 py-3 font-medium text-gray-500">ステータス</th>
-              <th className="px-6 py-3 font-medium text-gray-500">期限</th>
+
               <th className="px-6 py-3"></th>
             </tr>
           </thead>
@@ -532,24 +596,12 @@ export default function AssetsPage() {
                 </td>
                 <td className="px-6 py-4 text-right font-mono text-gray-600">
                   {(() => {
-                    if (asset.ownership === 'rental' || asset.ownership === 'lease') {
-                      if (costDisplayMode === 'monthly') {
-                        return `¥${(asset.monthlyCost || 0).toLocaleString()}/月`;
-                      } else {
-                        return `¥${((asset.monthlyCost || 0) * (asset.months || 0)).toLocaleString()}`;
-                      }
-                    } else if (asset.ownership === 'owned') {
-                      if (costDisplayMode === 'monthly') {
-                        const months = asset.depreciationMonths || 0;
-                        if (months > 0) {
-                          return `¥${Math.round((asset.purchaseCost || 0) / months).toLocaleString()}/月`;
-                        }
-                        return '-';
-                      } else {
-                        return `¥${(asset.purchaseCost || 0).toLocaleString()}`;
-                      }
+                    const { monthly, total } = calculateAssetCosts(asset);
+                    if (costDisplayMode === 'monthly') {
+                      return monthly > 0 ? `¥${monthly.toLocaleString()}/月` : '-';
+                    } else {
+                      return total > 0 ? `¥${total.toLocaleString()}` : '-';
                     }
-                    return '-';
                   })()}
                 </td>
                 <td className="px-6 py-4">
@@ -563,9 +615,7 @@ export default function AssetsPage() {
                   ) : <span className="text-gray-300 text-xs">未割当</span>}
                 </td>
                 <td className="px-6 py-4"><StatusBadge status={asset.status} /></td>
-                <td className="px-6 py-4 text-xs text-gray-500 font-mono">
-                  {asset.contractEndDate || asset.purchaseDate}
-                </td>
+
                 <td className="px-6 py-4 text-right">
                   <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
                 </td>

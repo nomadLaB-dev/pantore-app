@@ -9,15 +9,25 @@ export const createClient = (cookieStore: ReturnType<typeof cookies>) => {
     {
       cookies: {
         get(name: string) {
-          return (cookieStore as any)[name];
+          return cookieStore.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          // No more try-catch, to expose potential errors
-          (cookieStore as any).set(name, value, options)
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch (error) {
+            // The `set` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+          }
         },
         remove(name: string, options: CookieOptions) {
-          // No more try-catch, to expose potential errors
-          (cookieStore as any).delete(name, options)
+          try {
+            cookieStore.set({ name, value: '', ...options });
+          } catch (error) {
+            // The `delete` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+          }
         },
       },
     }
@@ -25,16 +35,16 @@ export const createClient = (cookieStore: ReturnType<typeof cookies>) => {
 }
 
 export function createAdminClient() {
-    // Note: This should only be used in server-side actions and routes
-    // where you have validated user permissions.
-    return createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        {
-            auth: {
-                autoRefreshToken: false,
-                persistSession: false
-            }
-        }
-    );
+  // Note: This should only be used in server-side actions and routes
+  // where you have validated user permissions.
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  );
 }

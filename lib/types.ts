@@ -3,11 +3,11 @@
 // ==========================================
 
 export type Tenant = {
-  id: string;
-  name: string;
+    id: string;
+    name: string;
 };
 
-export type Role = 'admin' | 'manager' | 'user';
+export type Role = 'owner' | 'admin' | 'member';
 
 export type AssetStatus = 'available' | 'in_use' | 'maintenance' | 'repair' | 'disposed';
 
@@ -15,7 +15,7 @@ export type RequestType = 'new_hire' | 'breakdown' | 'return';
 
 export type RequestStatus = 'pending' | 'approved' | 'completed' | 'rejected';
 
-export type UserStatus = 'active' | 'inactive';
+export type UserStatus = 'active' | 'inactive' | 'invited';
 
 // 所有形態の定義
 export type OwnershipType = 'owned' | 'rental' | 'lease' | 'byod';
@@ -73,6 +73,7 @@ export interface Asset {
     purchaseDate: string;
 
     contractEndDate?: string;
+    returnDate?: string;
     purchaseCost?: number;
     monthlyCost?: number;
     months?: number;
@@ -89,13 +90,15 @@ export interface Asset {
 export interface UserSummary {
     id: string;
     tenantId?: string;
+    tenantName?: string;
     name: string;
     email: string;
     role: Role;
-    company: string;
-    dept: string;
-    deviceCount: number;
     status: UserStatus;
+    company?: string;
+    dept?: string;
+    branch?: string;
+    deviceCount: number;
     avatar?: string;
 }
 

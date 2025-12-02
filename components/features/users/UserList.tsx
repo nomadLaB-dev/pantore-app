@@ -16,8 +16,11 @@ const StatusBadge = ({ status }: { status: string }) => {
   const styles: Record<string, string> = {
     active: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     inactive: 'bg-gray-100 text-gray-500 border-gray-200',
+    invited: 'bg-blue-50 text-blue-700 border-blue-100',
   };
-  return <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status]}`}>{status === 'active' ? '在籍中' : '退職済'}</span>;
+  return <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status]}`}>
+    {status === 'active' ? '在籍中' : status === 'invited' ? '招待中' : '退職済'}
+  </span>;
 };
 
 export const UserList = ({ users, searchTerm, setSearchTerm, onUserClick, onOpenCreateModal }: Props) => {
@@ -52,7 +55,10 @@ export const UserList = ({ users, searchTerm, setSearchTerm, onUserClick, onOpen
           <tbody className="divide-y divide-gray-100">
             {filteredUsers.map(user => (
               <tr key={user.id} onClick={() => onUserClick(user.id)} className="hover:bg-gray-50 cursor-pointer transition-colors">
-                <td className="px-6 py-4 font-bold text-gray-800">{user.name}</td>
+                <td className="px-6 py-4 font-bold text-gray-800">
+                  {user.name}
+                  {user.status === 'invited' && <span className="ml-2 text-xs font-normal text-gray-400">(未参加)</span>}
+                </td>
                 <td className="px-6 py-4">{user.company} - {user.dept}</td>
                 <td className="px-6 py-4">{user.deviceCount > 0 ? <span className="flex items-center gap-1 text-blue-600 font-medium"><Monitor className="w-3 h-3" /> {user.deviceCount}台</span> : <span className="text-gray-400">-</span>}</td>
                 <td className="px-6 py-4"><StatusBadge status={user.status} /></td>

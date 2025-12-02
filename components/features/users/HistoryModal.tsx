@@ -9,9 +9,10 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSave: (history: EmploymentHistory) => void;
+  initialData?: EmploymentHistory | null;
 }
 
-export const HistoryModal = ({ isOpen, onClose, onSave }: Props) => {
+export const HistoryModal = ({ isOpen, onClose, onSave, initialData }: Props) => {
   const [masterData, setMasterData] = useState<MasterData>({
     companies: [],
     departments: [],
@@ -32,13 +33,33 @@ export const HistoryModal = ({ isOpen, onClose, onSave }: Props) => {
     if (isOpen) {
       fetchMasterDataAction().then(data => {
         setMasterData(data);
-        // Set default company if empty
-        if (!formData.company && data.companies.length > 0) {
+        if (!initialData && !formData.company && data.companies.length > 0) {
           setFormData(prev => ({ ...prev, company: data.companies[0] }));
         }
       });
+
+      if (initialData) {
+        setFormData({
+          startDate: initialData.startDate,
+          endDate: initialData.endDate || '',
+          company: initialData.company,
+          dept: initialData.dept,
+          branch: initialData.branch || '',
+          position: initialData.position
+        });
+      } else {
+        // Reset for new entry
+        setFormData({
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: '',
+          company: '',
+          dept: '',
+          branch: '',
+          position: ''
+        });
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   if (!isOpen) return null;
 
@@ -48,7 +69,7 @@ export const HistoryModal = ({ isOpen, onClose, onSave }: Props) => {
       return;
     }
     onSave({
-      id: Date.now(),
+      id: initialData ? initialData.id : Date.now(),
       startDate: formData.startDate,
       endDate: formData.endDate || null,
       company: formData.company,
@@ -73,7 +94,7 @@ export const HistoryModal = ({ isOpen, onClose, onSave }: Props) => {
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4 border border-gray-100">
         <div className="flex justify-between items-center border-b border-gray-100 pb-4">
           <h3 className="text-lg font-bold flex items-center gap-2 text-gray-800">
-            <Building2 className="w-5 h-5 text-blue-600" /> 履歴追加
+            <Building2 className="w-5 h-5 text-blue-600" /> {initialData ? '履歴編集' : '履歴追加'}
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:bg-gray-100 p-1 rounded-full"><X className="w-5 h-5" /></button>
         </div>
@@ -132,7 +153,7 @@ export const HistoryModal = ({ isOpen, onClose, onSave }: Props) => {
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">キャンセル</button>
           <button onClick={handleSubmit} className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-sm">
-            <Save className="w-4 h-4" /> 追加
+            <Save className="w-4 h-4" /> {initialData ? '更新' : '追加'}
           </button>
         </div>
       </div>

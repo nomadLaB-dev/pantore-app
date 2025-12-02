@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, Dispatch, SetStateAction, useEffect } from 'react';
-import { X, Monitor, Plus, Building2, MoreHorizontal, CheckCircle2, Ban } from 'lucide-react';
+import { X, Monitor, Plus, Building2, MoreHorizontal, CheckCircle2, Ban, Pencil, Trash2 } from 'lucide-react';
 import {
   type UserSummary, type UserDetail, type Asset,
   type EmploymentHistory, type DeviceHistory,
@@ -12,7 +12,9 @@ import { DeviceAssignModal } from './DeviceAssignModal';
 import {
   fetchUserDetailAction,
   createEmploymentHistoryAction,
-  updateAssetAction
+  updateEmploymentHistoryAction,
+  deleteEmploymentHistoryAction,
+  assignAssetToUserAction
 } from '@/app/actions';
 
 interface Props {
@@ -21,6 +23,7 @@ interface Props {
   onUpdateUser: (user: UserSummary) => void;
   assets: Asset[];
   setAssets: Dispatch<SetStateAction<Asset[]>>;
+  currentUserRole: string;
 }
 
 const StatusBadge = ({ status }: { status: string }) => {
@@ -31,7 +34,7 @@ const StatusBadge = ({ status }: { status: string }) => {
   return <span className={`px-2 py-0.5 rounded text-xs border ${styles[status]}`}>{status === 'active' ? '在籍中' : '退職済'}</span>;
 };
 
-export const UserDetailModal = ({ initialUser, onClose, onUpdateUser, assets, setAssets }: Props) => {
+export const UserDetailModal = ({ initialUser, onClose, onUpdateUser, assets, setAssets, currentUserRole }: Props) => {
   const [userDetail, setUserDetail] = useState<UserDetail>({
     ...initialUser,
     currentDevice: null,
@@ -40,6 +43,7 @@ export const UserDetailModal = ({ initialUser, onClose, onUpdateUser, assets, se
   const [isLoading, setIsLoading] = useState(true);
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [editingHistory, setEditingHistory] = useState<EmploymentHistory | null>(null);
   const [isDeviceOpen, setIsDeviceOpen] = useState(false);
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
 
@@ -68,26 +72,47 @@ export const UserDetailModal = ({ initialUser, onClose, onUpdateUser, assets, se
     setIsStatusMenuOpen(false);
   };
 
-  const handleAddHistory = async (newHistory: EmploymentHistory) => {
+  const handleSaveHistory = async (historyData: EmploymentHistory) => {
     try {
-      // Add userId to history object as action expects it
-      await createEmploymentHistoryAction({ ...newHistory, userId: userDetail.id });
+      if (editingHistory) {
+        // Update
+        await updateEmploymentHistoryAction({ ...historyData, id: editingHistory.id });
+        alert('所属履歴を更新しました！');
+      } else {
+        // Create
+        await createEmploymentHistoryAction({ ...historyData, userId: userDetail.id });
+        alert('所属履歴を追加しました！');
+      }
 
-      // Reload detail to get updated history
+      // Reload detail
       const detail = await fetchUserDetailAction(userDetail.id);
       if (detail) setUserDetail(detail);
 
-      alert('所属履歴を追加しました！');
+      setEditingHistory(null);
     } catch (error) {
-      console.error('Failed to add history:', error);
-      alert('履歴の追加に失敗しました。');
+      console.error('Failed to save history:', error);
+      alert('履歴の保存に失敗しました。');
+    }
+  };
+
+  const handleDeleteHistory = async (historyId: number) => {
+    if (!confirm('この履歴を削除しますか？')) return;
+    try {
+      await deleteEmploymentHistoryAction(historyId);
+      // Reload detail
+      const detail = await fetchUserDetailAction(userDetail.id);
+      if (detail) setUserDetail(detail);
+      alert('履歴を削除しました。');
+    } catch (error) {
+      console.error('Failed to delete history:', error);
+      alert('履歴の削除に失敗しました。');
     }
   };
 
   const handleAssignDevice = async (newDevice: DeviceHistory, assetId: string) => {
     try {
       // Update Asset in DB
-      await updateAssetAction({ id: assetId, userId: userDetail.id, status: 'in_use' });
+      await assignAssetToUserAction(assetId, userDetail.id);
 
       // Update local assets state (optimistic or reload)
       setAssets(prev => prev.map(a => a.id === assetId ? { ...a, status: 'in_use', userId: userDetail.id, userName: userDetail.name } : a));
@@ -113,7 +138,12 @@ export const UserDetailModal = ({ initialUser, onClose, onUpdateUser, assets, se
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-end md:justify-center p-4 md:p-8 bg-black/50 backdrop-blur-sm animate-in fade-in">
-      <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} onSave={handleAddHistory} />
+      <HistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => { setIsHistoryOpen(false); setEditingHistory(null); }}
+        onSave={handleSaveHistory}
+        initialData={editingHistory}
+      />
       <DeviceAssignModal isOpen={isDeviceOpen} onClose={() => setIsDeviceOpen(false)} onSave={handleAssignDevice} assets={assets} />
 
       <div className="bg-white w-full max-w-5xl h-full md:h-[90vh] rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 md:slide-in-from-bottom-8 duration-300">
@@ -158,32 +188,53 @@ export const UserDetailModal = ({ initialUser, onClose, onUpdateUser, assets, se
                 <p className="text-sm text-gray-500">{userDetail.email}</p>
                 <span className="text-gray-300">/</span>
                 <div className="relative group/role">
-                  <button className="text-sm text-gray-500 hover:text-blue-600 font-medium flex items-center gap-1 transition-colors">
-                    {userDetail.role === 'admin' ? '管理者 (Admin)' : '一般 (User)'}
-                    <MoreHorizontal className="w-3 h-3" />
+                  <button className={`text-sm font-medium flex items-center gap-1 transition-colors ${(currentUserRole === 'owner' || (currentUserRole === 'admin' && userDetail.role !== 'owner'))
+                    ? 'text-gray-500 hover:text-blue-600 cursor-pointer'
+                    : 'text-gray-500 cursor-default'
+                    }`}>
+                    {userDetail.role === 'owner' ? '所有者 (Owner)' : userDetail.role === 'admin' ? '管理者 (Admin)' : '一般 (User)'}
+                    {(currentUserRole === 'owner' || (currentUserRole === 'admin' && userDetail.role !== 'owner')) && (
+                      <MoreHorizontal className="w-3 h-3" />
+                    )}
                   </button>
-                  <div className="absolute top-full left-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-100 py-1 hidden group-hover/role:block z-20">
-                    <button
-                      onClick={() => {
-                        const updated = { ...userDetail, role: 'admin' as const };
-                        setUserDetail(updated);
-                        onUpdateUser(updated);
-                      }}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 text-blue-700"
-                    >
-                      管理者
-                    </button>
-                    <button
-                      onClick={() => {
-                        const updated = { ...userDetail, role: 'user' as const };
-                        setUserDetail(updated);
-                        onUpdateUser(updated);
-                      }}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 text-gray-700"
-                    >
-                      一般
-                    </button>
-                  </div>
+
+                  {/* Role Selection Menu */}
+                  {(currentUserRole === 'owner' || (currentUserRole === 'admin' && userDetail.role !== 'owner')) && (
+                    <div className="absolute top-full left-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-100 py-1 hidden group-hover/role:block z-20">
+                      {currentUserRole === 'owner' && (
+                        <button
+                          onClick={() => {
+                            const updated = { ...userDetail, role: 'owner' as const };
+                            setUserDetail(updated);
+                            onUpdateUser(updated);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-purple-50 text-purple-700"
+                        >
+                          所有者 (Owner)
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          const updated = { ...userDetail, role: 'admin' as const };
+                          setUserDetail(updated);
+                          onUpdateUser(updated);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 text-blue-700"
+                      >
+                        管理者 (Admin)
+                      </button>
+                      <button
+                        onClick={() => {
+                          const updated = { ...userDetail, role: 'member' as const };
+                          setUserDetail(updated);
+                          onUpdateUser(updated);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 text-gray-700"
+                      >
+                        一般 (User)
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -219,7 +270,7 @@ export const UserDetailModal = ({ initialUser, onClose, onUpdateUser, assets, se
             <div className="md:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2"><Building2 className="w-5 h-5 text-blue-500" /> 所属履歴</h3>
-                <button onClick={() => setIsHistoryOpen(true)} className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full hover:bg-blue-100 flex items-center gap-1 font-bold"><Plus className="w-3 h-3" /> 追加</button>
+                <button onClick={() => { setEditingHistory(null); setIsHistoryOpen(true); }} className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full hover:bg-blue-100 flex items-center gap-1 font-bold"><Plus className="w-3 h-3" /> 追加</button>
               </div>
               <div className="space-y-8 border-l-2 border-gray-100 ml-2 pl-6 py-2">
                 {userDetail.history.length > 0 ? userDetail.history.map((h, i) => (
@@ -227,7 +278,7 @@ export const UserDetailModal = ({ initialUser, onClose, onUpdateUser, assets, se
                     {/* Insert Button */}
                     <div
                       className="h-6 -my-3 flex items-center justify-center z-10 relative group/insert cursor-pointer"
-                      onClick={() => setIsHistoryOpen(true)}
+                      onClick={() => { setEditingHistory(null); setIsHistoryOpen(true); }}
                       title="この期間に履歴を挿入"
                     >
                       <div className="w-full h-px bg-blue-200 absolute"></div>
@@ -238,10 +289,28 @@ export const UserDetailModal = ({ initialUser, onClose, onUpdateUser, assets, se
 
                     <div className="relative group py-2">
                       <div className={`absolute -left-[31px] top-3 w-4 h-4 rounded-full border-2 border-white shadow-sm ${i === 0 && !h.endDate ? 'bg-green-500 ring-2 ring-green-100' : 'bg-gray-300'}`}></div>
-                      <div>
-                        <h4 className="font-bold text-gray-800">{h.company}</h4>
-                        <p className="text-sm text-gray-600 mt-1">{h.branch} - {h.dept} <span className="text-gray-400">/</span> {h.position}</p>
-                        <p className="text-xs text-gray-400 font-mono mt-1">{h.startDate} 〜 {h.endDate || '現在'}</p>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-bold text-gray-800">{h.company}</h4>
+                          <p className="text-sm text-gray-600 mt-1">{h.branch} - {h.dept} <span className="text-gray-400">/</span> {h.position}</p>
+                          <p className="text-xs text-gray-400 font-mono mt-1">{h.startDate} 〜 {h.endDate || '現在'}</p>
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => { setEditingHistory(h); setIsHistoryOpen(true); }}
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                            title="編集"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteHistory(h.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                            title="削除"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </React.Fragment>
@@ -250,7 +319,7 @@ export const UserDetailModal = ({ initialUser, onClose, onUpdateUser, assets, se
                 {/* Always show insert button at the bottom */}
                 <div
                   className="h-6 -my-3 flex items-center justify-center z-10 relative group/insert cursor-pointer"
-                  onClick={() => setIsHistoryOpen(true)}
+                  onClick={() => { setEditingHistory(null); setIsHistoryOpen(true); }}
                   title="この期間に履歴を挿入"
                 >
                   <div className="w-full h-px bg-blue-200 absolute"></div>

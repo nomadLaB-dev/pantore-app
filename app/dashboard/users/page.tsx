@@ -9,7 +9,8 @@ import {
   fetchAssetsAction,
   fetchMasterDataAction,
   createUserAction,
-  updateUserAction
+  updateUserAction,
+  fetchCurrentUserAction
 } from '@/app/actions';
 
 // 作成したコンポーネントをインポート
@@ -28,19 +29,22 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string>('member');
 
   // データ取得
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [usersData, assetsData, masterDataData] = await Promise.all([
+        const [usersData, assetsData, masterDataData, currentUserData] = await Promise.all([
           fetchUsersAction(),
           fetchAssetsAction(),
-          fetchMasterDataAction()
+          fetchMasterDataAction(),
+          fetchCurrentUserAction()
         ]);
         setUsers(usersData);
         setAssets(assetsData);
         setMasterData(masterDataData);
+        setCurrentUserRole(currentUserData?.role || 'member');
       } catch (error) {
         console.error('Failed to load users/assets:', error);
       } finally {
@@ -107,9 +111,10 @@ export default function UsersPage() {
           key={selectedUserId} // 🚨 これで再レンダリングを強制
           initialUser={selectedUser}
           onClose={() => setSelectedUserId(null)}
-          onUpdateUser={handleUpdateUser} // 🆕 追加
+          onUpdateUser={handleUpdateUser}
           assets={assets}
           setAssets={setAssets}
+          currentUserRole={currentUserRole}
         />
       )}
     </>
