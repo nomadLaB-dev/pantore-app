@@ -8,6 +8,7 @@ import { type CreateRequestInput, type UserDetail } from '@/lib/types';
 import { createRequestAction } from '@/app/actions/requests';
 import { fetchCurrentUserAction } from '@/app/actions/auth';
 import { createClient } from '@/utils/supabase/client';
+import { toast } from 'sonner';
 
 export default function ReturnRequestPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function ReturnRequestPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<UserDetail | null>(null);
   const [formData, setFormData] = useState({ date: '', reason: '退職に伴う返却', kit: false });
+  const [selectedDeviceSerial, setSelectedDeviceSerial] = useState<string>('');
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -27,6 +29,9 @@ export default function ReturnRequestPage() {
           return;
         }
         setUser(userData);
+        if (userData.currentDevices && userData.currentDevices.length > 0) {
+          setSelectedDeviceSerial(userData.currentDevices[0].serial);
+        }
       } catch (error) {
         console.error('Failed to fetch user:', error);
         const supabase = createClient();
@@ -42,9 +47,12 @@ export default function ReturnRequestPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      alert('ユーザー情報の取得に失敗しました。');
+      toast.error('ユーザー情報の取得に失敗しました。');
       return;
     }
+
+    const selectedDevice = user.currentDevices.find(d => d.serial === selectedDeviceSerial);
+    const deviceName = selectedDevice ? `${selectedDevice.model} (${selectedDevice.serial})` : '不明なデバイス';
 
     setIsSubmitting(true);
 
@@ -52,19 +60,17 @@ export default function ReturnRequestPage() {
       type: 'return',
       userId: user.id,
       date: new Date().toISOString().split('T')[0],
-      detail: formData.reason,
+      detail: `${formData.reason} - 対象: ${deviceName}`,
       note: `返却予定: ${formData.date} ${formData.kit ? '(返送キット希望)' : ''}`
     };
 
     try {
       await createRequestAction(newRequest);
-      setTimeout(() => {
-        alert('返却申請を受け付けました！📦');
-        router.push('/portal');
-      }, 800);
+      toast.success('返却申請を受け付けました！📦');
+      router.push('/portal');
     } catch (error) {
       console.error('Failed to create request:', error);
-      alert('申請の送信に失敗しました。');
+      toast.error('申請の送信に失敗しました。');
       setIsSubmitting(false);
     }
   };
@@ -85,13 +91,34 @@ export default function ReturnRequestPage() {
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-pantore-200">
         <form onSubmit={handleSubmit} className="space-y-8">
 
-          <div className="bg-pantore-50 p-4 rounded-xl border border-pantore-200 flex items-start gap-4">
-            <div className="p-2 bg-white rounded-lg shadow-sm text-pantore-500"><PackageOpen className="w-6 h-6" /></div>
-            <div>
-              <p className="text-xs text-pantore-500 font-bold uppercase">返却対象デバイス</p>
-              <p className="text-lg font-bold text-pantore-900">{user.currentDevice?.model || '不明'}</p>
-              <p className="text-sm text-pantore-600 font-mono">S/N: {user.currentDevice?.serial || '---'}</p>
+          <div className="bg-pantore-50 p-4 rounded-xl border border-pantore-200 space-y-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 bg-white rounded-lg shadow-sm text-pantore-500"><PackageOpen className="w-5 h-5" /></div>
+              <p className="text-xs text-pantore-500 font-bold uppercase">返却対象デバイスを選択</p>
             </div>
+
+            {user.currentDevices && user.currentDevices.length > 0 ? (
+              <div className="space-y-2">
+                {user.currentDevices.map((device) => (
+                  <label key={device.serial} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedDeviceSerial === device.serial ? 'bg-white border-pantore-500 shadow-sm ring-1 ring-pantore-500' : 'bg-white/50 border-pantore-200 hover:bg-white'}`}>
+                    <input
+                      type="radio"
+                      name="device"
+                      value={device.serial}
+                      checked={selectedDeviceSerial === device.serial}
+                      onChange={(e) => setSelectedDeviceSerial(e.target.value)}
+                      className="w-4 h-4 accent-pantore-600"
+                    />
+                    <div>
+                      <p className="font-bold text-pantore-900 text-sm">{device.model}</p>
+                      <p className="text-xs text-pantore-500 font-mono">S/N: {device.serial}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-red-500 font-bold">返却可能なデバイスが見つかりません</p>
+            )}
           </div>
 
           <div className="space-y-4">

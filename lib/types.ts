@@ -124,7 +124,7 @@ export interface DeviceHistory {
 
 // ユーザー詳細データ型
 export interface UserDetail extends UserSummary {
-    currentDevice: DeviceHistory | null;
+    currentDevices: DeviceHistory[];
     history: EmploymentHistory[];
 }
 

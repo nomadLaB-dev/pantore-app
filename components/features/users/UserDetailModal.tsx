@@ -38,7 +38,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 export const UserDetailModal = ({ initialUser, onClose, onUpdateUser, assets, setAssets, currentUserRole }: Props) => {
   const [userDetail, setUserDetail] = useState<UserDetail>({
     ...initialUser,
-    currentDevice: null,
+    currentDevices: [],
     history: []
   });
   const [isLoading, setIsLoading] = useState(true);

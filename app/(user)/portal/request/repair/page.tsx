@@ -9,6 +9,7 @@ import { createRequestAction } from '@/app/actions/requests';
 import { fetchCurrentUserAction } from '@/app/actions/auth';
 import { fetchSettingsAction } from '@/app/actions/settings';
 import { createClient } from '@/utils/supabase/client';
+import { toast } from 'sonner';
 
 export default function RepairRequestPage() {
   const router = useRouter();
@@ -50,7 +51,7 @@ export default function RepairRequestPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      alert('ユーザー情報の取得に失敗しました。');
+      toast.error('ユーザー情報の取得に失敗しました。');
       return;
     }
 
@@ -66,13 +67,11 @@ export default function RepairRequestPage() {
 
     try {
       await createRequestAction(newRequest);
-      setTimeout(() => {
-        alert('不具合報告を受け付けました。情シス担当から至急ご連絡します！🚑');
-        router.push('/portal');
-      }, 800);
+      toast.success('不具合報告を受け付けました。情シス担当から至急ご連絡します！🚑');
+      router.push('/portal');
     } catch (error) {
       console.error('Failed to create request:', error);
-      alert('申請の送信に失敗しました。');
+      toast.error('申請の送信に失敗しました。');
       setIsSubmitting(false);
     }
   };

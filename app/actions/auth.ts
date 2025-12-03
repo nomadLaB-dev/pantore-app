@@ -79,7 +79,7 @@ export async function fetchCurrentUserAction(): Promise<UserDetail | null> {
             company: '',
             dept: '',
             deviceCount: 0,
-            currentDevice: null,
+            currentDevices: [],
             history: [],
         } as UserDetail;
     }
@@ -145,22 +145,20 @@ export async function fetchCurrentUserAction(): Promise<UserDetail | null> {
         }
     }
 
-    // Fetch current device (Asset)
-    let currentDevice: any = null;
-    const { data: asset } = await supabase
+    // Fetch current devices (Assets)
+    let currentDevices: any[] = [];
+    const { data: assets } = await supabase
         .from('assets')
         .select('model, serial, created_at')
         .eq('user_id', user.id)
-        .eq('status', 'in_use')
-        .limit(1)
-        .single();
+        .eq('status', 'in_use');
 
-    if (asset) {
-        currentDevice = {
+    if (assets) {
+        currentDevices = assets.map((asset: any) => ({
             model: asset.model,
             serial: asset.serial,
             assignedAt: asset.created_at,
-        };
+        }));
     }
 
     // Fetch employment history
@@ -178,7 +176,7 @@ export async function fetchCurrentUserAction(): Promise<UserDetail | null> {
             startDate: h.start_date,
             endDate: h.end_date,
             company: h.company,
-            dept: h.dept,
+            dept: h.department, // Map from DB 'department' column
             branch: h.branch,
             position: h.position,
         }));
@@ -186,10 +184,11 @@ export async function fetchCurrentUserAction(): Promise<UserDetail | null> {
 
     return {
         ...userProfile,
+        tenantId, // Add tenantId to the return object
         role,
         status,
         tenantName,
-        currentDevice,
+        currentDevices,
         history,
     };
 }

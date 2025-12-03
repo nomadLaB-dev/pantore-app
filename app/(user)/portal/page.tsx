@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // Add this
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Monitor,
@@ -19,10 +19,12 @@ import {
   type Request,
   type UserDetail
 } from '@/lib/types';
-import { fetchRequestsAction } from '@/app/actions/requests';
+import { fetchMyRequestsAction } from '@/app/actions/requests';
 import { fetchUserDetailAction } from '@/app/actions/users';
 import { fetchCurrentUserAction } from '@/app/actions/auth';
 import { createClient } from '@/utils/supabase/client';
+import { DeviceListModal } from '@/components/features/portal/DeviceListModal';
+import { RequestListModal } from '@/components/features/portal/RequestListModal';
 
 // --- Components ---
 
@@ -49,16 +51,19 @@ const StatusBadge = ({ status }: { status: RequestStatus }) => {
 };
 
 export default function UserPortalPage() {
-  const router = useRouter(); // Add this
+  const router = useRouter();
   const [user, setUser] = useState<UserDetail | null>(null);
   const [requests, setRequests] = useState<Request[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeviceListOpen, setIsDeviceListOpen] = useState(false);
+  const [isRequestListOpen, setIsRequestListOpen] = useState(false);
 
   useEffect(() => {
+    // ... (fetchData logic remains the same)
     const fetchData = async () => {
       try {
         const [reqs, userData] = await Promise.all([
-          fetchRequestsAction(),
+          fetchMyRequestsAction(),
           fetchCurrentUserAction()
         ]);
 
@@ -68,6 +73,9 @@ export default function UserPortalPage() {
           router.push('/login');
           return;
         }
+
+        console.log('Fetched requests:', reqs);
+        console.log('User ID:', userData.id);
 
         setRequests(reqs);
         setUser(userData);
@@ -88,21 +96,24 @@ export default function UserPortalPage() {
     if (!user) return []; // User not loaded yet
 
     const now = new Date();
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(now.getMonth() - 1);
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(now.getMonth() - 3);
 
     return requests
       .filter(req => {
         if (req.userId !== user.id) return false;
 
         const requestDate = new Date(req.date);
-        const isRecent = requestDate >= oneMonthAgo;
+        const isRecent = requestDate >= threeMonthsAgo;
         const isUnfinished = req.status === 'pending' || req.status === 'approved';
 
         return isRecent || isUnfinished;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [requests]);
+  }, [requests, user]);
+
+  const displayedRequests = myRequests.slice(0, 3);
+  const remainingRequestsCount = myRequests.length - 3;
 
   if (isLoading) {
     return <div className="p-10 text-center text-gray-500">読み込み中...</div>;
@@ -114,6 +125,17 @@ export default function UserPortalPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
+      <DeviceListModal
+        isOpen={isDeviceListOpen}
+        onClose={() => setIsDeviceListOpen(false)}
+        devices={user.currentDevices || []}
+      />
+      <RequestListModal
+        isOpen={isRequestListOpen}
+        onClose={() => setIsRequestListOpen(false)}
+        requests={myRequests}
+      />
+
       {/* Welcome Header */}
       <div className="flex items-center justify-between bg-gradient-to-r from-pantore-600 to-pantore-500 p-8 rounded-2xl text-white shadow-lg shadow-pantore-200">
         <div>
@@ -135,27 +157,38 @@ export default function UserPortalPage() {
             あなたの利用デバイス
           </h3>
 
-          {user.currentDevice ? (
-            <>
-              <div className="flex items-center gap-4 p-4 bg-pantore-50 rounded-xl border border-pantore-100">
-                <div className="w-16 h-12 bg-white rounded-lg border border-pantore-200 flex items-center justify-center text-pantore-400 shadow-sm">
-                  <Laptop className="w-6 h-6" />
+          {user.currentDevices && user.currentDevices.length > 0 ? (
+            <div className="space-y-4">
+              {/* Show only the first device */}
+              <div className="flex flex-col gap-3 p-4 bg-pantore-50 rounded-xl border border-pantore-100">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-12 bg-white rounded-lg border border-pantore-200 flex items-center justify-center text-pantore-400 shadow-sm">
+                    <Laptop className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-pantore-800">{user.currentDevices[0].model}</p>
+                    <p className="text-sm text-pantore-500 font-mono">S/N: {user.currentDevices[0].serial}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-bold text-pantore-800">{user.currentDevice.model}</p>
-                  <p className="text-sm text-pantore-500 font-mono">S/N: {user.currentDevice.serial}</p>
-                </div>
-              </div>
-              <div className="mt-4 flex gap-3">
-                {/* 故障・不具合報告へのリンク（マニュアルボタン削除により全幅表示） */}
                 <Link
-                  href="/portal/request/repair"
-                  className="flex-1 py-2.5 text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+                  href={`/portal/request/repair?device=${user.currentDevices[0].serial}`}
+                  className="w-full py-2 text-sm font-bold text-red-600 bg-white border border-red-100 rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
                   <AlertCircle className="w-4 h-4" /> 故障・不具合を報告する
                 </Link>
               </div>
-            </>
+
+              {/* Show "Others" button if more than 1 device */}
+              {user.currentDevices.length > 1 && (
+                <button
+                  onClick={() => setIsDeviceListOpen(true)}
+                  className="w-full py-3 text-sm font-bold text-pantore-600 bg-pantore-50 border border-pantore-200 rounded-xl hover:bg-pantore-100 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Laptop className="w-4 h-4" />
+                  他 {user.currentDevices.length - 1} 台のデバイスを表示
+                </button>
+              )}
+            </div>
           ) : (
             <div className="text-center py-8 text-pantore-400 bg-pantore-50 rounded-xl border border-dashed border-pantore-200">
               <p>現在利用中のデバイスはありません</p>
@@ -201,30 +234,41 @@ export default function UserPortalPage() {
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-pantore-200">
         <h3 className="font-bold text-pantore-800 mb-4">申請履歴（直近・未完了）</h3>
         <div className="space-y-3">
-          {myRequests.length > 0 ? (
-            myRequests.map(req => (
-              <div key={req.id} className="flex items-center justify-between p-4 bg-pantore-50 rounded-xl border border-pantore-100 hover:border-pantore-200 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className={`p-2.5 rounded-full ${req.status === 'completed' ? 'bg-emerald-100 text-emerald-600' :
-                    req.status === 'pending' ? 'bg-yellow-100 text-yellow-600' : 'bg-pantore-200 text-pantore-600'
-                    }`}>
-                    {req.status === 'completed' ? <CheckCircle2 className="w-5 h-5" /> :
-                      req.status === 'pending' ? <Clock className="w-5 h-5" /> :
-                        <FileText className="w-5 h-5" />
-                    }
+          {displayedRequests.length > 0 ? (
+            <>
+              {displayedRequests.map(req => (
+                <div key={req.id} className="flex items-center justify-between p-4 bg-pantore-50 rounded-xl border border-pantore-100 hover:border-pantore-200 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-2.5 rounded-full ${req.status === 'completed' ? 'bg-emerald-100 text-emerald-600' :
+                      req.status === 'pending' ? 'bg-yellow-100 text-yellow-600' : 'bg-pantore-200 text-pantore-600'
+                      }`}>
+                      {req.status === 'completed' ? <CheckCircle2 className="w-5 h-5" /> :
+                        req.status === 'pending' ? <Clock className="w-5 h-5" /> :
+                          <FileText className="w-5 h-5" />
+                      }
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-pantore-800">
+                        {req.type === 'new_hire' ? '新規貸出申請' : req.type === 'breakdown' ? '故障修理申請' : '返却申請'}
+                      </p>
+                      <p className="text-xs text-pantore-500 mt-0.5 font-medium">
+                        申請日: {req.date} ・ {req.detail}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-pantore-800">
-                      {req.type === 'new_hire' ? '新規貸出申請' : req.type === 'breakdown' ? '故障修理申請' : '返却申請'}
-                    </p>
-                    <p className="text-xs text-pantore-500 mt-0.5 font-medium">
-                      申請日: {req.date} ・ {req.detail}
-                    </p>
-                  </div>
+                  <StatusBadge status={req.status} />
                 </div>
-                <StatusBadge status={req.status} />
-              </div>
-            ))
+              ))}
+              {remainingRequestsCount > 0 && (
+                <button
+                  onClick={() => setIsRequestListOpen(true)}
+                  className="w-full py-3 text-sm font-bold text-pantore-600 bg-pantore-50 border border-pantore-200 rounded-xl hover:bg-pantore-100 transition-colors flex items-center justify-center gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  他 {remainingRequestsCount} 件の申請を表示
+                </button>
+              )}
+            </>
           ) : (
             <p className="text-center py-8 text-pantore-400">該当する申請履歴はありません</p>
           )}

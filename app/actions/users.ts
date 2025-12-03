@@ -134,7 +134,7 @@ export async function fetchUserDetailAction(userId: string): Promise<UserDetail 
         company: user.company,
         dept: user.department, // Map department to dept
         deviceCount: 0,
-        currentDevice: null, // Mocked
+        currentDevices: [], // Mocked
         history,
     };
 }

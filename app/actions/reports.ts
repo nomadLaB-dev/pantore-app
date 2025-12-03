@@ -55,18 +55,17 @@ export async function fetchDashboardKpiAction(
 
     // --- Calculations for KPIs ---
 
-    // 1. Total Assets
-    const { count: totalAssets, error: totalAssetsError } = await supabase
-        .from('assets')
-        .select('*', { count: 'exact', head: true })
-        .eq('tenant_id', tenantId);
+    // 4. Calculate Costs (Current Month vs Previous Month)
+    // We need to fetch ALL assets to calculate cost, not just count.
+    // Since we already did a count query above, we might want to optimize, but for now let's fetch data.
+    // Actually, let's just fetch all assets once instead of the count query if we need to iterate them.
+    // But to minimize change risk, I'll add a separate fetch for now or modify the first one.
+    // Let's modify the first query to fetch data instead of just count, as we need it for cost.
 
-    // 2. In-Use Assets for Utilization Rate
-    const { count: inUseAssets, error: inUseAssetsError } = await supabase
+    const { data: allAssets, error: assetsError } = await supabase
         .from('assets')
-        .select('*', { count: 'exact', head: true })
-        .eq('tenant_id', tenantId)
-        .eq('status', 'in_use');
+        .select('*')
+        .eq('tenant_id', tenantId);
 
     // 3. Incidents for the month
     const startDate = new Date(year, month - 1, 1).toISOString();
@@ -79,9 +78,8 @@ export async function fetchDashboardKpiAction(
         .gte('date', startDate)
         .lte('date', endDate);
 
-    if (totalAssetsError || inUseAssetsError || incidentsError) {
-        console.error('Error fetching KPI data:', { totalAssetsError, inUseAssetsError, incidentsError });
-        // Return a default/error state
+    if (assetsError || incidentsError) {
+        console.error('Error fetching KPI data:', { assetsError, incidentsError });
         return {
             totalAssets: 0,
             utilizationRate: 0,
@@ -92,26 +90,95 @@ export async function fetchDashboardKpiAction(
         };
     }
 
+    const totalAssetsCount = allAssets.length;
+    const inUseAssetsCount = allAssets.filter(a => a.status === 'in_use').length;
+
     const utilizationRate =
-        totalAssets && totalAssets > 0
-            ? Math.round(((inUseAssets ?? 0) / totalAssets) * 100)
+        totalAssetsCount > 0
+            ? Math.round((inUseAssetsCount / totalAssetsCount) * 100)
             : 0;
 
-    // --- Mocked Data ---
-    // MTTR, costMonth, and costDiff require more complex calculations or historical data
-    // which are not available or defined. Returning mocked values for now.
-    const mttr = 'N/A'; // Mocked: MTTR calculation is complex.
-    const costMonth = (totalAssets ?? 0) * 1500; // Mocked: e.g., 1500 per asset
-    const costDiff = costMonth * 0.1; // Mocked: e.g., 10% increase
+    // Calculate Cost for Current Month
+    const currentMonthCost = calculateTotalCost(allAssets, year, month);
+
+    // Calculate Cost for Previous Month
+    let prevYear = year;
+    let prevMonth = month - 1;
+    if (prevMonth === 0) {
+        prevMonth = 12;
+        prevYear = year - 1;
+    }
+    const prevMonthCost = calculateTotalCost(allAssets, prevYear, prevMonth);
+
+    const costDiff = currentMonthCost - prevMonthCost;
+
+    // MTTR is still complex to calculate without a proper 'resolved_at' field in requests or history.
+    // Keeping it as mocked/placeholder for now or 'N/A'.
+    const mttr = 'N/A';
 
     return {
-        totalAssets: totalAssets ?? 0,
+        totalAssets: totalAssetsCount,
         utilizationRate,
         incidents: incidents ?? 0,
         mttr,
-        costMonth,
+        costMonth: currentMonthCost,
         costDiff,
     };
+}
+
+function calculateTotalCost(assets: any[], year: number, month: number): number {
+    let totalCost = 0;
+    const reportStart = new Date(year, month - 1, 1);
+    reportStart.setHours(0, 0, 0, 0);
+
+    assets.forEach(asset => {
+        let monthlyCost = 0;
+
+        // Check if asset was purchased/active before this month
+        // If purchase_date is in the future relative to report month, cost is 0?
+        // Usually depreciation starts from purchase date.
+        if (asset.purchase_date) {
+            const purchaseDate = new Date(asset.purchase_date);
+            purchaseDate.setHours(0, 0, 0, 0);
+            if (purchaseDate > reportStart) {
+                // Asset not yet purchased in this report month
+                return;
+            }
+        }
+
+        if (asset.ownership === 'owned') {
+            const total = asset.purchase_cost || 0;
+            const months = asset.depreciation_months || 0;
+            if (months > 0) {
+                // Check if depreciation period is over
+                // Simple logic: if (current_date - purchase_date) < months * 30 days
+                // A more accurate check:
+                if (asset.purchase_date) {
+                    const purchaseDate = new Date(asset.purchase_date);
+                    const monthsPassed = (year - purchaseDate.getFullYear()) * 12 + (month - purchaseDate.getMonth());
+                    // If we are within the depreciation period (e.g. 0 to months-1, or 1 to months depending on definition)
+                    // Let's assume standard straight-line depreciation starting month of purchase
+                    if (monthsPassed >= 0 && monthsPassed < months) {
+                        monthlyCost = Math.round(total / months);
+                    }
+                }
+            }
+        } else if (asset.ownership === 'rental' || asset.ownership === 'lease') {
+            monthlyCost = asset.monthly_cost || 0;
+            // Check if returned before this month
+            if (asset.return_date) {
+                const returnDate = new Date(asset.return_date);
+                returnDate.setHours(0, 0, 0, 0);
+
+                // If returnDate is strictly before reportStart, cost is 0.
+                if (returnDate.getTime() < reportStart.getTime()) {
+                    monthlyCost = 0;
+                }
+            }
+        }
+        totalCost += monthlyCost;
+    });
+    return totalCost;
 }
 
 export async function fetchReportsAction(year: number, month: number): Promise<{

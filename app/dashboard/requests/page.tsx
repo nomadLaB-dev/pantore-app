@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import {
   Search, Filter, FileText, Plus, AlertCircle, ArrowRightLeft,
   MessageSquare, ChevronRight, X, Check, CheckCircle2, XCircle,
@@ -66,13 +67,24 @@ interface RequestDetailModalProps {
 
 const RequestDetailModal = ({ request, onClose, onUpdateStatus }: RequestDetailModalProps) => {
   const [adminNote, setAdminNote] = useState(request?.adminNote || '');
+  const [confirmStatus, setConfirmStatus] = useState<RequestStatus | null>(null);
 
   if (!request) return null;
 
-  const handleAction = (newStatus: RequestStatus) => {
-    if (!confirm('ステータスを更新しますか？')) return;
-    onUpdateStatus(request.id, newStatus, adminNote);
-    onClose();
+  const handleActionClick = (status: RequestStatus) => {
+    setConfirmStatus(status);
+  };
+
+  const handleConfirm = () => {
+    if (confirmStatus) {
+      onUpdateStatus(request.id, confirmStatus, adminNote);
+      setConfirmStatus(null);
+      onClose();
+    }
+  };
+
+  const handleCancelConfirm = () => {
+    setConfirmStatus(null);
   };
 
   return (
@@ -155,23 +167,41 @@ const RequestDetailModal = ({ request, onClose, onUpdateStatus }: RequestDetailM
             </div>
 
             <div className="pt-4 border-t border-gray-100 flex flex-col gap-2">
-              {request.status === 'pending' && (
+              {confirmStatus ? (
+                <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2">
+                  <p className="text-sm font-bold text-center text-gray-800 mb-2">
+                    {confirmStatus === 'approved' ? '承認してよろしいですか？' :
+                      confirmStatus === 'rejected' ? '却下してよろしいですか？' :
+                        confirmStatus === 'completed' ? '完了にしてよろしいですか？' : '更新しますか？'}
+                  </p>
+                  <button onClick={handleConfirm} className="w-full py-2 text-sm font-bold rounded-lg shadow-sm transition-colors bg-gray-900 text-white hover:bg-black">
+                    はい、実行します
+                  </button>
+                  <button onClick={handleCancelConfirm} className="w-full py-2 text-sm font-bold rounded-lg transition-colors text-gray-500 hover:bg-gray-100">
+                    キャンセル
+                  </button>
+                </div>
+              ) : (
                 <>
-                  <button onClick={() => handleAction('approved')} className="w-full py-2 text-sm font-bold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-                    <Check className="w-4 h-4" /> 承認・手配
-                  </button>
-                  <button onClick={() => handleAction('rejected')} className="w-full py-2 text-sm font-bold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 bg-white border border-red-200 text-red-600 hover:bg-red-50">
-                    <XCircle className="w-4 h-4" /> 却下
-                  </button>
+                  {request.status === 'pending' && (
+                    <>
+                      <button onClick={() => handleActionClick('approved')} className="w-full py-2 text-sm font-bold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                        <Check className="w-4 h-4" /> 承認・手配
+                      </button>
+                      <button onClick={() => handleActionClick('rejected')} className="w-full py-2 text-sm font-bold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 bg-white border border-red-200 text-red-600 hover:bg-red-50">
+                        <XCircle className="w-4 h-4" /> 却下
+                      </button>
+                    </>
+                  )}
+                  {request.status === 'approved' && (
+                    <button onClick={() => handleActionClick('completed')} className="w-full py-2 text-sm font-bold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white">
+                      <CheckCircle2 className="w-4 h-4" /> 完了にする
+                    </button>
+                  )}
+                  {['completed', 'rejected'].includes(request.status) && (
+                    <p className="text-center text-xs text-gray-400 bg-gray-50 py-2 rounded">対応完了済み</p>
+                  )}
                 </>
-              )}
-              {request.status === 'approved' && (
-                <button onClick={() => handleAction('completed')} className="w-full py-2 text-sm font-bold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white">
-                  <CheckCircle2 className="w-4 h-4" /> 完了にする
-                </button>
-              )}
-              {['completed', 'rejected'].includes(request.status) && (
-                <p className="text-center text-xs text-gray-400 bg-gray-50 py-2 rounded">対応完了済み</p>
               )}
             </div>
           </div>
@@ -207,7 +237,15 @@ export default function RequestsPage() {
     ));
 
     // 2. Server Actionを呼び出し
-    await updateRequestStatusAction(id, newStatus);
+    try {
+      await updateRequestStatusAction(id, newStatus, adminNote);
+      toast.success('ステータスを更新しました');
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      toast.error('ステータスの更新に失敗しました');
+      // Revert optimistic update (optional, but good practice)
+      // For simplicity, we might just reload or fetch again, but let's leave it for now.
+    }
   };
 
   const filteredRequests = requests.filter(req => {

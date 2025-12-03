@@ -8,6 +8,7 @@ import { type CreateRequestInput, type UserDetail } from '@/lib/types';
 import { createRequestAction } from '@/app/actions/requests';
 import { fetchCurrentUserAction } from '@/app/actions/auth';
 import { createClient } from '@/utils/supabase/client';
+import { toast } from 'sonner';
 
 export default function NewRequestPage() {
   const router = useRouter();
@@ -47,7 +48,7 @@ export default function NewRequestPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      alert('ユーザー情報の取得に失敗しました。');
+      toast.error('ユーザー情報の取得に失敗しました。');
       return;
     }
 
@@ -64,13 +65,11 @@ export default function NewRequestPage() {
 
     try {
       await createRequestAction(newRequest);
-      setTimeout(() => {
-        alert('申請を受け付けました！承認をお待ちください。🎉');
-        router.push('/portal');
-      }, 800);
+      toast.success('申請を受け付けました！承認をお待ちください。🎉');
+      router.push('/portal');
     } catch (error) {
       console.error('Failed to create request:', error);
-      alert('申請の送信に失敗しました。');
+      toast.error('申請の送信に失敗しました。');
       setIsSubmitting(false);
     }
   };
