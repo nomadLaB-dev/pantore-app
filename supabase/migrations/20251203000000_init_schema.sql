@@ -28,7 +28,7 @@ create table public.users (
   id uuid references auth.users on delete cascade not null primary key,
   email text,
   name text,
-  role text check (role in ('owner', 'admin', 'manager', 'user')), -- Legacy role column, now handled by memberships
+  role text check (role in ('owner', 'admin', 'manager', 'user')), -- Updated to include 'owner'
   company text,
   department text,
   status text check (status in ('active', 'inactive')),
@@ -64,8 +64,12 @@ create table public.assets (
   months integer,
   note text,
   accessories text[],
+  depreciation_months integer, -- Added in 20251203000002
+  return_date date, -- Added in 20251203000003
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+comment on column public.assets.depreciation_months is 'Depreciation period in months for owned assets.';
+comment on column public.assets.return_date is 'Date when the rental/lease asset was returned.';
 
 -- Requests Table
 create table public.requests (
@@ -138,7 +142,19 @@ create table public.join_requests (
 );
 comment on table public.join_requests is 'Records user requests to join a specific tenant.';
 create trigger handle_updated_at before update on public.join_requests
-  for each row execute procedure moddatetime (updated_at);
+  for each row execute procedure extensions.moddatetime (updated_at);
+
+-- Tenant Invitations Table (Added in 20251203153000)
+create table public.tenant_invitations (
+  id uuid default gen_random_uuid() primary key,
+  tenant_id uuid references public.tenants(id) on delete cascade not null,
+  token text not null unique,
+  email_domain text, -- e.g. "company.com", null means no restriction
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  created_by uuid references auth.users(id) on delete set null,
+  is_active boolean default true not null
+);
+create index tenant_invitations_token_idx on public.tenant_invitations(token);
 
 
 -- 4. Functions & Triggers
@@ -220,6 +236,7 @@ alter table public.companies enable row level security;
 alter table public.branches enable row level security;
 alter table public.organization_settings enable row level security;
 alter table public.join_requests enable row level security;
+alter table public.tenant_invitations enable row level security;
 
 -- Tenants
 create policy "Users can view tenants they are members of" on public.tenants
@@ -284,3 +301,41 @@ on public.join_requests for select
 using (
     auth.jwt()->>'email' = email
 );
+
+-- Tenant Invitations Policies
+create policy "Admins can view invitations for their tenant"
+  on public.tenant_invitations for select
+  using (
+    exists (
+      select 1 from public.memberships
+      where memberships.user_id = auth.uid()
+      and memberships.tenant_id = tenant_invitations.tenant_id
+      and memberships.role in ('owner', 'admin')
+    )
+  );
+
+create policy "Admins can insert invitations for their tenant"
+  on public.tenant_invitations for insert
+  with check (
+    exists (
+      select 1 from public.memberships
+      where memberships.user_id = auth.uid()
+      and memberships.tenant_id = tenant_invitations.tenant_id
+      and memberships.role in ('owner', 'admin')
+    )
+  );
+
+create policy "Admins can update invitations for their tenant"
+  on public.tenant_invitations for update
+  using (
+    exists (
+      select 1 from public.memberships
+      where memberships.user_id = auth.uid()
+      and memberships.tenant_id = tenant_invitations.tenant_id
+      and memberships.role in ('owner', 'admin')
+    )
+  );
+
+create policy "Anyone can read invitation by token"
+  on public.tenant_invitations for select
+  using ( true );

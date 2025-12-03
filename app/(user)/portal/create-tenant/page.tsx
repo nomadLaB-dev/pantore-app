@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { createTenantAction } from './actions';
 import { AlertCircle } from 'lucide-react';
 
@@ -24,7 +25,7 @@ function SubmitButton() {
 }
 
 export default function CreateTenantPage() {
-  const [state, formAction] = useFormState(createTenantAction, initialState);
+  const [state, formAction, isPending] = useActionState(createTenantAction, initialState);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">

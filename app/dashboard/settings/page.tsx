@@ -9,7 +9,10 @@ import {
   Check,
   List,
   X,
-  Plus
+  Plus,
+  Link as LinkIcon,
+  Copy,
+  RefreshCw
 } from 'lucide-react';
 import {
   OWNERSHIP_LABELS,
@@ -23,6 +26,10 @@ import {
   fetchMasterDataAction,
   updateMasterDataAction
 } from '@/app/actions/settings';
+import {
+  createInvitationAction,
+  getActiveInvitationAction
+} from '@/app/actions/invitations';
 
 // マスタ編集用の小コンポーネント
 const MasterEditor = ({
@@ -101,19 +108,28 @@ export default function SettingsPage() {
     departments: [],
     branches: []
   });
+  const [invitation, setInvitation] = useState<{ token: string; email_domain: string | null } | null>(null);
+  const [domainInput, setDomainInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [settingsData, masterDataData] = await Promise.all([
+        const [settingsData, masterDataData, inviteData] = await Promise.all([
           fetchSettingsAction(),
-          fetchMasterDataAction()
+          fetchMasterDataAction(),
+          getActiveInvitationAction()
         ]);
 
         if (settingsData) setSettings(settingsData);
         if (masterDataData) setMasterData(masterDataData);
+        if (inviteData) {
+          setInvitation(inviteData);
+          setDomainInput(inviteData.email_domain || '');
+        }
       } catch (error) {
         console.error('Failed to load settings:', error);
       } finally {
@@ -124,6 +140,7 @@ export default function SettingsPage() {
   }, []);
 
   const handleSave = async (e: React.FormEvent) => {
+    // ... (remains the same)
     e.preventDefault();
     setIsSaving(true);
 
@@ -141,7 +158,32 @@ export default function SettingsPage() {
     }
   };
 
+  const handleGenerateInvite = async () => {
+    if (!confirm('新しい招待リンクを発行しますか？\n（古いリンクは無効にはなりませんが、新しいリンクがメインになります）')) return;
+
+    setIsGeneratingInvite(true);
+    try {
+      const token = await createInvitationAction(domainInput || undefined);
+      setInvitation({ token, email_domain: domainInput || null });
+      alert('招待リンクを発行しました！');
+    } catch (e) {
+      console.error(e);
+      alert('発行に失敗しました');
+    } finally {
+      setIsGeneratingInvite(false);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (!invitation) return;
+    const url = `${window.location.origin}/join/${invitation.token}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const toggleOwnership = (type: OwnershipType) => {
+    // ... (remains the same)
     setSettings(prev => {
       const current = prev.allowedOwnerships;
       const next = current.includes(type)
@@ -185,7 +227,69 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* 🆕 招待リンク管理 */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-4">
+            <LinkIcon className="w-5 h-5 text-pantore-500" />
+            招待リンク
+          </h3>
+          <p className="text-sm text-gray-500 mb-6">
+            メンバーを招待するための共有リンクを発行します。このURLを知っているユーザーは誰でも参加できます。
+          </p>
+
+          <div className="space-y-4">
+            <div className="flex flex-col md:flex-row gap-4 items-end">
+              <div className="flex-1 space-y-2 w-full">
+                <label className="text-sm font-bold text-gray-700">メールドメイン制限（任意）</label>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400">@</span>
+                  <input
+                    type="text"
+                    placeholder="example.com"
+                    value={domainInput}
+                    onChange={(e) => setDomainInput(e.target.value)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pantore-500"
+                  />
+                </div>
+                <p className="text-xs text-gray-400">指定した場合、そのドメインのメールアドレス以外は登録できなくなります。</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleGenerateInvite}
+                disabled={isGeneratingInvite}
+                className="bg-pantore-100 text-pantore-700 font-bold py-2 px-4 rounded-lg hover:bg-pantore-200 transition-colors flex items-center gap-2 h-10 whitespace-nowrap"
+              >
+                {isGeneratingInvite ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                リンクを発行
+              </button>
+            </div>
+
+            {invitation && (
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex-1 w-full overflow-hidden">
+                  <p className="text-xs text-gray-500 mb-1 font-bold">招待用URL</p>
+                  <p className="text-sm text-gray-800 font-mono truncate bg-white p-2 rounded border border-gray-200 select-all">
+                    {typeof window !== 'undefined' ? `${window.location.origin}/join/${invitation.token}` : `.../join/${invitation.token}`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className={`
+                    flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all w-full md:w-auto justify-center
+                    ${copied ? 'bg-green-500 text-white' : 'bg-gray-800 text-white hover:bg-gray-700'}
+                  `}
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copied ? 'コピーしました' : 'URLをコピー'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* 🆕 4. マスタデータ管理（今回の追加！） */}
+
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-4">
             <List className="w-5 h-5 text-pantore-500" />
