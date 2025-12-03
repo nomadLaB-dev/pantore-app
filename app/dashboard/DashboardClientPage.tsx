@@ -86,12 +86,17 @@ export default function DashboardClientPage({ activeTenant }: DashboardClientPag
   const [requests, setRequests] = useState<Request[]>([]);
   const [assetStats, setAssetStats] = useState({ in_use: 0, available: 0, repair: 0, maintenance: 0, disposed: 0 });
 
+  // Get current date
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
   useEffect(() => {
     if (!activeTenant?.id) return;
 
     const fetchData = async () => {
       // Pass tenantId to the data fetching actions
-      const kpi = await fetchDashboardKpiAction(2025, 11, activeTenant.id);
+      const kpi = await fetchDashboardKpiAction(currentYear, currentMonth, activeTenant.id);
       setKpiData(kpi);
 
       const reqs = await fetchRequestsAction();
@@ -101,7 +106,7 @@ export default function DashboardClientPage({ activeTenant }: DashboardClientPag
       setAssetStats(stats);
     };
     fetchData();
-  }, [activeTenant]); // Re-run effect when activeTenant changes
+  }, [activeTenant?.id, currentYear, currentMonth]); // Re-run effect when activeTenant changes
 
   const costDiffInMan = kpiData ? (kpiData.costDiff / 10000).toFixed(1) : 0;
   const costDiffColor = kpiData && kpiData.costDiff > 0 ? 'text-red-500' : 'text-green-500';
@@ -109,7 +114,7 @@ export default function DashboardClientPage({ activeTenant }: DashboardClientPag
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <h2 className="text-2xl font-bold text-gray-800">
-        {activeTenant.name} 運用レポート (2025年11月)
+        {activeTenant.name} 運用レポート ({currentYear}年{currentMonth}月)
       </h2>
 
       {/* KPI Cards */}

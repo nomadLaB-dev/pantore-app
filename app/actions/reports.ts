@@ -126,57 +126,65 @@ export async function fetchDashboardKpiAction(
     };
 }
 
-function calculateTotalCost(assets: any[], year: number, month: number): number {
-    let totalCost = 0;
+function calculateAssetMonthlyCost(asset: any, year: number, month: number): number {
+    let monthlyCost = 0;
     const reportStart = new Date(year, month - 1, 1);
     reportStart.setHours(0, 0, 0, 0);
 
+    // Check if asset was purchased/active before this month
+    if (asset.purchase_date) {
+        const purchaseDate = new Date(asset.purchase_date);
+        purchaseDate.setHours(0, 0, 0, 0);
+        if (purchaseDate > reportStart) {
+            // Asset not yet purchased in this report month
+            return 0;
+        }
+    }
+
+    // Check if returned/disposed before this month (Applies to all ownership types)
+    if (asset.return_date) {
+        const returnDate = new Date(asset.return_date);
+        returnDate.setHours(0, 0, 0, 0);
+
+        // If returnDate is strictly before reportStart, cost is 0.
+        if (returnDate.getTime() < reportStart.getTime()) {
+            return 0;
+        }
+    }
+
+    if (asset.ownership === 'owned') {
+        const total = asset.purchase_cost || 0;
+        const months = asset.depreciation_months || 0;
+        if (months > 0) {
+            let isActive = true;
+
+            // Only check depreciation period if purchase_date exists
+            if (asset.purchase_date) {
+                const purchaseDate = new Date(asset.purchase_date);
+                // Fix: month is 1-12, getMonth() is 0-11. So we use (month - 1).
+                const monthsPassed = (year - purchaseDate.getFullYear()) * 12 + ((month - 1) - purchaseDate.getMonth());
+
+                // If we are within the depreciation period (0 to months-1)
+                if (monthsPassed < 0 || monthsPassed >= months) {
+                    isActive = false;
+                }
+            }
+
+            if (isActive) {
+                monthlyCost = Math.round(total / months);
+            }
+        }
+    } else if (asset.ownership === 'rental' || asset.ownership === 'lease') {
+        monthlyCost = asset.monthly_cost || 0;
+    }
+
+    return monthlyCost;
+}
+
+function calculateTotalCost(assets: any[], year: number, month: number): number {
+    let totalCost = 0;
     assets.forEach(asset => {
-        let monthlyCost = 0;
-
-        // Check if asset was purchased/active before this month
-        // If purchase_date is in the future relative to report month, cost is 0?
-        // Usually depreciation starts from purchase date.
-        if (asset.purchase_date) {
-            const purchaseDate = new Date(asset.purchase_date);
-            purchaseDate.setHours(0, 0, 0, 0);
-            if (purchaseDate > reportStart) {
-                // Asset not yet purchased in this report month
-                return;
-            }
-        }
-
-        if (asset.ownership === 'owned') {
-            const total = asset.purchase_cost || 0;
-            const months = asset.depreciation_months || 0;
-            if (months > 0) {
-                // Check if depreciation period is over
-                // Simple logic: if (current_date - purchase_date) < months * 30 days
-                // A more accurate check:
-                if (asset.purchase_date) {
-                    const purchaseDate = new Date(asset.purchase_date);
-                    const monthsPassed = (year - purchaseDate.getFullYear()) * 12 + (month - purchaseDate.getMonth());
-                    // If we are within the depreciation period (e.g. 0 to months-1, or 1 to months depending on definition)
-                    // Let's assume standard straight-line depreciation starting month of purchase
-                    if (monthsPassed >= 0 && monthsPassed < months) {
-                        monthlyCost = Math.round(total / months);
-                    }
-                }
-            }
-        } else if (asset.ownership === 'rental' || asset.ownership === 'lease') {
-            monthlyCost = asset.monthly_cost || 0;
-            // Check if returned before this month
-            if (asset.return_date) {
-                const returnDate = new Date(asset.return_date);
-                returnDate.setHours(0, 0, 0, 0);
-
-                // If returnDate is strictly before reportStart, cost is 0.
-                if (returnDate.getTime() < reportStart.getTime()) {
-                    monthlyCost = 0;
-                }
-            }
-        }
-        totalCost += monthlyCost;
+        totalCost += calculateAssetMonthlyCost(asset, year, month);
     });
     return totalCost;
 }
@@ -248,39 +256,20 @@ export async function fetchReportsAction(year: number, month: number): Promise<{
         const dept = history?.dept || asset.user?.department || '未割り当て';
         const key = `${company}_${dept}`;
 
-        // Calculate Monthly Cost using the new logic
-        let monthlyCost = 0;
-        if (asset.ownership === 'owned') {
-            const total = asset.purchase_cost || 0;
-            const months = asset.depreciation_months || 0;
-            if (months > 0) {
-                monthlyCost = Math.round(total / months);
-            }
-        } else if (asset.ownership === 'rental' || asset.ownership === 'lease') {
-            monthlyCost = asset.monthly_cost || 0;
-            // Check if returned before this month
-            if (asset.return_date) {
-                const returnDate = new Date(asset.return_date);
-                // Reset time to midnight to ensure date-only comparison
-                returnDate.setHours(0, 0, 0, 0);
-
-                const reportStart = new Date(year, month - 1, 1);
-                reportStart.setHours(0, 0, 0, 0);
-
-                // If returnDate is strictly before reportStart, cost is 0.
-                if (returnDate.getTime() < reportStart.getTime()) {
-                    monthlyCost = 0;
-                }
-            }
-        }
+        // Calculate Monthly Cost using the shared logic
+        const monthlyCost = calculateAssetMonthlyCost(asset, year, month);
 
         // Update Cost Report (Aggregate by Company + Dept)
         if (!costMap.has(key)) {
             costMap.set(key, { company, dept, assetCount: 0, cost: 0 });
         }
         const entry = costMap.get(key)!;
-        entry.assetCount += 1;
-        entry.cost += monthlyCost;
+
+        // Only count if cost is incurred (excludes disposed/returned or fully depreciated assets)
+        if (monthlyCost > 0) {
+            entry.assetCount += 1;
+            entry.cost += monthlyCost;
+        }
 
         // Add to Asset Detail List
         assetDetails.push({

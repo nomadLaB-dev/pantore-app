@@ -28,7 +28,10 @@ type ViewMode = 'branch' | 'dept';
 export default function ReportsPage() {
   const [reportType, setReportType] = useState<ReportType>('cost');
   const [viewMode, setViewMode] = useState<ViewMode>('branch');
-  const [date, setDate] = useState({ year: 2025, month: 11 });
+  const [date, setDate] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
   const [costData, setCostData] = useState<CostReportRow[]>([]);
   const [incidentData, setIncidentData] = useState<IncidentReportData>({ count: 0, requests: [] });
   const [assetDetailList, setAssetDetailList] = useState<AssetDetailRow[]>([]);
