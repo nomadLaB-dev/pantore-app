@@ -80,7 +80,7 @@ export default function LoginPage() {
                   name="email"
                   type="email"
                   required
-                  placeholder="yoshito.s.0717@gmail.com"
+                  placeholder="login@pantore.jp"
                   className="w-full pl-10 pr-4 py-3 bg-pantore-50 border border-pantore-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pantore-500 transition-all"
                 />
               </div>
@@ -94,7 +94,7 @@ export default function LoginPage() {
                   name="password"
                   type={showPassword ? "text" : "password"}
                   required
-                  placeholder="••••"
+                  placeholder="●●●●●●●●●●"
                   className="w-full pl-10 pr-12 py-3 bg-pantore-50 border border-pantore-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pantore-500 transition-all font-mono"
                 />
                 <button
