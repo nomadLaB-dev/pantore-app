@@ -95,9 +95,20 @@ export async function standardSignup(formData: FormData) {
             user.id,
             { email_confirm: true }
         );
+
+        // Auto-login
+        const { error: loginError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+
+        if (loginError) {
+            console.error('Auto-login failed:', loginError);
+            return { error: 'Account created, but auto-login failed. Please log in manually.' };
+        }
     }
 
-    return { success: true };
+    return redirect('/portal/create-tenant');
 }
 
 export async function signupAndRequestToJoin(formData: FormData) {
