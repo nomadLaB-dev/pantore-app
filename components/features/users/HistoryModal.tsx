@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, X, Save } from 'lucide-react';
 import { type EmploymentHistory, type MasterData } from '@/lib/types';
-import { fetchMasterDataAction } from '@/app/actions';
+import { createEmploymentHistoryAction, updateEmploymentHistoryAction, deleteEmploymentHistoryAction } from '@/app/actions/users';
+import { fetchMasterDataAction } from '@/app/actions/settings';
 
 interface Props {
   isOpen: boolean;

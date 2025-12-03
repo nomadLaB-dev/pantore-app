@@ -6,7 +6,7 @@ import {
   type CostReportRow,
   type IncidentReportData,
   type AssetDetailRow
-} from '@/app/actions';
+} from '@/app/actions/reports';
 import {
   BarChart,
   AlertTriangle,

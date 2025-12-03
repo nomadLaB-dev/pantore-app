@@ -13,7 +13,7 @@ import {
   X,
   Settings
 } from 'lucide-react';
-import { fetchCurrentUserAction, signOutAction } from '@/app/actions';
+import { fetchCurrentUserAction, signOutAction } from '@/app/actions/auth';
 import { type UserDetail } from '@/lib/types';
 import { UserProfileModal } from './features/portal/UserProfileModal';
 

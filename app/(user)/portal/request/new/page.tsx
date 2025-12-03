@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, Laptop, Send } from 'lucide-react';
 import Link from 'next/link';
 import { type CreateRequestInput, type UserDetail } from '@/lib/types';
-import { createRequestAction, fetchCurrentUserAction } from '@/app/actions';
+import { createRequestAction } from '@/app/actions/requests';
+import { fetchCurrentUserAction } from '@/app/actions/auth';
 import { createClient } from '@/utils/supabase/client';
 
 export default function NewRequestPage() {

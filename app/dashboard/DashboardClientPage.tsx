@@ -10,11 +10,9 @@ import {
   FileText
 } from 'lucide-react';
 
-import {
-  fetchDashboardKpiAction,
-  fetchRequestsAction,
-  fetchAssetStatusStatsAction,
-} from '@/app/actions';
+import { fetchDashboardKpiAction } from '@/app/actions/reports';
+import { fetchRequestsAction } from '@/app/actions/requests';
+import { fetchAssetStatusStatsAction } from '@/app/actions/assets';
 import { type Request, type Tenant } from '@/lib/types';
 import {
   Chart as ChartJS,
@@ -96,7 +94,7 @@ export default function DashboardClientPage({ activeTenant }: DashboardClientPag
       const kpi = await fetchDashboardKpiAction(2025, 11, activeTenant.id);
       setKpiData(kpi);
 
-      const reqs = await fetchRequestsAction(activeTenant.id);
+      const reqs = await fetchRequestsAction();
       setRequests(reqs);
 
       const stats = await fetchAssetStatusStatsAction(activeTenant.id);

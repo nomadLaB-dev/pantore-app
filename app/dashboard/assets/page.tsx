@@ -14,12 +14,12 @@ import {
 } from '@/lib/types';
 import {
   fetchAssetsAction,
-  fetchUsersAction,
-  fetchSettingsAction,
   createAssetAction,
   updateAssetAction,
   deleteAssetAction
-} from '@/app/actions';
+} from '@/app/actions/assets';
+import { fetchUsersAction } from '@/app/actions/users';
+import { fetchSettingsAction } from '@/app/actions/settings';
 import { calculateAssetCosts } from '@/lib/cost-utils';
 
 // --- Components (Badge) ---

@@ -23,7 +23,7 @@ export async function createTenantAction(prevState: CreateTenantState, formData:
     return { error: 'Workspace name is required.' };
   }
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
 
   const {

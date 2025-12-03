@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { type Tenant } from '@/lib/types';
 
 export default async function DashboardPage() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
 
   const activeTenantId = cookieStore.get('active_tenant_id')?.value;

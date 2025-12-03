@@ -6,29 +6,45 @@ import { redirect } from 'next/navigation';
 
 // --- Login Action ---
 export async function login(formData: FormData) {
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    const cookieStore = await cookies();
+    const supabase = createClient(cookieStore);
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+    const { data: { user }, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+    });
 
-  if (error) {
-    return { error: 'Invalid login credentials. Please try again.' };
-  }
+    if (error || !user) {
+        return { error: 'Invalid login credentials. Please try again.' };
+    }
 
-  return redirect('/portal');
+    // Fetch memberships to determine default tenant
+    const { data: memberships } = await supabase
+        .from('memberships')
+        .select('tenant_id')
+        .eq('user_id', user.id);
+
+    if (memberships && memberships.length > 0) {
+        // Set the first tenant as active
+        // In a real app, might want to check for 'last_active' or similar, but this is a good start.
+        cookieStore.set('active_tenant_id', memberships[0].tenant_id, {
+            path: '/',
+            httpOnly: true,
+            // secure: true, // dependent on env
+        });
+    }
+
+    return redirect('/portal');
 }
 
 
 // --- Multi-Step Signup Actions ---
 
 const SHARED_DOMAINS = new Set([
-  'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 
-  'me.com', 'mac.com', 'live.com', 'msn.com', 'aol.com'
+    'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com',
+    'me.com', 'mac.com', 'live.com', 'msn.com', 'aol.com'
 ]);
 
 export async function checkDomainForTenant(email: string): Promise<{ tenantId: string; tenantName: string } | null> {
@@ -38,14 +54,14 @@ export async function checkDomainForTenant(email: string): Promise<{ tenantId: s
         return null;
     }
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createClient(cookieStore);
     const { data: tenant } = await supabase
         .from('tenants')
         .select('id, name')
         .eq('domain', domain)
         .single();
-    
+
     if (tenant) {
         return { tenantId: tenant.id, tenantName: tenant.name };
     }
@@ -56,7 +72,7 @@ export async function standardSignup(formData: FormData) {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const name = formData.get('name') as string;
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createClient(cookieStore);
 
     const { data: { user }, error } = await supabase.auth.signUp({
@@ -89,7 +105,7 @@ export async function signupAndRequestToJoin(formData: FormData) {
     const password = formData.get('password') as string;
     const name = formData.get('name') as string;
     const tenantId = formData.get('tenantId') as string;
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createClient(cookieStore);
 
     const { data: { user }, error: signupError } = await supabase.auth.signUp({
@@ -105,7 +121,7 @@ export async function signupAndRequestToJoin(formData: FormData) {
     if (signupError) {
         return { error: 'Could not create user account. The email may be taken.' };
     }
-    
+
     if (!user) {
         return { error: 'User was not created. Please try again.' };
     }
@@ -123,7 +139,7 @@ export async function signupAndRequestToJoin(formData: FormData) {
             tenant_id: tenantId,
             status: 'pending',
         });
-    
+
     if (requestError) {
         return { error: 'Your account was created, but the request to join failed. Please contact support.' };
     }

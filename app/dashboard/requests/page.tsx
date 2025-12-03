@@ -12,7 +12,7 @@ import {
   type Request,
   type RequestStatus
 } from '@/lib/types';
-import { fetchRequestsAction, updateRequestStatusAction } from '@/app/actions';
+import { fetchRequestsAction, updateRequestStatusAction } from '@/app/actions/requests';
 
 // --- Components ---
 

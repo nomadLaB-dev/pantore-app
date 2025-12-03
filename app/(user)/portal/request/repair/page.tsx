@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, AlertTriangle, Camera } from 'lucide-react';
 import Link from 'next/link';
 import { type CreateRequestInput, type UserDetail, type OrganizationSettings } from '@/lib/types';
-import { createRequestAction, fetchCurrentUserAction, fetchSettingsAction } from '@/app/actions';
+import { createRequestAction } from '@/app/actions/requests';
+import { fetchCurrentUserAction } from '@/app/actions/auth';
+import { fetchSettingsAction } from '@/app/actions/settings';
 import { createClient } from '@/utils/supabase/client';
 
 export default function RepairRequestPage() {

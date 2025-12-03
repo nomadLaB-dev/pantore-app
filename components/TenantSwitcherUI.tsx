@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { switchTenant } from '@/app/actions';
+import { useState, useTransition, useEffect } from 'react';
+import { switchTenant } from '@/app/actions/auth';
 import { ChevronsUpDown, Check } from 'lucide-react';
 
 type Tenant = {
@@ -12,12 +12,22 @@ type Tenant = {
 export function TenantSwitcherUI({
   tenants,
   activeTenant,
+  shouldSetCookie = false,
 }: {
   tenants: Tenant[];
   activeTenant: Tenant;
+  shouldSetCookie?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (shouldSetCookie) {
+      startTransition(() => {
+        switchTenant(activeTenant.id);
+      });
+    }
+  }, [shouldSetCookie, activeTenant.id]);
 
   const handleSwitch = (tenantId: string) => {
     startTransition(() => {

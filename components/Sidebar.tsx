@@ -15,7 +15,7 @@ import {
   Settings,
   X
 } from 'lucide-react';
-import { fetchCurrentUserAction, signOutAction } from '@/app/actions';
+import { fetchCurrentUserAction, signOutAction } from '@/app/actions/auth';
 import { type UserDetail } from '@/lib/types';
 
 interface SidebarProps {
@@ -97,7 +97,7 @@ export default function Sidebar({ isOpen = false, onClose, tenantSwitcher }: Sid
               <X className="w-6 h-6" />
             </button>
           </div>
-          
+
           {/* Tenant Switcher Slot */}
           <div className="px-4 mt-2 mb-4">
             {tenantSwitcher}

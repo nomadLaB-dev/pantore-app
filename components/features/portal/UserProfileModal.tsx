@@ -5,12 +5,12 @@ import { X, User, Building2, Save, Plus, Trash2, Eye, EyeOff, Loader2 } from 'lu
 import { type UserDetail, type EmploymentHistory } from '@/lib/types';
 import {
     fetchUserDetailAction,
-    updateSelfProfileAction,
     createEmploymentHistoryAction,
     updateEmploymentHistoryAction,
     deleteEmploymentHistoryAction,
-    fetchMasterDataAction
-} from '@/app/actions';
+} from '@/app/actions/users';
+import { fetchMasterDataAction } from '@/app/actions/settings';
+import { updateSelfProfileAction } from '@/app/actions/auth';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { type MasterData } from '@/lib/types';
 

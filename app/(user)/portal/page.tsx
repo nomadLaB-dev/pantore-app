@@ -19,7 +19,9 @@ import {
   type Request,
   type UserDetail
 } from '@/lib/types';
-import { fetchRequestsAction, fetchUserDetailAction, fetchCurrentUserAction } from '@/app/actions';
+import { fetchRequestsAction } from '@/app/actions/requests';
+import { fetchUserDetailAction } from '@/app/actions/users';
+import { fetchCurrentUserAction } from '@/app/actions/auth';
 import { createClient } from '@/utils/supabase/client';
 
 // --- Components ---

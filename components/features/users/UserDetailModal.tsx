@@ -11,11 +11,12 @@ import { HistoryModal } from './HistoryModal';
 import { DeviceAssignModal } from './DeviceAssignModal';
 import {
   fetchUserDetailAction,
+  updateUserAction,
   createEmploymentHistoryAction,
   updateEmploymentHistoryAction,
-  deleteEmploymentHistoryAction,
-  assignAssetToUserAction
-} from '@/app/actions';
+  deleteEmploymentHistoryAction
+} from '@/app/actions/users';
+import { assignAssetToUserAction } from '@/app/actions/assets';
 
 interface Props {
   initialUser: UserSummary;

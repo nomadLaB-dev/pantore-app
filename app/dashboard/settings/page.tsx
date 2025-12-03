@@ -22,7 +22,7 @@ import {
   updateSettingsAction,
   fetchMasterDataAction,
   updateMasterDataAction
-} from '@/app/actions';
+} from '@/app/actions/settings';
 
 // マスタ編集用の小コンポーネント
 const MasterEditor = ({

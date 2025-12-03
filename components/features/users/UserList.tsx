@@ -26,7 +26,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 export const UserList = ({ users, searchTerm, setSearchTerm, onUserClick, onOpenCreateModal }: Props) => {
   const filteredUsers = users.filter(u =>
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.dept.toLowerCase().includes(searchTerm.toLowerCase())
+    (u.dept || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (

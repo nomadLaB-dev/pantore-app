@@ -6,12 +6,12 @@ import {
 } from '@/lib/types';
 import {
   fetchUsersAction,
-  fetchAssetsAction,
-  fetchMasterDataAction,
   createUserAction,
-  updateUserAction,
-  fetchCurrentUserAction
-} from '@/app/actions';
+  updateUserAction
+} from '@/app/actions/users';
+import { fetchAssetsAction } from '@/app/actions/assets';
+import { fetchMasterDataAction } from '@/app/actions/settings';
+import { fetchCurrentUserAction } from '@/app/actions/auth';
 
 // 作成したコンポーネントをインポート
 import { UserList } from '@/components/features/users/UserList';

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { signOutAction } from '@/app/actions';
+import { signOutAction } from '@/app/actions/auth';
 
 const TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
 

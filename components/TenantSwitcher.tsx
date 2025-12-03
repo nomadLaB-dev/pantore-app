@@ -10,7 +10,7 @@ type Tenant = {
 };
 
 export async function TenantSwitcher() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
 
   const {
@@ -31,7 +31,7 @@ export async function TenantSwitcher() {
     console.error('Error fetching tenants:', error);
     return <div>Error loading workspaces.</div>;
   }
-  
+
   // The query returns { tenants: { id, name } } objects. Flatten the structure.
   const tenants: Tenant[] = memberships.map((m: any) => m.tenants).filter(Boolean);
 
@@ -41,27 +41,25 @@ export async function TenantSwitcher() {
   }
 
   let activeTenantId = cookieStore.get('active_tenant_id')?.value;
-  
+
   // If no active tenant is set in cookies, or if the user is somehow not a member 
   // of the tenant stored in the cookie, default to the first one in their list.
   const activeTenantIsValid = tenants.some(t => t.id === activeTenantId);
 
   if (!activeTenantId || !activeTenantIsValid) {
     activeTenantId = tenants[0].id;
-    // Set cookie for subsequent requests.
-    // This write operation is safe here.
-    cookieStore.set('active_tenant_id', activeTenantId, {
-      path: '/',
-      httpOnly: true,
-    });
+    // We cannot set cookies in a Server Component.
+    // We will pass a flag to the client component to trigger a server action to set it.
   }
-  
+
   const activeTenant = tenants.find((t) => t.id === activeTenantId);
 
   if (!activeTenant) {
-      // This should not happen if logic is correct, but handles potential race conditions.
-      return <div>Error: Active workspace not found.</div>
+    // This should not happen if logic is correct, but handles potential race conditions.
+    return <div>Error: Active workspace not found.</div>
   }
 
-  return <TenantSwitcherUI tenants={tenants} activeTenant={activeTenant} />;
+  const shouldSetCookie = !activeTenantIsValid || cookieStore.get('active_tenant_id')?.value !== activeTenantId;
+
+  return <TenantSwitcherUI tenants={tenants} activeTenant={activeTenant} shouldSetCookie={shouldSetCookie} />;
 }
