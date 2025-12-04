@@ -140,16 +140,19 @@ export default function Sidebar({ isOpen = false, onClose, tenantSwitcher }: Sid
         {/* プロフィールエリア: flex-shrink-0 で縮まないように固定 */}
         <div className="flex-shrink-0 p-4 bg-pantore-50/50 border-t border-pantore-200">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-pantore-300 flex items-center justify-center text-xs font-bold text-pantore-800 border-2 border-white shadow-sm">
-              {user?.avatar || 'U'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-pantore-900 truncate">{user?.name || 'Loading...'}</p>
-              <p className="text-xs text-pantore-500 truncate">{user?.email || ''}</p>
-            </div>
+            <Link href="/dashboard/profile" className="flex items-center gap-3 flex-1 min-w-0 group cursor-pointer" onClick={onClose}>
+              <div className="w-9 h-9 rounded-full bg-pantore-300 flex items-center justify-center text-xs font-bold text-pantore-800 border-2 border-white shadow-sm group-hover:border-pantore-400 transition-colors">
+                {user?.avatar || 'U'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-pantore-900 truncate group-hover:text-pantore-700 transition-colors">{user?.name || 'Loading...'}</p>
+                <p className="text-xs text-pantore-500 truncate">{user?.email || ''}</p>
+              </div>
+            </Link>
             <button
               onClick={handleLogout}
-              className="text-pantore-400 cursor-pointer hover:text-pantore-600 transition-colors"
+              className="text-pantore-400 cursor-pointer hover:text-pantore-600 transition-colors p-1 rounded-full hover:bg-pantore-200"
+              title="ログアウト"
             >
               <LogOut className="w-5 h-5" />
             </button>

@@ -155,18 +155,14 @@ export async function createUserAction(user: UserSummary) {
     // Note: listUsers is paginated, but for now assuming small scale or we should use getUserByEmail if available in admin api
     // Actually, createUser with existing email returns error, which we can handle.
 
-    // Try to create the user. 
-    // In a real app, we might want to send an invitation.
-    // Here, we'll create them with a temporary password or just invite them.
-    // Let's use inviteUserByEmail if possible, or createUser.
-
-    // For this environment, let's try creating them directly with auto-confirm.
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email: user.email,
-        email_confirm: true,
-        user_metadata: { name: user.name },
-        password: 'tempPassword123!', // Should be changed by user later
-    });
+    // Try to invite the user. 
+    // This will send an email with a magic link to the user, allowing them to set their password.
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+        user.email,
+        {
+            data: { name: user.name }
+        }
+    );
 
     let userId = authUser?.user?.id;
 

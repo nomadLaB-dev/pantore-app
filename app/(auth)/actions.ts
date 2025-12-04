@@ -157,3 +157,19 @@ export async function signupAndRequestToJoin(formData: FormData) {
 
     return { success: true };
 }
+
+export async function updatePasswordAction(password: string) {
+    const cookieStore = await cookies();
+    const supabase = createClient(cookieStore);
+
+    const { error } = await supabase.auth.updateUser({
+        password: password
+    });
+
+    if (error) {
+        console.error('Error updating password:', error);
+        throw new Error('Failed to update password');
+    }
+
+    return { success: true };
+}
