@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Lock, Save, AlertCircle, CheckCircle } from 'lucide-react';
 import { fetchCurrentUserAction } from '@/app/actions/auth';
-import { updatePasswordAction } from '@/app/actions/auth';
+import { updatePasswordAction } from '@/app/(auth)/actions';
 import { UserDetail } from '@/lib/types';
 
 export default function ProfilePage() {
