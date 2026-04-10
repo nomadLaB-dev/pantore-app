@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
-import { Employee } from '@/types';
+import { mockEmployees } from '../route';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-    const resolvedParams = await params;
+    const { id } = await params;
+    const emp = mockEmployees.find((e) => e.id === id);
+    if (!emp) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json(emp);
+}
 
-    const employee: Employee = {
-        id: resolvedParams.id,
-        name: '山田 太郎',
-        email: 'taro.yamada@pantore.test',
-        hireDate: new Date('2023-04-01'),
-        leaveDate: null,
-        createdAt: new Date('2023-04-01'),
-        updatedAt: new Date('2023-04-01'),
-    };
-
-    return NextResponse.json(employee);
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    const body = await req.json();
+    // Mock: just echo back with updated fields
+    const emp = mockEmployees.find((e) => e.id === id);
+    if (!emp) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({ ...emp, ...body, updatedAt: new Date() });
 }

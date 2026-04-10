@@ -1,118 +1,232 @@
 'use client';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Search, Plus, Filter, MoreHorizontal, User } from 'lucide-react';
-import { Employee } from '@/types';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Search, Plus, User, ChevronRight, UserCheck, UserX, Archive, ArchiveRestore } from 'lucide-react';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { EmploymentCategoryLabel, AccountStatus } from '@/types';
+import { cn } from '@/lib/utils';
+
+const categoryColors: Record<string, string> = {
+    full_time: 'border-blue-500 text-blue-600 dark:text-blue-400',
+    part_time: 'border-amber-500 text-amber-600 dark:text-amber-400',
+    contract: 'border-violet-500 text-violet-600 dark:text-violet-400',
+    dispatch: 'border-teal-500 text-teal-600 dark:text-teal-400',
+};
+
+const accountStatusConfig: Record<AccountStatus, { label: string; className: string }> = {
+    active: { label: '有効', className: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' },
+    disabled: { label: '無効', className: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' },
+    none: { label: '未発行', className: 'bg-transparent border border-border text-muted-foreground' },
+};
 
 export default function EmployeesPage() {
     const [searchTerm, setSearchTerm] = useState('');
+    const [showArchived, setShowArchived] = useState(false);
+    const queryClient = useQueryClient();
 
-    const { data: employees, isLoading } = useQuery<Employee[]>({
-        queryKey: ['employees'],
+    const { data: employees = [], isLoading } = useQuery<any[]>({
+        queryKey: ['employees', showArchived],
         queryFn: async () => {
-            const res = await fetch('/api/employees');
-            if (!res.ok) throw new Error('Failed to fetch employees');
-            return res.json();
-        }
+            const url = `/api/employees${showArchived ? '?includeArchived=true' : ''}`;
+            return (await fetch(url)).json();
+        },
     });
 
-    const filteredEmployees = employees?.filter(emp =>
-        emp.name.includes(searchTerm) || emp.email.includes(searchTerm)
-    ) || [];
+    // Mock account status mutation
+    const statusMutation = useMutation({
+        mutationFn: async ({ id, status }: { id: string; status: AccountStatus }) => {
+            await fetch(`/api/employees/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accountStatus: status }),
+            });
+        },
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['employees'] }),
+    });
+
+    const filtered = employees.filter(
+        (e) =>
+            e.name.includes(searchTerm) ||
+            e.email.includes(searchTerm) ||
+            e.branch?.name?.includes(searchTerm),
+    );
+
+    const active = employees.filter((e) => !e.leaveDate && e.accountStatus === 'active').length;
+    const disabled = employees.filter((e) => !e.leaveDate && e.accountStatus === 'disabled').length;
+    const noAccount = employees.filter((e) => !e.leaveDate && e.accountStatus === 'none').length;
 
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">社員管理</h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm">社員情報を一覧表示し、稼働状況などを管理します。</p>
+                    <p className="text-muted-foreground text-sm">社員の情報・雇用区分・アカウント状態を管理します。</p>
                 </div>
-                <button className="h-10 px-4 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-medium flex items-center gap-2 transition-colors">
-                    <Plus className="w-4 h-4" />
-                    新規追加
-                </button>
+                <Button className="bg-brand-500 hover:bg-brand-600 text-white gap-2">
+                    <Plus className="w-4 h-4" /> 新規追加
+                </Button>
             </div>
 
-            <div className="bg-white dark:bg-[#0f172a] border border-border shadow-sm rounded-2xl overflow-hidden">
+            {/* Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                    { label: '在籍中（有効）', value: active },
+                    { label: 'アカウント無効', value: disabled },
+                    { label: '未発行', value: noAccount },
+                    { label: '退職済（アーカイブ）', value: employees.filter((e) => e.leaveDate).length },
+                ].map((s) => (
+                    <Card key={s.label}>
+                        <CardContent className="pt-5 pb-4">
+                            <p className="text-xs text-muted-foreground">{s.label}</p>
+                            <p className="text-2xl font-bold">{s.value}</p>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            <Card>
                 {/* Toolbar */}
-                <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-4">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="名前やメールアドレスで検索..."
+                <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                    <div className="relative flex-1 max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                            placeholder="名前・メール・支社で検索..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full h-10 pl-9 pr-4 bg-slate-50 dark:bg-slate-900 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                            className="pl-9"
                         />
                     </div>
-                    <button className="h-10 px-4 border border-border text-slate-600 dark:text-slate-300 rounded-xl text-sm font-medium flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                        <Filter className="w-4 h-4" />
-                        フィルター
-                    </button>
+                    <Button
+                        variant={showArchived ? 'secondary' : 'outline'}
+                        size="sm"
+                        className="gap-2 shrink-0"
+                        onClick={() => setShowArchived(!showArchived)}
+                    >
+                        {showArchived ? (
+                            <><ArchiveRestore className="w-4 h-4" />アーカイブを非表示</>
+                        ) : (
+                            <><Archive className="w-4 h-4" />退職者を表示</>
+                        )}
+                    </Button>
                 </div>
 
                 {/* Table */}
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm whitespace-nowrap">
-                        <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400">
-                            <tr>
-                                <th className="px-6 py-3 font-medium">社員名</th>
-                                <th className="px-6 py-3 font-medium">メールアドレス</th>
-                                <th className="px-6 py-3 font-medium">入社日</th>
-                                <th className="px-6 py-3 font-medium text-center">ステータス</th>
-                                <th className="px-6 py-3 font-medium text-right">アクション</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
-                                        読み込み中...
-                                    </td>
-                                </tr>
-                            ) : filteredEmployees.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
-                                        社員が見つかりません
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredEmployees.map((emp) => (
-                                    <tr key={emp.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                        <td className="px-6 py-3">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>社員名</TableHead>
+                            <TableHead className="hidden lg:table-cell">支社</TableHead>
+                            <TableHead className="hidden md:table-cell">雇用区分</TableHead>
+                            <TableHead className="hidden sm:table-cell">入社日</TableHead>
+                            <TableHead className="text-center">アカウント</TableHead>
+                            <TableHead className="text-center hidden sm:table-cell">在籍</TableHead>
+                            <TableHead />
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoading ? (
+                            <TableRow>
+                                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">読み込み中...</TableCell>
+                            </TableRow>
+                        ) : filtered.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">社員が見つかりません</TableCell>
+                            </TableRow>
+                        ) : (
+                            filtered.map((emp) => {
+                                const acct = accountStatusConfig[emp.accountStatus as AccountStatus];
+                                return (
+                                    <TableRow key={emp.id} className={cn(emp.leaveDate && 'opacity-60')}>
+                                        <TableCell>
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400">
-                                                    <User className="w-4 h-4" />
+                                                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                                                    <User className="w-4 h-4 text-muted-foreground" />
                                                 </div>
-                                                <span className="font-medium">{emp.name}</span>
+                                                <div>
+                                                    <p className="font-medium leading-tight">{emp.name}</p>
+                                                    <p className="text-xs text-muted-foreground hidden sm:block">{emp.email}</p>
+                                                </div>
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-3 text-slate-500 dark:text-slate-400">{emp.email}</td>
-                                        <td className="px-6 py-3 text-slate-500 dark:text-slate-400">
+                                        </TableCell>
+
+                                        <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
+                                            {emp.branch?.name ?? '—'}
+                                        </TableCell>
+
+                                        <TableCell className="hidden md:table-cell">
+                                            {emp.currentEmploymentCategory ? (
+                                                <Badge variant="outline" className={cn('text-xs', categoryColors[emp.currentEmploymentCategory])}>
+                                                    {EmploymentCategoryLabel[emp.currentEmploymentCategory as keyof typeof EmploymentCategoryLabel]}
+                                                </Badge>
+                                            ) : '—'}
+                                        </TableCell>
+
+                                        <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
                                             {new Date(emp.hireDate).toLocaleDateString('ja-JP')}
-                                        </td>
-                                        <td className="px-6 py-3 text-center">
-                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${emp.leaveDate ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
-                                                }`}>
-                                                {emp.leaveDate ? '退職済' : '在籍中'}
+                                        </TableCell>
+
+                                        <TableCell className="text-center">
+                                            <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', acct.className)}>
+                                                {acct.label}
                                             </span>
-                                        </td>
-                                        <td className="px-6 py-3 text-right">
-                                            <Link href={`/employees/${emp.id}`}>
-                                                <button className="p-2 text-slate-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-lg transition-colors">
-                                                    詳細
-                                                </button>
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                                        </TableCell>
+
+                                        <TableCell className="text-center hidden sm:table-cell">
+                                            <Badge variant={emp.leaveDate ? 'secondary' : 'outline'} className={emp.leaveDate ? '' : 'border-brand-500 text-brand-600 dark:text-brand-400'}>
+                                                {emp.leaveDate ? 'アーカイブ' : '在籍中'}
+                                            </Badge>
+                                        </TableCell>
+
+                                        <TableCell className="text-right">
+                                            <div className="flex items-center justify-end gap-1">
+                                                {/* Account action buttons */}
+                                                {!emp.leaveDate && (
+                                                    <>
+                                                        {emp.accountStatus !== 'active' ? (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="gap-1.5 text-green-600 border-green-200 hover:bg-green-50 dark:border-green-800 dark:hover:bg-green-900/20 text-xs h-8"
+                                                                onClick={() => statusMutation.mutate({ id: emp.id, status: 'active' })}
+                                                            >
+                                                                <UserCheck className="w-3.5 h-3.5" /> Activate
+                                                            </Button>
+                                                        ) : (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="gap-1.5 text-slate-500 border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 text-xs h-8"
+                                                                onClick={() => statusMutation.mutate({ id: emp.id, status: 'disabled' })}
+                                                            >
+                                                                <UserX className="w-3.5 h-3.5" /> Disable
+                                                            </Button>
+                                                        )}
+                                                    </>
+                                                )}
+                                                <Link href={`/employees/${emp.id}`}>
+                                                    <Button variant="ghost" size="sm" className="gap-1 text-brand-500 h-8">
+                                                        詳細 <ChevronRight className="w-3 h-3" />
+                                                    </Button>
+                                                </Link>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })
+                        )}
+                    </TableBody>
+                </Table>
+            </Card>
         </div>
     );
 }

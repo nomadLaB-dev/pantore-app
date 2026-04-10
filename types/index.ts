@@ -1,4 +1,5 @@
 export type Role = 'admin' | 'manager' | 'user';
+export type AccountStatus = 'active' | 'disabled' | 'none';
 
 export interface User {
     id: string;
@@ -8,12 +9,41 @@ export interface User {
     createdAt: Date;
 }
 
+// 支社
+export interface Branch {
+    id: string;
+    name: string;
+    address: string;
+}
+
+// 雇用区分
+export type EmploymentCategory = 'full_time' | 'part_time' | 'contract' | 'dispatch';
+
+export const EmploymentCategoryLabel: Record<EmploymentCategory, string> = {
+    full_time: '正社員',
+    part_time: 'パート・アルバイト',
+    contract: '契約社員',
+    dispatch: '派遣社員',
+};
+
+export interface EmploymentTypeHistory {
+    id: string;
+    employeeId: string;
+    category: EmploymentCategory;
+    startDate: Date;
+    endDate: Date | null;
+}
+
 export interface Employee {
     id: string;
     name: string;
     email: string;
     hireDate: Date;
     leaveDate: Date | null;
+    // アカウント状態
+    accountStatus: AccountStatus;
+    // 現在の雇用区分（latest EmploymentTypeHistory から取得）
+    currentEmploymentCategory?: EmploymentCategory;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -53,6 +83,8 @@ export interface Vehicle {
     manufacturer: string;
     model: string;
     licensePlate: string;
+    // 人ではなく支社に紐づける
+    branchId: string | null;
 }
 
 export interface VehicleLease {
