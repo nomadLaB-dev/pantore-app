@@ -76,13 +76,27 @@ export interface Asset {
 
 export type OwnershipType = 'owned' | 'leased';
 
+// ナンバープレートの色区分
+export type LicensePlateColor = 'white' | 'yellow' | 'green' | 'black';
+
+export const LicensePlateColorLabel: Record<LicensePlateColor, string> = {
+    white: '白（普通車）',
+    yellow: '黄（軽自動車）',
+    green: '緑（営業用普通車）',
+    black: '黒（営業用軽自動車）',
+};
+
 export interface Vehicle {
     id: string;
     assetId: string;
+
     ownershipType: OwnershipType;
+
     manufacturer: string;
     model: string;
     licensePlate: string;
+    licensePlateColor: LicensePlateColor;
+
     // 人ではなく支社に紐づける
     branchId: string | null;
 }
@@ -116,11 +130,38 @@ export interface RealEstate {
 
 export interface Contract {
     id: string;
-    relatedType: AssetType;
+    relatedType: 'vehicle' | 'real_estate';
     relatedId: string;
     startDate: Date;
     endDate: Date;
     alertDaysBefore: number;
+}
+
+// ---- Subscription -------------------------------------------------------
+
+export type SubscriptionCurrency = 'JPY' | 'USD';
+
+export interface SubscriptionPriceHistory {
+    id: string;
+    subscriptionId: string;
+    amount: number;
+    currency: SubscriptionCurrency;
+    effectiveFrom: Date;
+    note: string | null;
+}
+
+export interface Subscription {
+    id: string;
+    serviceName: string;
+    serviceUrl: string | null;
+    corporateName: string;
+    branchId: string | null;
+    assigneeEmployeeId: string | null;
+    // 現在の金額（最新の SubscriptionPriceHistoryから）
+    currentAmount: number | null;
+    currentCurrency: SubscriptionCurrency;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 export interface AssetAssignment {

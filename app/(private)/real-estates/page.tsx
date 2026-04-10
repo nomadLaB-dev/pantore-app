@@ -1,12 +1,15 @@
 'use client';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Plus, ChevronRight, MapPin, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { NewRealEstateModal } from '@/components/modals/new-real-estate-modal';
 
 export default function RealEstatesPage() {
+    const [showNewModal, setShowNewModal] = useState(false);
     const { data: estates = [], isLoading } = useQuery<any[]>({
         queryKey: ['real-estates'],
         queryFn: async () => (await fetch('/api/real-estates')).json(),
@@ -19,9 +22,10 @@ export default function RealEstatesPage() {
                     <h1 className="text-2xl font-bold tracking-tight">不動産管理</h1>
                     <p className="text-muted-foreground text-sm">オフィスや倉庫など保有・賃貸物件を一元管理します。</p>
                 </div>
-                <Button className="bg-brand-500 hover:bg-brand-600 text-white gap-2">
+                <Button className="bg-brand-500 hover:bg-brand-600 text-white gap-2" onClick={() => setShowNewModal(true)}>
                     <Plus className="w-4 h-4" /> 新規登録
                 </Button>
+                <NewRealEstateModal open={showNewModal} onClose={() => setShowNewModal(false)} />
             </div>
 
             {/* Stats */}

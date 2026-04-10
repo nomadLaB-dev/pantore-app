@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { EmploymentCategoryLabel, AccountStatus } from '@/types';
 import { cn } from '@/lib/utils';
+import { NewEmployeeModal } from '@/components/modals/new-employee-modal';
 
 const categoryColors: Record<string, string> = {
     full_time: 'border-blue-500 text-blue-600 dark:text-blue-400',
@@ -32,6 +33,7 @@ const accountStatusConfig: Record<AccountStatus, { label: string; className: str
 export default function EmployeesPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [showArchived, setShowArchived] = useState(false);
+    const [showNewModal, setShowNewModal] = useState(false);
     const queryClient = useQueryClient();
 
     const { data: employees = [], isLoading } = useQuery<any[]>({
@@ -72,9 +74,10 @@ export default function EmployeesPage() {
                     <h1 className="text-2xl font-bold tracking-tight">社員管理</h1>
                     <p className="text-muted-foreground text-sm">社員の情報・雇用区分・アカウント状態を管理します。</p>
                 </div>
-                <Button className="bg-brand-500 hover:bg-brand-600 text-white gap-2">
+                <Button className="bg-brand-500 hover:bg-brand-600 text-white gap-2" onClick={() => setShowNewModal(true)}>
                     <Plus className="w-4 h-4" /> 新規追加
                 </Button>
+                <NewEmployeeModal open={showNewModal} onClose={() => setShowNewModal(false)} />
             </div>
 
             {/* Stats */}

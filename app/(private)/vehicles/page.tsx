@@ -1,10 +1,13 @@
 'use client';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Car, Plus, AlertTriangle, Building2, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { NewVehicleModal } from '@/components/modals/new-vehicle-modal';
+import { LicensePlateColorLabel } from '@/types';
 
 const severityMap = {
     low: { label: '軽微', class: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-300' },
@@ -13,6 +16,7 @@ const severityMap = {
 };
 
 export default function VehiclesPage() {
+    const [showNewModal, setShowNewModal] = useState(false);
     const { data: vehicles = [], isLoading } = useQuery<any[]>({
         queryKey: ['vehicles'],
         queryFn: async () => (await fetch('/api/vehicles')).json(),
@@ -28,10 +32,11 @@ export default function VehiclesPage() {
                     <h1 className="text-2xl font-bold tracking-tight">車両管理</h1>
                     <p className="text-muted-foreground text-sm">支社別の車両・リース・事故情報を管理します。</p>
                 </div>
-                <Button className="bg-brand-500 hover:bg-brand-600 text-white gap-2">
+                <Button className="bg-brand-500 hover:bg-brand-600 text-white gap-2" onClick={() => setShowNewModal(true)}>
                     <Plus className="w-4 h-4" /> 新規登録
                 </Button>
             </div>
+            <NewVehicleModal open={showNewModal} onClose={() => setShowNewModal(false)} />
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -3,12 +3,11 @@ import { mockBranches } from '../employees/route';
 
 export const mockVehicles = [
     {
-        id: 'v1',
-        assetId: 'a1',
+        id: 'v1', assetId: 'a1',
         ownershipType: 'leased' as const,
-        manufacturer: 'トヨタ',
-        model: 'ノア',
+        manufacturer: 'トヨタ', model: 'ノア',
         licensePlate: '品川300あ1234',
+        licensePlateColor: 'white' as const,
         branchId: 'b1',
         asset: { id: 'a1', name: 'トヨタ ノア', type: 'vehicle' as const, createdAt: new Date('2022-04-01') },
         lease: {
@@ -23,24 +22,22 @@ export const mockVehicles = [
         ],
     },
     {
-        id: 'v2',
-        assetId: 'a2',
+        id: 'v2', assetId: 'a2',
         ownershipType: 'owned' as const,
-        manufacturer: 'ホンダ',
-        model: 'フィット',
+        manufacturer: 'ホンダ', model: 'フィット',
         licensePlate: '練馬500さ5678',
+        licensePlateColor: 'yellow' as const,
         branchId: 'b2',
         asset: { id: 'a2', name: 'ホンダ フィット', type: 'vehicle' as const, createdAt: new Date('2021-01-15') },
         lease: null,
         accidents: [],
     },
     {
-        id: 'v3',
-        assetId: 'a3',
+        id: 'v3', assetId: 'a3',
         ownershipType: 'leased' as const,
-        manufacturer: '日産',
-        model: 'セレナ',
+        manufacturer: '日産', model: 'セレナ',
         licensePlate: '横浜330い9012',
+        licensePlateColor: 'white' as const,
         branchId: 'b3',
         asset: { id: 'a3', name: '日産 セレナ', type: 'vehicle' as const, createdAt: new Date('2023-09-01') },
         lease: {
@@ -55,12 +52,11 @@ export const mockVehicles = [
         ],
     },
     {
-        id: 'v4',
-        assetId: 'a4',
+        id: 'v4', assetId: 'a4',
         ownershipType: 'owned' as const,
-        manufacturer: 'スズキ',
-        model: 'エブリイ',
+        manufacturer: 'スズキ', model: 'エブリイ',
         licensePlate: '大阪480む3456',
+        licensePlateColor: 'green' as const,
         branchId: 'b2',
         asset: { id: 'a4', name: 'スズキ エブリイ', type: 'vehicle' as const, createdAt: new Date('2020-06-01') },
         lease: null,
@@ -69,7 +65,6 @@ export const mockVehicles = [
 ];
 
 export async function GET() {
-    // Join branch
     const result = mockVehicles.map((v) => ({
         ...v,
         branch: mockBranches.find((b) => b.id === v.branchId) ?? null,
