@@ -141,6 +141,15 @@ export interface Contract {
 
 export type SubscriptionCurrency = 'JPY' | 'USD';
 
+export type SubscriptionBillingInterval = 'monthly' | 'annual' | 'usage' | 'one_time';
+
+export const SubscriptionBillingIntervalLabel: Record<SubscriptionBillingInterval, string> = {
+    monthly: '月額',
+    annual: '年額',
+    usage: '従量課金',
+    one_time: '単挥払い',
+};
+
 export interface SubscriptionPriceHistory {
     id: string;
     subscriptionId: string;
@@ -155,9 +164,10 @@ export interface Subscription {
     serviceName: string;
     serviceUrl: string | null;
     corporateName: string;
+    billingInterval: SubscriptionBillingInterval;
     branchId: string | null;
     assigneeEmployeeId: string | null;
-    // 現在の金額（最新の SubscriptionPriceHistoryから）
+    // 現在の金額（最新の SubscriptionPriceHistory から）
     currentAmount: number | null;
     currentCurrency: SubscriptionCurrency;
     createdAt: Date;

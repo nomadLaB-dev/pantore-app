@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SubscriptionBillingIntervalLabel } from '@/types';
 
 interface Props { open: boolean; onClose: () => void; }
 
@@ -28,6 +29,7 @@ export function NewSubscriptionModal({ open, onClose }: Props) {
         serviceName: '',
         serviceUrl: '',
         corporateName: '',
+        billingInterval: 'monthly',
         branchId: '',
         assigneeEmployeeId: '',
         amount: '',
@@ -36,6 +38,7 @@ export function NewSubscriptionModal({ open, onClose }: Props) {
     });
 
     const set = (key: string) => (v: string | null) => v !== null && setForm((f) => ({ ...f, [key]: v }));
+    const isUsage = form.billingInterval === 'usage';
 
     const mutation = useMutation({
         mutationFn: async () => {
@@ -43,6 +46,7 @@ export function NewSubscriptionModal({ open, onClose }: Props) {
                 serviceName: form.serviceName,
                 serviceUrl: form.serviceUrl || null,
                 corporateName: form.corporateName,
+                billingInterval: form.billingInterval,
                 branchId: form.branchId || null,
                 assigneeEmployeeId: form.assigneeEmployeeId || null,
                 currentCurrency: form.currency,
@@ -53,8 +57,7 @@ export function NewSubscriptionModal({ open, onClose }: Props) {
                 body: JSON.stringify(body),
             });
             const created = await res.json();
-            // Also add first price history if amount was set
-            if (form.amount) {
+            if (form.amount && !isUsage) {
                 await fetch(`/api/subscriptions/${created.id}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -70,7 +73,7 @@ export function NewSubscriptionModal({ open, onClose }: Props) {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['subscriptions'] });
             onClose();
-            setForm({ serviceName: '', serviceUrl: '', corporateName: '', branchId: '', assigneeEmployeeId: '', amount: '', currency: 'JPY', effectiveFrom: new Date().toISOString().slice(0, 10) });
+            setForm({ serviceName: '', serviceUrl: '', corporateName: '', billingInterval: 'monthly', branchId: '', assigneeEmployeeId: '', amount: '', currency: 'JPY', effectiveFrom: new Date().toISOString().slice(0, 10) });
         },
     });
 
@@ -80,7 +83,8 @@ export function NewSubscriptionModal({ open, onClose }: Props) {
                 <DialogHeader>
                     <DialogTitle>サブスクを新規登録</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+                <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
+
                     {/* Service info */}
                     <div className="space-y-3">
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">サービス情報</p>
@@ -95,38 +99,61 @@ export function NewSubscriptionModal({ open, onClose }: Props) {
                             </div>
                         </div>
                         <div>
-                            <label className="text-sm font-medium mb-1.5 block">法人名</label>
+                            <label className="text-sm font-medium mb-1.5 block">法人名（請求元）</label>
                             <Input placeholder="Notion Labs, Inc." value={form.corporateName} onChange={(e) => setForm({ ...form, corporateName: e.target.value })} />
                         </div>
                     </div>
 
-                    {/* Amount */}
-                    <div className="space-y-3 pt-1">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">月額料金</p>
-                        <div className="grid grid-cols-3 gap-3">
-                            <div className="col-span-2">
-                                <label className="text-sm font-medium mb-1.5 block">金額</label>
-                                <Input type="number" placeholder="2500" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium mb-1.5 block">通貨</label>
-                                <Select value={form.currency} onValueChange={set('currency')}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="JPY">¥ JPY</SelectItem>
-                                        <SelectItem value="USD">$ USD</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
+                    {/* Billing info */}
+                    <div className="space-y-3">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">課金形態・金額</p>
                         <div>
-                            <label className="text-sm font-medium mb-1.5 block">適用開始日</label>
-                            <Input type="date" value={form.effectiveFrom} onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} />
+                            <label className="text-sm font-medium mb-1.5 block">課金形態 <span className="text-red-500">*</span></label>
+                            <Select value={form.billingInterval} onValueChange={set('billingInterval')}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {Object.entries(SubscriptionBillingIntervalLabel).map(([k, v]) => (
+                                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
+
+                        {isUsage ? (
+                            <div className="p-3 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 text-sm text-orange-700 dark:text-orange-300">
+                                従量課金は使用量に応じて変動するため、金額の初期設定はありません。詳細画面から目安金額を履歴として追加できます。
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="col-span-2">
+                                    <label className="text-sm font-medium mb-1.5 block">
+                                        金額{form.billingInterval === 'annual' ? '（年額）' : form.billingInterval === 'monthly' ? '（月額）' : ''}
+                                    </label>
+                                    <Input type="number" placeholder="2500" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium mb-1.5 block">通貨</label>
+                                    <Select value={form.currency} onValueChange={set('currency')}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="JPY">¥ JPY</SelectItem>
+                                            <SelectItem value="USD">$ USD</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        )}
+
+                        {!isUsage && (
+                            <div>
+                                <label className="text-sm font-medium mb-1.5 block">適用開始日</label>
+                                <Input type="date" value={form.effectiveFrom} onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} />
+                            </div>
+                        )}
                     </div>
 
                     {/* Attribution */}
-                    <div className="space-y-3 pt-1">
+                    <div className="space-y-3">
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">担当・支社</p>
                         <div className="grid grid-cols-2 gap-3">
                             <div>
@@ -134,7 +161,7 @@ export function NewSubscriptionModal({ open, onClose }: Props) {
                                 <Select value={form.branchId} onValueChange={set('branchId')}>
                                     <SelectTrigger><SelectValue placeholder="全支社" /></SelectTrigger>
                                     <SelectContent>
-                                        {branches.map((b) => <SelectItem key={b.id} value={b.id || '_none'}>{b.name}</SelectItem>)}
+                                        {branches.map((b) => <SelectItem key={b.id || '_none'} value={b.id || '_none'}>{b.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -153,6 +180,7 @@ export function NewSubscriptionModal({ open, onClose }: Props) {
                         </div>
                     </div>
                 </div>
+
                 <DialogFooter className="mt-2">
                     <Button variant="outline" onClick={onClose}>キャンセル</Button>
                     <Button
