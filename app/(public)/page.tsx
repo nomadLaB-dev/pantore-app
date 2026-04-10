@@ -74,10 +74,15 @@ export default function LandingPage() {
                 Pantoreは、企業の社員の稼働から、車両・不動産などの物理資産、契約期限までを劇的にシンプルに統合管理するモダンERPです。
               </p>
               <div className="flex flex-col sm:flex-row items-start gap-3">
-                <Link href="/login">
+                <Link href="/register">
                   <button className="h-13 px-7 py-3.5 bg-amber-700 hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-700 text-white rounded-full font-semibold text-base flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-amber-700/30">
-                    システムを試す
+                    無料ではじめる
                     <ArrowRight className="w-5 h-5" />
+                  </button>
+                </Link>
+                <Link href="/login">
+                  <button className="h-13 px-7 py-3.5 bg-white/80 dark:bg-amber-950/50 hover:bg-white dark:hover:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700 rounded-full font-medium text-base flex items-center gap-2 transition-all hover:scale-105 active:scale-95 backdrop-blur-sm">
+                    ログイン
                   </button>
                 </Link>
               </div>
