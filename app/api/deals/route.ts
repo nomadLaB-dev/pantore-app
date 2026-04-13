@@ -1,57 +1,26 @@
 import { NextResponse } from 'next/server';
-import { mockClients } from '../clients/route';
+import {
+    mockClients, mockDeals, mockDealAssignees,
+    mockInvoices, mockContracts, mockMinutes,
+} from '@/lib/mock-data';
 
-export const mockDeals = [
-    {
-        id: 'd_1',
-        clientId: 'cl_1',
-        name: '食品管理システム 導入支援',
-        startDate: new Date('2024-02-01'),
-        endDate: new Date('2024-07-31'),
-        autoRenew: false,
-        billingType: 'shot' as const,
-        amount: 1500000,
-        currency: 'JPY',
-        status: 'completed' as const,
-        notes: '初期導入フェーズ、定例MTX月2回',
-        createdAt: new Date('2024-01-20'),
-    },
-    {
-        id: 'd_2',
-        clientId: 'cl_2',
-        name: 'ECサイト運用保守',
-        startDate: new Date('2024-04-01'),
-        endDate: new Date('2025-03-31'),
-        autoRenew: true,
-        billingType: 'recurring' as const,
-        amount: 120000,
-        currency: 'JPY',
-        status: 'active' as const,
-        notes: '月額保守、SLA 99.5%',
-        createdAt: new Date('2024-03-15'),
-    },
-    {
-        id: 'd_3',
-        clientId: 'cl_3',
-        name: '農産物調達データ分析レポート',
-        startDate: new Date('2025-02-01'),
-        endDate: new Date('2025-04-30'),
-        autoRenew: false,
-        billingType: 'shot' as const,
-        amount: 480000,
-        currency: 'JPY',
-        status: 'active' as const,
-        notes: '四半期ごとのデータ納品',
-        createdAt: new Date('2025-01-25'),
-    },
-];
-
-export async function GET() {
-    const withClient = mockDeals.map((d) => ({
+function enrich(d: typeof mockDeals[0]) {
+    const assignees = mockDealAssignees
+        .filter((a) => a.dealId === d.id)
+        .sort((a, b) => new Date(b.assignedAt).getTime() - new Date(a.assignedAt).getTime());
+    return {
         ...d,
         client: mockClients.find((c) => c.id === d.clientId) ?? null,
-    }));
-    return NextResponse.json(withClient);
+        currentAssignee: assignees[0] ?? null,
+        assigneeHistory: assignees,
+        invoices: mockInvoices.filter((i) => i.dealId === d.id),
+        contracts: mockContracts.filter((c) => c.dealId === d.id),
+        minutes: mockMinutes.filter((m) => m.dealId === d.id),
+    };
+}
+
+export async function GET() {
+    return NextResponse.json(mockDeals.map(enrich));
 }
 
 export async function POST(req: Request) {

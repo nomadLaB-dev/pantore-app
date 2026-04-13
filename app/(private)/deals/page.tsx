@@ -1,10 +1,9 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
 import {
-    Handshake, Plus, Search, FileText, RefreshCw, Zap, Calendar,
-    ChevronRight, CheckCircle2, XCircle, FileSpreadsheet, AlertCircle,
+    Handshake, Plus, Search, RefreshCw, Zap, Calendar,
+    ChevronRight, FileSpreadsheet, AlertCircle, Pencil, UserCheck,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -198,12 +197,6 @@ export default function DealsPage() {
     const totalActive = deals.filter((d) => d.status === 'active').length;
     const totalAmount = deals.reduce((s: number, d: any) => s + (d.status === 'active' ? d.amount : 0), 0);
 
-    // Fake invoice handler
-    const handleInvoice = (deal: any, e: React.MouseEvent) => {
-        e.stopPropagation();
-        alert(`請求書発行: ${deal.name}\n（機能実装予定）`);
-    };
-
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -271,26 +264,43 @@ export default function DealsPage() {
                                         {d.client && (
                                             <p className="text-sm text-muted-foreground truncate">{d.client.companyName}{d.client.department ? ` · ${d.client.department}` : ''}</p>
                                         )}
-                                        <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
-                                            <Calendar className="w-3.5 h-3.5" />
-                                            <span>{new Date(d.startDate).toLocaleDateString('ja-JP')} 〜 {d.endDate ? new Date(d.endDate).toLocaleDateString('ja-JP') : '継続'}</span>
+                                        <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
+                                            <span className="flex items-center gap-1">
+                                                <Calendar className="w-3.5 h-3.5" />
+                                                {new Date(d.startDate).toLocaleDateString('ja-JP')} 〜 {d.endDate ? new Date(d.endDate).toLocaleDateString('ja-JP') : '継続'}
+                                            </span>
+                                            {d.currentAssignee && (
+                                                <span className="flex items-center gap-1">
+                                                    <UserCheck className="w-3.5 h-3.5" />
+                                                    {d.currentAssignee.assigneeName}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
 
-                                    <div className="flex sm:flex-col items-center sm:items-end gap-3 sm:gap-1 shrink-0">
+                                    <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-2 shrink-0">
                                         <p className="text-xl font-bold tabular-nums">
                                             ¥{d.amount.toLocaleString()}
                                             {d.billingType === 'recurring' && <span className="text-sm font-normal text-muted-foreground"> /月</span>}
                                         </p>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="gap-1.5 text-xs hover:border-brand-500 hover:text-brand-600"
-                                            onClick={(e) => handleInvoice(d, e)}
-                                        >
-                                            <FileSpreadsheet className="w-3.5 h-3.5" />
-                                            請求書発行
-                                        </Button>
+                                        <div className="flex gap-2">
+                                            <Link
+                                                href={`/deals/${d.id}`}
+                                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-xs font-medium hover:border-brand-500 hover:text-brand-600 transition-colors"
+                                            >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                                詳細・編集
+                                            </Link>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="gap-1.5 text-xs hover:border-brand-500 hover:text-brand-600"
+                                                onClick={(e) => { e.stopPropagation(); alert(`請求書発行: ${d.name}\n（機能実装予定）`); }}
+                                            >
+                                                <FileSpreadsheet className="w-3.5 h-3.5" />
+                                                請求書
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                                 {d.notes && (
