@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🥐 Pantore (パントーレ)
 
-## Getting Started
+> **「企業のコア情報を、パンのトレーに乗せるように、もっと自由に、もっと簡単に。」**
 
-First, run the development server:
+Pantoreは、パントリー（企業の資産・情報）から、必要なものだけをトレーにピックアップして整理・管理できるプラットフォームを目指しています。
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Concept
+会社の情報はどこにまとめていますか？そもそも、本当にまとまっていますか？
+私たちは、まるでパン屋さんに来た時のように、直感的に「これが必要！」「これは今はいいや」とワクワクしながら情報を取捨選択できる体験（UX）を提供します。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠 Tech Stack
+- **Frontend:** Next.js 15 (App Router), React 19
+- **Styling:** Tailwind CSS, shadcn/ui
+- **State Management:** Zustand
+- **Database:** Supabase (Integration pending)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🚧 Status: Work in Progress
+現在はUI/UXのプロトタイプを構築中の**モックアップフェーズ**です。
+- [x] ダッシュボードの基本レイアウト
+- [x] 各種アセット（車両・不動産・従業員）のモック画面
+- [ ] リアルタイムデータベースとの接続
+- [ ] ドラッグ＆ドロップによる「トレー操作」の実装
 
-## Learn More
+## 🏃‍♂️ Getting Started
+まずはローカル環境で動かしてみましょう！
 
-To learn more about Next.js, take a look at the following resources:
+1. リポジトリをクローン
+   ```bash
+   git clone https://github.com/your-repo/pantore-app.git
+   ```
+2. 依存関係をインストール
+   ```bash
+   npm install
+   ```
+3. 開発サーバーを起動
+   ```bash
+   npm run dev
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📝 License
+This project is licensed under the MIT License.
