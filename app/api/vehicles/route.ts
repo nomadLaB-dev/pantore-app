@@ -17,6 +17,7 @@ export const mockVehicles = [
             contractEndDate: new Date('2026-04-24'),
             monthlyFee: 55000,
         },
+        depreciation: null,
         accidents: [
             { id: 'acc1', vehicleId: 'v1', employeeId: 'emp_1', accidentDate: new Date('2024-08-15'), description: '駐車場内での接触事故', severity: 'low' as const },
         ],
@@ -30,6 +31,13 @@ export const mockVehicles = [
         branchId: 'b2',
         asset: { id: 'a2', name: 'ホンダ フィット', type: 'vehicle' as const, createdAt: new Date('2021-01-15') },
         lease: null,
+        depreciation: {
+            acquisitionCost: 1650000,       // 購入価額（本体＋付帯費用）
+            bodyType: 'passenger_compact' as const,  // 軽自動車 → 耐用4年
+            isNewCar: false,
+            purchaseDate: new Date('2021-01-15'),
+            firstRegistrationDate: new Date('2018-09-01'), // 初度登録（約2年4ヶ月落ち）
+        },
         accidents: [],
     },
     {
@@ -47,6 +55,7 @@ export const mockVehicles = [
             contractEndDate: new Date('2026-08-31'),
             monthlyFee: 65000,
         },
+        depreciation: null,
         accidents: [
             { id: 'acc2', vehicleId: 'v3', employeeId: null, accidentDate: new Date('2025-01-22'), description: '雪道でのスリップ', severity: 'medium' as const },
         ],
@@ -60,6 +69,13 @@ export const mockVehicles = [
         branchId: 'b2',
         asset: { id: 'a4', name: 'スズキ エブリイ', type: 'vehicle' as const, createdAt: new Date('2020-06-01') },
         lease: null,
+        depreciation: {
+            acquisitionCost: 1980000,
+            bodyType: 'truck_general' as const,  // 軽バン（一般貨物）→ 耐用5年
+            isNewCar: true,
+            purchaseDate: new Date('2020-06-01'),
+            firstRegistrationDate: new Date('2020-06-01'),
+        },
         accidents: [],
     },
 ];
