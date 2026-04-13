@@ -26,12 +26,37 @@ export const EmploymentCategoryLabel: Record<EmploymentCategory, string> = {
     dispatch: '派遣社員',
 };
 
+// 給与形態
+export type SalaryType = 'monthly' | 'hourly' | 'annual';
+
+export const SalaryTypeLabel: Record<SalaryType, string> = {
+    monthly: '月給',
+    hourly: '時給',
+    annual: '年俸',
+};
+
+// 有期雇用の雇用区分
+export const FIXED_TERM_CATEGORIES: EmploymentCategory[] = ['part_time', 'contract', 'dispatch'];
+
 export interface EmploymentTypeHistory {
     id: string;
     employeeId: string;
     category: EmploymentCategory;
     startDate: Date;
-    endDate: Date | null;
+    endDate: Date | null;       // 区分上の終了日（次の区分開始日 - 1日）
+
+    // 給与情報
+    salary: number | null;      // 金額（時給なら円/時、月給・年俸なら円）
+    salaryType: SalaryType | null;
+
+    // 有期雇用の場合の契約期間
+    contractStartDate: Date | null;
+    contractEndDate: Date | null;
+    renewalPlanned: boolean;    // true の場合は期限アラートを抑制
+
+    // 主な配置（異動先）— 契約時に記入
+    primaryBranchId: string | null;
+    assignmentNote: string | null;  // 部署名・役職など自由記述
 }
 
 export interface Employee {
@@ -194,3 +219,51 @@ export interface AuditLog {
     operatedBy: string;
     operatedAt: Date;
 }
+
+// ---- Client (取引先) -------------------------------------------------
+
+export interface Client {
+    id: string;
+    companyName: string;
+    department: string | null;
+    contactName: string;
+    contactEmail: string | null;
+    contactPhone: string | null;
+    billingName: string | null;
+    billingEmail: string | null;
+    billingAddress: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+// ---- Deal (取引) -----------------------------------------------------
+
+export type DealBillingType = 'shot' | 'recurring';
+export type DealStatus = 'active' | 'completed' | 'cancelled';
+
+export const DealBillingTypeLabel: Record<DealBillingType, string> = {
+    shot: 'スポット（単発）',
+    recurring: '継続課金',
+};
+
+export const DealStatusLabel: Record<DealStatus, string> = {
+    active: '進行中',
+    completed: '完了',
+    cancelled: 'キャンセル',
+};
+
+export interface Deal {
+    id: string;
+    clientId: string;
+    name: string;
+    startDate: Date;
+    endDate: Date | null;
+    autoRenew: boolean;
+    billingType: DealBillingType;
+    amount: number;
+    currency: 'JPY' | 'USD';
+    status: DealStatus;
+    notes: string | null;
+    createdAt: Date;
+}
+
