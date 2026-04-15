@@ -70,7 +70,7 @@ export function NewRealEstateModal({ open, onClose }: Props) {
                     <div>
                         <label className="text-sm font-medium mb-1.5 block">保有形態</label>
                         <Select value={form.ownershipType} onValueChange={set('ownershipType')}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="選択">{form.ownershipType === 'owned' ? '自社保有' : form.ownershipType === 'leased' ? '賃借' : ''}</SelectValue></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="leased">賃借</SelectItem>
                                 <SelectItem value="owned">自社保有</SelectItem>

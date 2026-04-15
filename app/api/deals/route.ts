@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import {
     mockClients, mockDeals, mockDealAssignees,
     mockInvoices, mockContracts, mockMinutes,
-} from '@/lib/mock-data';
+} from '@/lib/mocks/deals';
 
 function enrich(d: typeof mockDeals[0]) {
     const assignees = mockDealAssignees
@@ -28,6 +28,19 @@ export async function POST(req: Request) {
         const body = await req.json();
         const newDeal = { ...body, id: `d_${Date.now()}`, status: 'active', createdAt: new Date() };
         mockDeals.push(newDeal);
+
+        // Record initial assignee
+        if (body.assigneeName) {
+            mockDealAssignees.push({
+                id: `da_${Date.now()}`,
+                dealId: newDeal.id,
+                assigneeName: body.assigneeName,
+                assigneeEmail: '', // Fixed type error (null -> '')
+                assignedAt: new Date(),
+                handoverNote: '新規案件登録によるアサイン',
+            });
+        }
+
         return NextResponse.json(newDeal, { status: 201 });
     } catch {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -112,7 +112,7 @@ export function EmploymentHistoryModal({ employeeId, record, open, onClose }: Pr
                     <div>
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">雇用区分</p>
                         <Select value={form.category} onValueChange={set('category')}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="選択">{form.category ? EmploymentCategoryLabel[form.category as keyof typeof EmploymentCategoryLabel] : ''}</SelectValue></SelectTrigger>
                             <SelectContent>
                                 {Object.entries(EmploymentCategoryLabel).map(([k, v]) => (
                                     <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -141,7 +141,7 @@ export function EmploymentHistoryModal({ employeeId, record, open, onClose }: Pr
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">主な配置（異動先）</p>
                         <div className="space-y-2.5">
                             <Select value={form.primaryBranchId} onValueChange={set('primaryBranchId')}>
-                                <SelectTrigger><SelectValue placeholder="支社・拠点を選択" /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="支社・拠点を選択">{form.primaryBranchId === '_none' ? '未設定' : BRANCHES.find((b) => b.id === form.primaryBranchId)?.name}</SelectValue></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="_none">未設定</SelectItem>
                                     {BRANCHES.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
@@ -164,7 +164,7 @@ export function EmploymentHistoryModal({ employeeId, record, open, onClose }: Pr
                             </div>
                             <div>
                                 <Select value={form.salaryType} onValueChange={set('salaryType')}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectTrigger><SelectValue placeholder="選択">{form.salaryType ? SalaryTypeLabel[form.salaryType as keyof typeof SalaryTypeLabel] : ''}</SelectValue></SelectTrigger>
                                     <SelectContent>
                                         {Object.entries(SalaryTypeLabel).map(([k, v]) => (
                                             <SelectItem key={k} value={k}>{v}</SelectItem>

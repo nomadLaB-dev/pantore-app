@@ -1,5 +1,3 @@
-// Shared mock data for clients and deals — imported by all API routes
-
 export const mockClients = [
     {
         id: 'cl_1', companyName: '株式会社サンライズフード', department: '食品事業部',

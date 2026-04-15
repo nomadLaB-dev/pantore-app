@@ -5,9 +5,10 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
     ArrowLeft, Car, Building2, AlertTriangle, CalendarDays, Receipt,
-    TrendingDown, Calculator, Info,
+    TrendingDown, Calculator, Info, ShieldCheck, Plus,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,8 @@ import {
     VehicleBodyTypeLabel, DepreciationMethodLabel,
     type VehicleBodyType, type DepreciationMethod, type DepreciationScheduleRow,
 } from '@/lib/depreciation';
+import { InsuranceTypeLabel } from '@/types';
+import { InsuranceModal } from '@/components/modals/insurance-modal';
 import { cn } from '@/lib/utils';
 
 const severityMap = {
@@ -110,7 +113,7 @@ function DepreciationPanel({ vehicle }: { vehicle: any }) {
                     <div>
                         <label className="text-xs font-medium text-muted-foreground mb-1.5 block">車種区分</label>
                         <Select value={bodyType} onValueChange={(v) => v && setBodyType(v as VehicleBodyType)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="選択">{bodyType ? VehicleBodyTypeLabel[bodyType as keyof typeof VehicleBodyTypeLabel] : ''}</SelectValue></SelectTrigger>
                             <SelectContent>
                                 {Object.entries(VehicleBodyTypeLabel).map(([k, v]) => (
                                     <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -243,6 +246,8 @@ function DepreciationPanel({ vehicle }: { vehicle: any }) {
 // ── Main Page ───────────────────────────────────────────────────────────────
 export default function VehicleDetailPage() {
     const { id } = useParams() as { id: string };
+    const [showInsuranceModal, setShowInsuranceModal] = useState(false);
+    const [editingInsurance, setEditingInsurance] = useState<any | null>(null);
 
     const { data: vehicle, isLoading } = useQuery<any>({
         queryKey: ['vehicle', id],
@@ -317,6 +322,58 @@ export default function VehicleDetailPage() {
 
             {/* Depreciation panel — always visible for owned, greyed for leased */}
             <DepreciationPanel vehicle={vehicle} />
+
+            {/* Insurances */}
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-brand-500" />
+                            保険情報
+                            <Badge variant="secondary" className="ml-1">{vehicle.insurances?.length || 0}件</Badge>
+                        </CardTitle>
+                        <Button variant="outline" size="sm" onClick={() => { setEditingInsurance(null); setShowInsuranceModal(true); }} className="gap-1.5 h-8">
+                            <Plus className="w-3.5 h-3.5" /> 追加
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {!vehicle.insurances || vehicle.insurances.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-6">登録されている保険情報はありません</p>
+                    ) : (
+                        <div className="grid sm:grid-cols-2 gap-3">
+                            {vehicle.insurances.map((ins: any) => (
+                                <div key={ins.id} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3 group relative cursor-pointer hover:border-brand-500/30 transition-colors"
+                                    onClick={() => { setEditingInsurance(ins); setShowInsuranceModal(true); }}>
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <Badge variant={ins.type === 'compulsory' ? 'default' : 'outline'} className={ins.type === 'compulsory' ? 'bg-blue-500 hover:bg-blue-600' : 'text-brand-600 border-brand-200 dark:border-brand-800'}>
+                                                {InsuranceTypeLabel[ins.type as keyof typeof InsuranceTypeLabel]}
+                                            </Badge>
+                                            <p className="font-semibold mt-1.5">{ins.companyName}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">保険料</p>
+                                            <p className="font-semibold text-sm">{ins.premiumAmount ? `¥${ins.premiumAmount.toLocaleString()}` : '—'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-border pt-2">
+                                        <CalendarDays className="w-3.5 h-3.5" />
+                                        {new Date(ins.startDate).toLocaleDateString('ja-JP')} 〜 {new Date(ins.endDate).toLocaleDateString('ja-JP')}
+                                    </div>
+                                    {ins.coverageDetails && (
+                                        <p className="text-xs text-muted-foreground bg-muted p-2 rounded-md">
+                                            {ins.coverageDetails}
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            <InsuranceModal vehicleId={vehicle.id} open={showInsuranceModal} onClose={() => setShowInsuranceModal(false)} editingInsurance={editingInsurance} />
 
             {/* Accident history */}
             <Card>

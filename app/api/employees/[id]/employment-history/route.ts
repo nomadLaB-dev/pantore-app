@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { mockEmploymentHistory } from '../../route';
+import { mockEmploymentHistory } from '@/lib/mocks/employees';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;

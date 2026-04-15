@@ -37,10 +37,9 @@ export default function EmployeesPage() {
     const queryClient = useQueryClient();
 
     const { data: employees = [], isLoading } = useQuery<any[]>({
-        queryKey: ['employees', showArchived],
+        queryKey: ['employees'],
         queryFn: async () => {
-            const url = `/api/employees${showArchived ? '?includeArchived=true' : ''}`;
-            return (await fetch(url)).json();
+            return (await fetch('/api/employees?includeArchived=true')).json();
         },
     });
 
@@ -58,9 +57,10 @@ export default function EmployeesPage() {
 
     const filtered = employees.filter(
         (e) =>
-            e.name.includes(searchTerm) ||
-            e.email.includes(searchTerm) ||
-            e.branch?.name?.includes(searchTerm),
+            (showArchived || !e.leaveDate) &&
+            (e.name.includes(searchTerm) ||
+                e.email.includes(searchTerm) ||
+                e.branch?.name?.includes(searchTerm)),
     );
 
     const active = employees.filter((e) => !e.leaveDate && e.accountStatus === 'active').length;

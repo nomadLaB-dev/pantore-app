@@ -110,7 +110,7 @@ export function NewSubscriptionModal({ open, onClose }: Props) {
                         <div>
                             <label className="text-sm font-medium mb-1.5 block">課金形態 <span className="text-red-500">*</span></label>
                             <Select value={form.billingInterval} onValueChange={set('billingInterval')}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="選択">{form.billingInterval ? SubscriptionBillingIntervalLabel[form.billingInterval as keyof typeof SubscriptionBillingIntervalLabel] : ''}</SelectValue></SelectTrigger>
                                 <SelectContent>
                                     {Object.entries(SubscriptionBillingIntervalLabel).map(([k, v]) => (
                                         <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -134,7 +134,7 @@ export function NewSubscriptionModal({ open, onClose }: Props) {
                                 <div>
                                     <label className="text-sm font-medium mb-1.5 block">通貨</label>
                                     <Select value={form.currency} onValueChange={set('currency')}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectTrigger><SelectValue placeholder="選択">{form.currency === 'JPY' ? '¥ JPY' : form.currency === 'USD' ? '$ USD' : form.currency}</SelectValue></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="JPY">¥ JPY</SelectItem>
                                             <SelectItem value="USD">$ USD</SelectItem>
@@ -159,7 +159,7 @@ export function NewSubscriptionModal({ open, onClose }: Props) {
                             <div>
                                 <label className="text-sm font-medium mb-1.5 block">使用支社</label>
                                 <Select value={form.branchId} onValueChange={set('branchId')}>
-                                    <SelectTrigger><SelectValue placeholder="全支社" /></SelectTrigger>
+                                    <SelectTrigger><SelectValue placeholder="全支社">{branches.find((b) => (b.id || '_none') === (form.branchId || '_none'))?.name}</SelectValue></SelectTrigger>
                                     <SelectContent>
                                         {branches.map((b) => <SelectItem key={b.id || '_none'} value={b.id || '_none'}>{b.name}</SelectItem>)}
                                     </SelectContent>
@@ -168,7 +168,7 @@ export function NewSubscriptionModal({ open, onClose }: Props) {
                             <div>
                                 <label className="text-sm font-medium mb-1.5 block">担当者</label>
                                 <Select value={form.assigneeEmployeeId} onValueChange={set('assigneeEmployeeId')}>
-                                    <SelectTrigger><SelectValue placeholder="未設定" /></SelectTrigger>
+                                    <SelectTrigger><SelectValue placeholder="未設定">{form.assigneeEmployeeId === '_none' ? '未設定' : employees.find((e: any) => e.id === form.assigneeEmployeeId)?.name || '未設定'}</SelectValue></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="_none">未設定</SelectItem>
                                         {employees.map((e: any) => (

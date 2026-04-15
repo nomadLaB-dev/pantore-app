@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { mockClients } from '@/lib/mock-data';
+import { mockClients } from '@/lib/mocks/deals';
 
 export async function GET() {
     return NextResponse.json(mockClients);

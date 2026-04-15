@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { mockVehicles } from '../vehicles/route';
-import { mockRealEstates } from '../real-estates/route';
+import { mockVehicles, mockRealEstates } from '@/lib/mocks/assets';
 
 // Aggregate all contracts from vehicles (leases) and real estates
 const allContracts = [

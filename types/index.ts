@@ -62,6 +62,8 @@ export interface EmploymentTypeHistory {
 export interface Employee {
     id: string;
     name: string;
+    lastName?: string;
+    firstName?: string;
     email: string;
     hireDate: Date;
     leaveDate: Date | null;
@@ -133,6 +135,23 @@ export interface VehicleLease {
     contractStartDate: Date;
     contractEndDate: Date;
     monthlyFee: number;
+}
+
+export type InsuranceType = 'compulsory' | 'voluntary';
+export const InsuranceTypeLabel: Record<InsuranceType, string> = {
+    compulsory: '自賠責保険',
+    voluntary: '任意保険',
+};
+
+export interface VehicleInsurance {
+    id: string;
+    vehicleId: string;
+    type: InsuranceType;
+    companyName: string;
+    startDate: Date;
+    endDate: Date;
+    premiumAmount: number | null;
+    coverageDetails: string | null;  // 補償内容のフリーテキストやサマリ
 }
 
 export type SeverityType = 'low' | 'medium' | 'high';

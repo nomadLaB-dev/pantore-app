@@ -27,6 +27,7 @@ const billingColors: Record<string, string> = {
 
 const emptyDeal = {
     clientId: '',
+    assigneeName: '',
     name: '',
     startDate: '',
     endDate: '',
@@ -36,7 +37,7 @@ const emptyDeal = {
     notes: '',
 };
 
-const REQUIRED_DEAL = ['clientId', 'name', 'startDate', 'billingType', 'amount'] as const;
+const REQUIRED_DEAL = ['clientId', 'assigneeName', 'name', 'startDate', 'billingType', 'amount'] as const;
 
 function NewDealModal({ open, onClose }: { open: boolean; onClose: () => void }) {
     const qc = useQueryClient();
@@ -45,6 +46,7 @@ function NewDealModal({ open, onClose }: { open: boolean; onClose: () => void })
     const [errors, setErrors] = useState<string[]>([]);
 
     const { data: clients = [] } = useQuery<any[]>({ queryKey: ['clients'], queryFn: async () => (await fetch('/api/clients')).json() });
+    const { data: employees = [] } = useQuery<any[]>({ queryKey: ['employees'], queryFn: async () => (await fetch('/api/employees')).json() });
 
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
         setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -90,6 +92,23 @@ function NewDealModal({ open, onClose }: { open: boolean; onClose: () => void })
                         </Select>
                     </div>
 
+                    {/* Assignee */}
+                    <div>
+                        <label className="text-sm font-medium mb-1.5 block">自社担当者 <span className="text-red-500">*</span></label>
+                        <Input
+                            list="employee-names"
+                            placeholder="山田 太郎（入力でサジェスト）"
+                            value={form.assigneeName}
+                            onChange={set('assigneeName')}
+                            className={cn(errors.includes('assigneeName') && 'border-red-400')}
+                        />
+                        <datalist id="employee-names">
+                            {employees.map((e: any) => (
+                                <option key={e.id} value={`${e.lastName} ${e.firstName}`} />
+                            ))}
+                        </datalist>
+                    </div>
+
                     {/* Deal name */}
                     <div>
                         <label className="text-sm font-medium mb-1.5 block">案件名 <span className="text-red-500">*</span></label>
@@ -132,7 +151,7 @@ function NewDealModal({ open, onClose }: { open: boolean; onClose: () => void })
                                 <label className="text-sm font-medium mb-1.5 block">請求タイプ <span className="text-red-500">*</span></label>
                                 <Select value={form.billingType} onValueChange={(v) => v && setForm((f) => ({ ...f, billingType: v as any, autoRenew: false }))}>
                                     <SelectTrigger className={cn(errors.includes('billingType') && 'border-red-400')}>
-                                        <SelectValue />
+                                        <SelectValue placeholder="選択">{form.billingType ? DealBillingTypeLabel[form.billingType as keyof typeof DealBillingTypeLabel] : ''}</SelectValue>
                                     </SelectTrigger>
                                     <SelectContent>
                                         {Object.entries(DealBillingTypeLabel).map(([k, v]) => (

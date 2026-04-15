@@ -59,7 +59,7 @@ export function NewEmployeeModal({ open, onClose }: Props) {
                         <div>
                             <label className="text-sm font-medium mb-1.5 block">所属支社</label>
                             <Select value={form.branchId} onValueChange={set('branchId')}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="支社を選択">{branches.find((b: any) => b.id === form.branchId)?.name}</SelectValue></SelectTrigger>
                                 <SelectContent>
                                     {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                                 </SelectContent>
@@ -69,7 +69,7 @@ export function NewEmployeeModal({ open, onClose }: Props) {
                     <div>
                         <label className="text-sm font-medium mb-1.5 block">雇用区分</label>
                         <Select value={form.category} onValueChange={set('category')}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="選択">{form.category ? EmploymentCategoryLabel[form.category as keyof typeof EmploymentCategoryLabel] : ''}</SelectValue></SelectTrigger>
                             <SelectContent>
                                 {Object.entries(EmploymentCategoryLabel).map(([k, v]) => (
                                     <SelectItem key={k} value={k}>{v}</SelectItem>

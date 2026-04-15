@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { mockClients, mockDeals, mockInvoices, mockContracts } from '@/lib/mock-data';
+import { mockClients, mockDeals, mockInvoices, mockContracts } from '@/lib/mocks/deals';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;

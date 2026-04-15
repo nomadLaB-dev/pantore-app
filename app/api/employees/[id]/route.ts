@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { mockEmployees } from '../route';
+import { mockEmployees } from '@/lib/mocks/employees';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;

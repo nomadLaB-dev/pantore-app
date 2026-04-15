@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import {
     mockClients, mockDeals, mockDealAssignees,
     mockInvoices, mockContracts, mockMinutes,
-} from '@/lib/mock-data';
+} from '@/lib/mocks/deals';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;

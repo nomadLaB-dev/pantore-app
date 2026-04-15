@@ -87,7 +87,7 @@ export function NewVehicleModal({ open, onClose }: Props) {
                         <div>
                             <label className="text-sm font-medium mb-1.5 block">ナンバーの色</label>
                             <Select value={form.licensePlateColor} onValueChange={set('licensePlateColor')}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="選択">{form.licensePlateColor === 'white' ? '白（自家用普通車）' : form.licensePlateColor === 'yellow' ? '黄（自家用軽自動車）' : form.licensePlateColor === 'green' ? '緑（営業用普通車）' : form.licensePlateColor === 'black' ? '黒（営業用軽自動車）' : ''}</SelectValue></SelectTrigger>
                                 <SelectContent>
                                     {Object.entries(LicensePlateColorLabel).map(([k, v]) => (
                                         <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -98,7 +98,7 @@ export function NewVehicleModal({ open, onClose }: Props) {
                         <div>
                             <label className="text-sm font-medium mb-1.5 block">保有形態</label>
                             <Select value={form.ownershipType} onValueChange={set('ownershipType')}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="選択">{form.ownershipType === 'owned' ? '自社保有' : form.ownershipType === 'leased' ? 'リース' : ''}</SelectValue></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="owned">自社保有</SelectItem>
                                     <SelectItem value="leased">リース</SelectItem>
@@ -110,7 +110,7 @@ export function NewVehicleModal({ open, onClose }: Props) {
                     <div>
                         <label className="text-sm font-medium mb-1.5 block">配属支社</label>
                         <Select value={form.branchId} onValueChange={set('branchId')}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="支社を選択">{branches.find((b: any) => b.id === form.branchId)?.name}</SelectValue></SelectTrigger>
                             <SelectContent>
                                 {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                             </SelectContent>

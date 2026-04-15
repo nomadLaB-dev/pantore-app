@@ -55,7 +55,7 @@ function AddPriceDialog({ subscriptionId, onClose }: { subscriptionId: string; o
                         <div>
                             <label className="text-sm font-medium mb-1.5 block">通貨</label>
                             <Select value={form.currency} onValueChange={set('currency')}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="通貨">{form.currency === 'JPY' ? 'JPY（円）' : form.currency === 'USD' ? 'USD（ドル）' : form.currency}</SelectValue></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="JPY">JPY（円）</SelectItem>
                                     <SelectItem value="USD">USD（ドル）</SelectItem>
