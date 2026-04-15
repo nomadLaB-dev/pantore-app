@@ -1,15 +1,20 @@
 import { NextResponse } from 'next/server';
-import { mockBranches, mockEmployees } from '@/lib/mocks/employees';
+import { createClient } from '@supabase/supabase-js';
+import { mockEmployees } from '@/lib/mocks/employees';
 import { mockSubscriptionPriceHistory, mockSubscriptions, getLatestPrice } from '@/lib/mocks/subscriptions';
 
 export async function GET() {
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const { data: dbBranches } = await supabase.from('branches').select('*');
+    const branches = dbBranches || [];
+
     const withRelations = mockSubscriptions.map((s) => {
         const latest = getLatestPrice(s.id);
         return {
             ...s,
             currentAmount: latest?.amount ?? null,
             currentCurrency: latest?.currency ?? s.currentCurrency,
-            branch: mockBranches.find((b) => b.id === s.branchId) ?? null,
+            branch: branches.find((b: { id: string, name: string }) => b.id === s.branchId) ?? null,
             assignee: mockEmployees.find((e) => e.id === s.assigneeEmployeeId) ?? null,
             priceHistoryCount: mockSubscriptionPriceHistory.filter((h) => h.subscriptionId === s.id).length,
         };

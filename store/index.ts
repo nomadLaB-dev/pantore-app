@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { User } from '@/types';
+import { User, Branch } from '@/types';
 
 interface AppState {
     currentUser: User | null;
@@ -8,6 +8,8 @@ interface AppState {
     setIsLoadingAuth: (loading: boolean) => void;
     sidebarOpen: boolean;
     toggleSidebar: () => void;
+    branches: Branch[];
+    setBranches: (branches: Branch[]) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -17,4 +19,6 @@ export const useAppStore = create<AppState>((set) => ({
     setIsLoadingAuth: (loading) => set({ isLoadingAuth: loading }),
     sidebarOpen: true,
     toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+    branches: [],
+    setBranches: (branches) => set({ branches }),
 }));
