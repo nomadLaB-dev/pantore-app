@@ -1,6 +1,19 @@
 import { NextResponse } from 'next/server';
-import { mockBranches } from '@/lib/mocks/employees';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET() {
-    return NextResponse.json(mockBranches);
+    const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    const { data, error } = await supabase
+        .from('branches')
+        .select('*');
+
+    if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(data);
 }
