@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     Building2, FileDown, Save, CheckCircle2, Users, Car,
@@ -42,11 +42,47 @@ export default function SettingsPage() {
     const [exporting, setExporting] = useState(false);
     const [exportDone, setExportDone] = useState(false);
 
+    const { data: tenantData } = useQuery({
+        queryKey: ['tenant'],
+        queryFn: async () => {
+            const res = await fetch('/api/tenants');
+            if (res.ok) return res.json();
+            return null;
+        }
+    });
+
     const [tenant, setTenant] = useState({
-        name: 'Pantore 株式会社',
-        billingName: '山田 太郎',
-        billingEmail: 'billing@pantore.test',
-        billingAddress: '東京都渋谷区道玄坂1-1-1',
+        name: '',
+        billingName: '',
+        billingEmail: '',
+        billingAddress: '',
+    });
+
+    useEffect(() => {
+        if (tenantData) {
+            setTenant({
+                name: tenantData.name || '',
+                billingName: tenantData.billing_name || '',
+                billingEmail: tenantData.billing_email || '',
+                billingAddress: tenantData.billing_address || '',
+            });
+        }
+    }, [tenantData]);
+
+    const tenantUpdate = useMutation({
+        mutationFn: async (data: typeof tenant) => {
+            const res = await fetch('/api/tenants', {
+                method: 'PUT',
+                body: JSON.stringify(data),
+            });
+            if (!res.ok) throw new Error('Failed to update tenant');
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tenant'] });
+            setSavedTenant(true);
+            setTimeout(() => setSavedTenant(false), 2000);
+        }
     });
 
     const [categories, setCategories] = useState<Record<ExportCategory, boolean>>({
@@ -56,12 +92,12 @@ export default function SettingsPage() {
     const [dateTo, setDateTo] = useState('');
 
     // Fetch data for CSV
-    const { data: employees = [] } = useQuery<any[]>({ queryKey: ['employees'], queryFn: async () => (await fetch('/api/employees')).json() });
-    const { data: vehicles = [] } = useQuery<any[]>({ queryKey: ['vehicles'], queryFn: async () => (await fetch('/api/vehicles')).json() });
-    const { data: realEstates = [] } = useQuery<any[]>({ queryKey: ['real-estates'], queryFn: async () => (await fetch('/api/real-estates')).json() });
-    const { data: subscriptions = [] } = useQuery<any[]>({ queryKey: ['subscriptions'], queryFn: async () => (await fetch('/api/subscriptions')).json() });
-    const { data: contracts = [] } = useQuery<any[]>({ queryKey: ['contracts'], queryFn: async () => (await fetch('/api/contracts')).json() });
-    const { data: branches = [] } = useQuery<any[]>({ queryKey: ['branches'], queryFn: async () => (await fetch('/api/branches')).json() });
+    const { data: employees = [] } = useQuery<any[]>({ queryKey: ['employees'], queryFn: async () => fetch('/api/employees').then(res => res.json()).then(data => Array.isArray(data) ? data : []) });
+    const { data: vehicles = [] } = useQuery<any[]>({ queryKey: ['vehicles'], queryFn: async () => fetch('/api/vehicles').then(res => res.json()).then(data => Array.isArray(data) ? data : []) });
+    const { data: realEstates = [] } = useQuery<any[]>({ queryKey: ['real-estates'], queryFn: async () => fetch('/api/real-estates').then(res => res.json()).then(data => Array.isArray(data) ? data : []) });
+    const { data: subscriptions = [] } = useQuery<any[]>({ queryKey: ['subscriptions'], queryFn: async () => fetch('/api/subscriptions').then(res => res.json()).then(data => Array.isArray(data) ? data : []) });
+    const { data: contracts = [] } = useQuery<any[]>({ queryKey: ['contracts'], queryFn: async () => fetch('/api/contracts').then(res => res.json()).then(data => Array.isArray(data) ? data : []) });
+    const { data: branches = [] } = useQuery<any[]>({ queryKey: ['branches'], queryFn: async () => fetch('/api/branches').then(res => res.json()).then(data => Array.isArray(data) ? data : []) });
 
     const branchCreate = useMutation({ mutationFn: async (name: string) => fetch('/api/branches', { method: 'POST', body: JSON.stringify({ name }) }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['branches'] }) });
     const branchUpdate = useMutation({ mutationFn: async (data: { id: string, name: string }) => fetch(`/api/branches/${data.id}`, { method: 'PUT', body: JSON.stringify({ name: data.name }) }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['branches'] }) });
@@ -167,7 +203,8 @@ export default function SettingsPage() {
                     <div className="flex justify-end pt-1">
                         <Button
                             className="bg-brand-500 hover:bg-brand-600 text-white gap-2"
-                            onClick={() => { setSavedTenant(true); setTimeout(() => setSavedTenant(false), 2000); }}
+                            disabled={tenantUpdate.isPending}
+                            onClick={() => tenantUpdate.mutate(tenant)}
                         >
                             {savedTenant ? <><CheckCircle2 className="w-4 h-4" /> 保存しました</> : <><Save className="w-4 h-4" /> 変更を保存</>}
                         </Button>
