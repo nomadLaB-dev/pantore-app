@@ -5,4 +5,4 @@ INSERT INTO branches (id, name, address) VALUES
 ('b3', '西風新都', '広島県広島市佐伯区'),
 ('b4', '松山', '愛媛県松山市'),
 ('b5', '高松', '香川県高松市西宝町3-3-10 バロン102号室')
-ON CONFLICT (id) DO NOTHING; -- すでにある場合にエラーにならないお守り
+ON CONFLICT (id) DO NOTHING;
