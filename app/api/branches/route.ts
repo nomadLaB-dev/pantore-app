@@ -50,7 +50,7 @@ export async function POST(req: Request) {
             id: `branch_${crypto.randomUUID()}`,
             tenant_id: employee.tenant_id,
             name: body.name,
-            address: '' // デフォルト値
+            address: body.address || '' // フォームからの住所を受け取る
         };
 
         const { data, error } = await supabase

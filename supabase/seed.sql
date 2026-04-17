@@ -10,7 +10,6 @@ ON CONFLICT (id) DO NOTHING;
 -- ==========================================
 -- 2. 支社の登録
 -- ==========================================
--- 先ほど登録したテナントIDを使用します。
 -- idはわかりやすい文字列にしておきます。
 INSERT INTO public.branches (id, tenant_id, name, address)
 VALUES 

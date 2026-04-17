@@ -9,7 +9,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         const body = await req.json();
         const { data, error } = await supabase
             .from('branches')
-            .update({ name: body.name })
+            .update({ name: body.name, address: body.address })
             .eq('id', id)
             .select('*')
             .single();
