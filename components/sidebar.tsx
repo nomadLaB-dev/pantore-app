@@ -123,7 +123,7 @@ function UserMenu() {
     );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ tenantName, branchName }: { tenantName?: string; branchName?: string }) {
     const pathname = usePathname();
     const isAdmin = MOCK_SESSION.role === 'admin';
 
@@ -161,8 +161,8 @@ export default function Sidebar() {
                         <Building className="w-3.5 h-3.5 text-amber-300" />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-amber-100 truncate">{MOCK_SESSION.tenant}</p>
-                        <p className="text-[10px] text-amber-300/50">テナント</p>
+                        <p className="text-xs font-semibold text-amber-100 truncate">{tenantName || MOCK_SESSION.tenant}</p>
+                        <p className="text-[10px] text-amber-300/50 truncate">{branchName || 'テナント'}</p>
                     </div>
                 </div>
             </div>
