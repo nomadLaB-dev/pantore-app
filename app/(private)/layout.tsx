@@ -5,12 +5,14 @@ import Header from '@/components/header';
 import { createClient } from '@/lib/supabase/server';
 
 export default async function PrivateLayout({ children }: { children: React.ReactNode }) {
-    const cookieStore = await cookies();
-    const session = cookieStore.get('pantore_session');
-    if (!session) redirect('/login');
-
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
+    console.log('PrivateLayout: user authenticated:', !!user);
+
+    if (!user) {
+        console.warn('PrivateLayout: No Supabase user found, redirecting to login');
+        redirect('/login');
+    }
 
     let tenantName: string | undefined;
     let branchName: string | undefined;

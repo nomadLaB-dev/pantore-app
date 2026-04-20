@@ -12,7 +12,11 @@ interface Branch {
     name: string;
 }
 
-interface Props { open: boolean; onClose: () => void; }
+interface Props {
+    open: boolean;
+    onClose: () => void;
+    vehicle: any;
+}
 
 const plateColorStyle: Record<string, string> = {
     white: 'bg-white text-gray-800 border border-gray-300',
@@ -21,7 +25,7 @@ const plateColorStyle: Record<string, string> = {
     black: 'bg-gray-900 text-yellow-300',
 };
 
-export function NewVehicleModal({ open, onClose }: Props) {
+export function EditVehicleModal({ open, onClose, vehicle }: Props) {
     const qc = useQueryClient();
 
     const { data: branchesRaw = [] } = useQuery<Branch[]>({
@@ -51,38 +55,42 @@ export function NewVehicleModal({ open, onClose }: Props) {
         }
     });
 
-    // 初期表示時に最初の支社を選択状態にする
     useEffect(() => {
-        if (open && branches.length > 0 && !form.branchId) {
-            setForm(f => ({ ...f, branchId: branches[0].id }));
-        }
-    }, [open, branches, form.branchId]);
-
-    const mutation = useMutation({
-        mutationFn: async () => {
-            await fetch('/api/vehicles', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(form),
-            });
-        },
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ['vehicles'] });
-            onClose();
+        if (vehicle) {
             setForm({
-                manufacturer: '',
-                model: '',
-                licensePlate: '',
-                licensePlateColor: 'white',
-                ownershipType: 'owned',
-                branchId: branches[0]?.id || '',
-                lease: {
+                manufacturer: vehicle.manufacturer || '',
+                model: vehicle.model || '',
+                licensePlate: vehicle.licensePlate || '',
+                licensePlateColor: vehicle.licensePlateColor || 'white',
+                ownershipType: vehicle.ownershipType || 'owned',
+                branchId: vehicle.branchId || '',
+                lease: vehicle.lease ? {
+                    leaseCompany: vehicle.lease.leaseCompany || '',
+                    contractStartDate: vehicle.lease.contractStartDate || '',
+                    contractEndDate: vehicle.lease.contractEndDate || '',
+                    monthlyFee: vehicle.lease.monthlyFee ? String(vehicle.lease.monthlyFee) : ''
+                } : {
                     leaseCompany: '',
                     contractStartDate: '',
                     contractEndDate: '',
                     monthlyFee: ''
                 }
             });
+        }
+    }, [vehicle]);
+
+    const mutation = useMutation({
+        mutationFn: async () => {
+            const res = await fetch(`/api/vehicles/${vehicle.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(form),
+            });
+            if (!res.ok) throw new Error('Update failed');
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['vehicles'] });
+            onClose();
         },
     });
 
@@ -92,17 +100,17 @@ export function NewVehicleModal({ open, onClose }: Props) {
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>車両を新規登録</DialogTitle>
+                    <DialogTitle>車両情報を編集</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-sm font-medium mb-1.5 block">メーカー <span className="text-red-500">*</span></label>
-                            <Input placeholder="トヨタ" value={form.manufacturer} onChange={(e) => setForm({ ...form, manufacturer: e.target.value })} />
+                            <Input placeholder="TESLA" value={form.manufacturer} onChange={(e) => setForm({ ...form, manufacturer: e.target.value })} />
                         </div>
                         <div>
                             <label className="text-sm font-medium mb-1.5 block">車種 <span className="text-red-500">*</span></label>
-                            <Input placeholder="ノア" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+                            <Input placeholder="Model S" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
                         </div>
                     </div>
 
@@ -110,10 +118,10 @@ export function NewVehicleModal({ open, onClose }: Props) {
                         <label className="text-sm font-medium mb-1.5 block">ナンバープレート</label>
                         <div className="flex gap-2 items-center">
                             <div className={`text-xs font-bold px-3 py-1.5 rounded font-mono shrink-0 ${plateColorStyle[form.licensePlateColor]}`}>
-                                {form.licensePlate || '品川300あ1234'}
+                                {form.licensePlate || '広島300あ12-34'}
                             </div>
                             <Input
-                                placeholder="品川300あ1234"
+                                placeholder="広島300あ12-34"
                                 value={form.licensePlate}
                                 onChange={(e) => setForm({ ...form, licensePlate: e.target.value })}
                                 className="flex-1"
@@ -188,7 +196,7 @@ export function NewVehicleModal({ open, onClose }: Props) {
                         disabled={!form.manufacturer || !form.model || mutation.isPending}
                         onClick={() => mutation.mutate()}
                     >
-                        {mutation.isPending ? '保存中…' : '登録する'}
+                        {mutation.isPending ? '保存中…' : '更新する'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

@@ -106,3 +106,35 @@ VALUES (
     'branch_hiroshima'
 )
 ON CONFLICT (id) DO NOTHING;
+
+-- ==========================================
+-- 5. 車両 (vehicles) の登録
+-- ==========================================
+INSERT INTO public.vehicles (
+    id,
+    tenant_id,
+    branch_id,
+    manufacturer,
+    model,
+    license_plate,
+    license_plate_color,
+    ownership_type
+)
+VALUES 
+    ('v1', '00000000-0000-0000-0000-000000000001', 'branch_hiroshima', 'トヨタ', 'ノア', '品川300あ1234', 'white', 'leased'),
+    ('v2', '00000000-0000-0000-0000-000000000001', 'branch_fukuoka',   'ホンダ', 'フィット', '練馬500さ5678', 'yellow', 'owned')
+ON CONFLICT (id) DO NOTHING;
+
+-- ==========================================
+-- 6. 車両リース (vehicle_leases) の登録
+-- ==========================================
+INSERT INTO public.vehicle_leases (
+    vehicle_id,
+    lease_company,
+    contract_start_date,
+    contract_end_date,
+    monthly_fee
+)
+VALUES 
+    ('v1', 'オリックス自動車', '2022-04-01', '2026-04-24', 55000)
+ON CONFLICT (vehicle_id) DO NOTHING;

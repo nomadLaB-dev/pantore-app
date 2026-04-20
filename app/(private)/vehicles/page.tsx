@@ -7,44 +7,49 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { NewVehicleModal } from '@/components/modals/new-vehicle-modal';
+import { EditVehicleModal } from '@/components/modals/edit-vehicle-modal';
 import { LicensePlateColorLabel } from '@/types';
-
-const severityMap = {
-    low: { label: '軽微', class: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-300' },
-    medium: { label: '中程度', class: 'bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-300' },
-    high: { label: '重大', class: 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300' },
-};
 
 export default function VehiclesPage() {
     const [showNewModal, setShowNewModal] = useState(false);
-    const { data: vehicles = [], isLoading } = useQuery<any[]>({
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
+
+    const { data: vehiclesRaw = [], isLoading, error: queryError } = useQuery<any>({
         queryKey: ['vehicles'],
-        queryFn: async () => (await fetch('/api/vehicles')).json(),
+        queryFn: async () => {
+            const res = await fetch('/api/vehicles');
+            if (!res.ok) throw new Error('Failed to fetch vehicles');
+            return res.json();
+        },
     });
 
-    const totalAccidents = vehicles.reduce((s, v) => s + v.accidents.length, 0);
-    const leased = vehicles.filter((v) => v.ownershipType === 'leased').length;
+    const vehicles = Array.isArray(vehiclesRaw) ? vehiclesRaw : [];
+    const totalVehiclesCount = vehicles.length;
+    const leasedCount = vehicles.filter((v) => v.ownershipType === 'leased').length;
+    const ownedCount = totalVehiclesCount - leasedCount;
 
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">車両管理</h1>
-                    <p className="text-muted-foreground text-sm">支社別の車両・リース・事故情報を管理します。</p>
+                    <p className="text-muted-foreground text-sm">支社別の車両・リース情報を管理します。</p>
                 </div>
                 <Button className="bg-brand-500 hover:bg-brand-600 text-white gap-2" onClick={() => setShowNewModal(true)}>
                     <Plus className="w-4 h-4" /> 新規登録
                 </Button>
             </div>
             <NewVehicleModal open={showNewModal} onClose={() => setShowNewModal(false)} />
+            <EditVehicleModal open={showEditModal} onClose={() => { setShowEditModal(false); setSelectedVehicle(null); }} vehicle={selectedVehicle} />
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                    { label: '管理台数', value: vehicles.length, icon: Car, color: 'text-blue-500' },
-                    { label: 'リース台数', value: leased, icon: Car, color: 'text-brand-500' },
-                    { label: '自社保有', value: vehicles.length - leased, icon: Car, color: 'text-violet-500' },
-                    { label: '事故件数(累計)', value: totalAccidents, icon: AlertTriangle, color: 'text-red-500' },
+                    { label: '管理台数', value: totalVehiclesCount, icon: Car, color: 'text-blue-500' },
+                    { label: 'リース台数', value: leasedCount, icon: Car, color: 'text-brand-500' },
+                    { label: '自社保有', value: ownedCount, icon: Car, color: 'text-violet-500' },
+                    { label: '登録支社数', value: new Set(vehicles.map(v => v.branchId)).size, icon: Building2, color: 'text-slate-500' },
                 ].map((s) => (
                     <Card key={s.label}>
                         <CardContent className="pt-5 pb-4 flex items-center gap-3">
@@ -89,32 +94,28 @@ export default function VehiclesPage() {
                                     <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
                                         <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">リース情報</p>
                                         <div className="flex justify-between">
-                                            <span className="text-muted-foreground">{v.lease.leaseCompany}</span>
-                                            <span className="font-medium">¥{v.lease.monthlyFee.toLocaleString()}/月</span>
+                                            <span className="text-muted-foreground">{v.lease.lease_company || v.lease.leaseCompany}</span>
+                                            <span className="font-medium">¥{(v.lease.monthly_fee || v.lease.monthlyFee)?.toLocaleString()}/月</span>
                                         </div>
                                         <div className="flex justify-between text-xs text-muted-foreground">
-                                            <span>{new Date(v.lease.contractStartDate).toLocaleDateString('ja-JP')}</span>
-                                            <span>〜 {new Date(v.lease.contractEndDate).toLocaleDateString('ja-JP')}</span>
+                                            <span>{new Date(v.lease.contract_start_date || v.lease.contractStartDate).toLocaleDateString('ja-JP')}</span>
+                                            <span>〜 {new Date(v.lease.contract_end_date || v.lease.contractEndDate).toLocaleDateString('ja-JP')}</span>
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Accidents */}
-                                {v.accidents.length > 0 && (
-                                    <div className="space-y-1.5">
-                                        {v.accidents.map((acc: any) => (
-                                            <div key={acc.id} className="flex items-center gap-2 text-xs p-2 rounded-lg border border-border">
-                                                <AlertTriangle className="w-3 h-3 text-orange-500 shrink-0" />
-                                                <span className="flex-1 text-muted-foreground">{acc.description}</span>
-                                                <span className={`px-1.5 py-0.5 rounded font-medium text-xs ${severityMap[acc.severity as keyof typeof severityMap].class}`}>
-                                                    {severityMap[acc.severity as keyof typeof severityMap].label}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                <div className="flex justify-end pt-1">
+                                <div className="flex justify-end pt-1 gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-xs"
+                                        onClick={() => {
+                                            setSelectedVehicle(v);
+                                            setShowEditModal(true);
+                                        }}
+                                    >
+                                        編集
+                                    </Button>
                                     <Link href={`/vehicles/${v.id}`}>
                                         <Button variant="ghost" size="sm" className="gap-1 text-brand-500 hover:text-brand-600">
                                             詳細 <ChevronRight className="w-3 h-3" />

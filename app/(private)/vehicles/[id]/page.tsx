@@ -249,13 +249,31 @@ export default function VehicleDetailPage() {
     const [showInsuranceModal, setShowInsuranceModal] = useState(false);
     const [editingInsurance, setEditingInsurance] = useState<any | null>(null);
 
-    const { data: vehicle, isLoading } = useQuery<any>({
+    const { data: vehicle, isLoading, error: queryError } = useQuery<any>({
         queryKey: ['vehicle', id],
-        queryFn: async () => (await fetch(`/api/vehicles/${id}`)).json(),
+        queryFn: async () => {
+            const res = await fetch(`/api/vehicles/${id}`);
+            if (!res.ok) throw new Error('Failed to fetch vehicle');
+            return res.json();
+        },
     });
 
     if (isLoading) return <div className="p-8 text-center text-muted-foreground">読み込み中...</div>;
-    if (!vehicle) return <div className="p-8 text-center text-muted-foreground">車両が見つかりません。</div>;
+
+    if (queryError || !vehicle || vehicle.error) {
+        return (
+            <div className="p-8 text-center space-y-4">
+                <p className="text-muted-foreground">車両の詳細を取得できませんでした。</p>
+                <Link href="/vehicles">
+                    <Button variant="outline">一覧へ戻る</Button>
+                </Link>
+            </div>
+        );
+    }
+
+    // Ensure arrays exist for safety
+    const accidents = Array.isArray(vehicle.accidents) ? vehicle.accidents : [];
+    const insurances = Array.isArray(vehicle.insurances) ? vehicle.insurances : [];
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
@@ -330,7 +348,7 @@ export default function VehicleDetailPage() {
                         <CardTitle className="text-base flex items-center gap-2">
                             <ShieldCheck className="w-4 h-4 text-brand-500" />
                             保険情報
-                            <Badge variant="secondary" className="ml-1">{vehicle.insurances?.length || 0}件</Badge>
+                            <Badge variant="secondary" className="ml-1">{insurances.length}件</Badge>
                         </CardTitle>
                         <Button variant="outline" size="sm" onClick={() => { setEditingInsurance(null); setShowInsuranceModal(true); }} className="gap-1.5 h-8">
                             <Plus className="w-3.5 h-3.5" /> 追加
@@ -338,11 +356,11 @@ export default function VehicleDetailPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {!vehicle.insurances || vehicle.insurances.length === 0 ? (
+                    {insurances.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-6">登録されている保険情報はありません</p>
                     ) : (
                         <div className="grid sm:grid-cols-2 gap-3">
-                            {vehicle.insurances.map((ins: any) => (
+                            {insurances.map((ins: any) => (
                                 <div key={ins.id} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3 group relative cursor-pointer hover:border-brand-500/30 transition-colors"
                                     onClick={() => { setEditingInsurance(ins); setShowInsuranceModal(true); }}>
                                     <div className="flex items-start justify-between">
@@ -381,15 +399,15 @@ export default function VehicleDetailPage() {
                     <CardTitle className="text-base flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 text-orange-500" />
                         事故履歴
-                        <Badge variant="secondary" className="ml-auto">{vehicle.accidents.length}件</Badge>
+                        <Badge variant="secondary" className="ml-auto">{accidents.length}件</Badge>
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {vehicle.accidents.length === 0 ? (
+                    {accidents.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-6">事故の記録はありません</p>
                     ) : (
                         <div className="space-y-3">
-                            {vehicle.accidents.map((acc: any) => (
+                            {accidents.map((acc: any) => (
                                 <div key={acc.id} className="p-4 rounded-xl border border-border space-y-2">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2 text-xs text-muted-foreground">

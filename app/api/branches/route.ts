@@ -3,14 +3,16 @@ import { createClient } from '@/lib/supabase/server'; // Supabaseのサーバー
 
 export async function GET() {
     try {
-        // 1. Supabaseのクライアントを呼び出す
         const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        console.log('GET /api/branches: user found:', !!user);
 
-        // 2. branchesテーブルからデータを取得（SQLの SELECT * FROM branches と同じ！）
         const { data: branches, error } = await supabase
             .from('branches')
             .select('*')
-            .order('created_at', { ascending: true }); // 作成日時順に並べるおまけ付き✨
+            .order('created_at', { ascending: true });
+
+        console.log('GET /api/branches: count:', branches?.length, 'error:', error);
 
         // 3. DB側でエラーが起きたらキャッチして返す
         if (error) {
