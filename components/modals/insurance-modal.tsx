@@ -9,6 +9,7 @@ import { InsuranceTypeLabel } from '@/types';
 
 import { Trash2 } from 'lucide-react';
 import { useEffect } from 'react';
+import { createInsurance, updateInsurance, deleteInsurance } from '@/app/actions/insurance.actions';
 
 interface Props {
     vehicleId: string;
@@ -47,19 +48,11 @@ export function InsuranceModal({ vehicleId, open, onClose, editingInsurance }: P
 
     const mutation = useMutation({
         mutationFn: async () => {
-            const endpoint = editingInsurance
-                ? `/api/vehicles/${vehicleId}/insurances/${editingInsurance.id}`
-                : `/api/vehicles/${vehicleId}/insurances`;
-            const method = editingInsurance ? 'PUT' : 'POST';
-
-            await fetch(endpoint, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...form,
-                    premiumAmount: form.premiumAmount ? Number(form.premiumAmount) : null,
-                }),
-            });
+            if (editingInsurance) {
+                await updateInsurance(vehicleId, editingInsurance.id, form);
+            } else {
+                await createInsurance(vehicleId, form);
+            }
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['vehicle', vehicleId] });
@@ -71,7 +64,7 @@ export function InsuranceModal({ vehicleId, open, onClose, editingInsurance }: P
         mutationFn: async () => {
             if (!editingInsurance) return;
             if (!confirm('この保険情報を削除してもよろしいですか？')) throw new Error('Cancelled');
-            await fetch(`/api/vehicles/${vehicleId}/insurances/${editingInsurance.id}`, { method: 'DELETE' });
+            await deleteInsurance(vehicleId, editingInsurance.id);
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['vehicle', vehicleId] });

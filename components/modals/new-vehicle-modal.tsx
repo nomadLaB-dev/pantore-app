@@ -6,13 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LicensePlateColorLabel } from '@/types';
+import { createVehicle } from '@/app/actions/vehicle.actions';
 
 interface Branch {
     id: string;
     name: string;
 }
 
-interface Props { open: boolean; onClose: () => void; }
+interface Props {
+    open: boolean;
+    onClose: () => void;
+    branches: Branch[];
+}
 
 const plateColorStyle: Record<string, string> = {
     white: 'bg-white text-gray-800 border border-gray-300',
@@ -21,20 +26,8 @@ const plateColorStyle: Record<string, string> = {
     black: 'bg-gray-900 text-yellow-300',
 };
 
-export function NewVehicleModal({ open, onClose }: Props) {
+export function NewVehicleModal({ open, onClose, branches }: Props) {
     const qc = useQueryClient();
-
-    const { data: branchesRaw = [] } = useQuery<Branch[]>({
-        queryKey: ['branches'],
-        queryFn: async () => {
-            const res = await fetch('/api/branches');
-            if (!res.ok) throw new Error('Failed to fetch branches');
-            return res.json();
-        },
-        enabled: open,
-    });
-
-    const branches = Array.isArray(branchesRaw) ? branchesRaw : [];
 
     const [form, setForm] = useState({
         manufacturer: '',
@@ -42,7 +35,8 @@ export function NewVehicleModal({ open, onClose }: Props) {
         licensePlate: '',
         licensePlateColor: 'white',
         ownershipType: 'owned',
-        branchId: '',
+        // @ts-ignore
+        branchId: branches[0]?.id || '',
         lease: {
             leaseCompany: '',
             contractStartDate: '',
@@ -53,28 +47,26 @@ export function NewVehicleModal({ open, onClose }: Props) {
 
     // 初期表示時に最初の支社を選択状態にする
     useEffect(() => {
-        if (open && branches.length > 0 && !form.branchId) {
-            setForm(f => ({ ...f, branchId: branches[0].id }));
+        if (open && !form.branchId && branches.length > 0) {
+            setForm((f) => ({ ...f, branchId: branches[0]?.id || '' }));
         }
     }, [open, branches, form.branchId]);
 
     const mutation = useMutation({
         mutationFn: async () => {
-            await fetch('/api/vehicles', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(form),
-            });
+            await createVehicle(form);
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['vehicles'] });
             onClose();
+            // Reset form
             setForm({
                 manufacturer: '',
                 model: '',
                 licensePlate: '',
                 licensePlateColor: 'white',
                 ownershipType: 'owned',
+                // @ts-ignore
                 branchId: branches[0]?.id || '',
                 lease: {
                     leaseCompany: '',

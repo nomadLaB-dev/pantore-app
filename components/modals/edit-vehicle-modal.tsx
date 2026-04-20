@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LicensePlateColorLabel } from '@/types';
+import { updateVehicle } from '@/app/actions/vehicle.actions';
 
 interface Branch {
     id: string;
@@ -15,30 +16,20 @@ interface Branch {
 interface Props {
     open: boolean;
     onClose: () => void;
-    vehicle: any;
+    vehicle?: any;
+    branches: Branch[];
 }
 
-const plateColorStyle: Record<string, string> = {
-    white: 'bg-white text-gray-800 border border-gray-300',
-    yellow: 'bg-yellow-300 text-gray-800',
-    green: 'bg-green-600 text-white',
-    black: 'bg-gray-900 text-yellow-300',
-};
+export function EditVehicleModal({ open, onClose, vehicle, branches }: Props) {
+    const plateColorStyle: Record<string, string> = {
+        white: 'bg-white text-gray-800 border border-gray-300',
+        yellow: 'bg-yellow-400 text-gray-900',
+        green: 'bg-emerald-600 text-white',
+        black: 'bg-gray-900 text-yellow-300',
+    };
 
-export function EditVehicleModal({ open, onClose, vehicle }: Props) {
+    // ... inside the component
     const qc = useQueryClient();
-
-    const { data: branchesRaw = [] } = useQuery<Branch[]>({
-        queryKey: ['branches'],
-        queryFn: async () => {
-            const res = await fetch('/api/branches');
-            if (!res.ok) throw new Error('Failed to fetch branches');
-            return res.json();
-        },
-        enabled: open,
-    });
-
-    const branches = Array.isArray(branchesRaw) ? branchesRaw : [];
 
     const [form, setForm] = useState({
         manufacturer: '',
@@ -81,12 +72,7 @@ export function EditVehicleModal({ open, onClose, vehicle }: Props) {
 
     const mutation = useMutation({
         mutationFn: async () => {
-            const res = await fetch(`/api/vehicles/${vehicle.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(form),
-            });
-            if (!res.ok) throw new Error('Update failed');
+            await updateVehicle(vehicle.id, form);
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['vehicles'] });
