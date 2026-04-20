@@ -1,11 +1,16 @@
 'use client';
-import { useState } from 'react';
-import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LicensePlateColorLabel } from '@/types';
+
+interface Branch {
+    id: string;
+    name: string;
+}
 
 interface Props { open: boolean; onClose: () => void; }
 
@@ -16,22 +21,30 @@ const plateColorStyle: Record<string, string> = {
     black: 'bg-gray-900 text-yellow-300',
 };
 
-const branches = [
-    { id: 'b1', name: '本社' },
-    { id: 'b2', name: '大阪支社' },
-    { id: 'b3', name: '横浜倉庫・拠点' },
-];
-
 export function NewVehicleModal({ open, onClose }: Props) {
     const qc = useQueryClient();
+
+    const { data: branches = [] } = useQuery<Branch[]>({
+        queryKey: ['branches'],
+        queryFn: async () => (await fetch('/api/branches')).json(),
+        enabled: open,
+    });
+
     const [form, setForm] = useState({
         manufacturer: '',
         model: '',
         licensePlate: '',
         licensePlateColor: 'white',
         ownershipType: 'owned',
-        branchId: 'b1',
+        branchId: '',
     });
+
+    // 初期表示時に最初の支社を選択状態にする
+    useEffect(() => {
+        if (open && branches.length > 0 && !form.branchId) {
+            setForm(f => ({ ...f, branchId: branches[0].id }));
+        }
+    }, [open, branches, form.branchId]);
 
     const mutation = useMutation({
         mutationFn: async () => {
@@ -44,7 +57,14 @@ export function NewVehicleModal({ open, onClose }: Props) {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['vehicles'] });
             onClose();
-            setForm({ manufacturer: '', model: '', licensePlate: '', licensePlateColor: 'white', ownershipType: 'owned', branchId: 'b1' });
+            setForm({
+                manufacturer: '',
+                model: '',
+                licensePlate: '',
+                licensePlateColor: 'white',
+                ownershipType: 'owned',
+                branchId: branches[0]?.id || '',
+            });
         },
     });
 
@@ -110,9 +130,9 @@ export function NewVehicleModal({ open, onClose }: Props) {
                     <div>
                         <label className="text-sm font-medium mb-1.5 block">配属支社</label>
                         <Select value={form.branchId} onValueChange={set('branchId')}>
-                            <SelectTrigger><SelectValue placeholder="支社を選択">{branches.find((b: any) => b.id === form.branchId)?.name}</SelectValue></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="支社を選択">{branches.find((b: Branch) => b.id === form.branchId)?.name}</SelectValue></SelectTrigger>
                             <SelectContent>
-                                {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                                {branches.map((b: Branch) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </div>
