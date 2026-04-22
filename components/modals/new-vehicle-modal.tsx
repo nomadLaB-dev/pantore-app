@@ -90,11 +90,11 @@ export function NewVehicleModal({ open, onClose, branches }: Props) {
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-sm font-medium mb-1.5 block">メーカー <span className="text-red-500">*</span></label>
-                            <Input placeholder="トヨタ" value={form.manufacturer} onChange={(e) => setForm({ ...form, manufacturer: e.target.value })} />
+                            <Input placeholder="TESLA" value={form.manufacturer} onChange={(e) => setForm({ ...form, manufacturer: e.target.value })} />
                         </div>
                         <div>
                             <label className="text-sm font-medium mb-1.5 block">車種 <span className="text-red-500">*</span></label>
-                            <Input placeholder="ノア" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+                            <Input placeholder="Model S" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
                         </div>
                     </div>
 
@@ -102,10 +102,10 @@ export function NewVehicleModal({ open, onClose, branches }: Props) {
                         <label className="text-sm font-medium mb-1.5 block">ナンバープレート</label>
                         <div className="flex gap-2 items-center">
                             <div className={`text-xs font-bold px-3 py-1.5 rounded font-mono shrink-0 ${plateColorStyle[form.licensePlateColor]}`}>
-                                {form.licensePlate || '品川300あ1234'}
+                                {form.licensePlate || '広島 300 あ 12-34'}
                             </div>
                             <Input
-                                placeholder="品川300あ1234"
+                                placeholder="広島 300 あ 12-34"
                                 value={form.licensePlate}
                                 onChange={(e) => setForm({ ...form, licensePlate: e.target.value })}
                                 className="flex-1"

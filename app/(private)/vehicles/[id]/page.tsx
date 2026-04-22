@@ -7,10 +7,13 @@ export default async function VehicleDetailPage({
 }: {
     params: Promise<{ id: string }>;
 }) {
-    const p = await params;
-    const { id } = p;
+    // 1. Next.js 15対応: paramsをawait
+    const { id } = await params;
+
+    // 2. サーバー側でSupabaseクライアントを初期化（await必須！）
     const supabase = await createClient();
 
+    // 3. 関連テーブルも含めてデータを一発で取得
     const { data: vehicleResponse, error } = await supabase
         .from('vehicles')
         .select(`
@@ -23,11 +26,12 @@ export default async function VehicleDetailPage({
         .eq('id', id)
         .single();
 
+    // データがない、またはRLSで弾かれた場合は404ページへ
     if (error || !vehicleResponse) {
         return notFound();
     }
 
-    // データの正規化 (API route で行っていた処理)
+    // 4. データの正規化（DBのsnake_caseをフロント用のcamelCaseに変換）
     const vehicle = {
         id: vehicleResponse.id,
         manufacturer: vehicleResponse.manufacturer,
@@ -63,5 +67,6 @@ export default async function VehicleDetailPage({
         updatedAt: vehicleResponse.updated_at,
     };
 
+    // 5. Client Componentにデータを渡して描画！
     return <VehicleDetailClient vehicle={vehicle} />;
 }
