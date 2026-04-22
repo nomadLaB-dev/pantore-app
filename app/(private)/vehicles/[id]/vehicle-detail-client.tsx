@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import {
     ArrowLeft, Car, Building2, AlertTriangle, CalendarDays, Receipt,
@@ -15,6 +15,7 @@ import {
     VehicleBodyTypeLabel, DepreciationMethodLabel,
     type VehicleBodyType, type DepreciationMethod, type DepreciationScheduleRow,
 } from '@/lib/depreciation';
+import { updateVehiclePurchase } from '@/app/actions/vehicle.actions';
 import { InsuranceTypeLabel } from '@/types';
 import { InsuranceModal } from '@/components/modals/insurance-modal';
 import { cn } from '@/lib/utils';
@@ -35,22 +36,37 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 function DepreciationPanel({ vehicle }: { vehicle: any }) {
-    const dep = vehicle.depreciation;
+    const purchase = vehicle.purchase;
 
-    const [acquisitionCost, setAcquisitionCost] = useState<string>(String(dep?.acquisitionCost ?? ''));
-    const [bodyType, setBodyType] = useState<VehicleBodyType>(dep?.bodyType ?? 'passenger_standard');
-    const [isNewCar, setIsNewCar] = useState<boolean>(dep?.isNewCar ?? true);
-    const [purchaseYear, setPurchaseYear] = useState<string>(
-        dep?.purchaseDate ? String(new Date(dep.purchaseDate).getFullYear()) : String(new Date().getFullYear()),
-    );
-    const [firstRegYear, setFirstRegYear] = useState<string>(
-        dep?.firstRegistrationDate ? String(new Date(dep.firstRegistrationDate).getFullYear()) : '',
-    );
-    const [method, setMethod] = useState<DepreciationMethod>('straight');
+    const [acquisitionCost, setAcquisitionCost] = useState<string>(purchase?.acquisitionCost ? String(purchase.acquisitionCost) : '');
+    const [bodyType, setBodyType] = useState<VehicleBodyType>(purchase?.bodyType ?? 'passenger_standard');
+    const [isNewCar, setIsNewCar] = useState<boolean>(purchase?.isNewCar ?? true);
+    const [purchaseDate, setPurchaseDate] = useState<string>(purchase?.purchaseDate ?? '');
+    const [firstRegDate, setFirstRegDate] = useState<string>(purchase?.firstRegistrationDate ?? '');
+    const [method, setMethod] = useState<DepreciationMethod>(purchase?.method ?? 'straight');
+
+    const [isPending, startTransition] = useTransition();
+
+    const handleSave = () => {
+        startTransition(async () => {
+            try {
+                await updateVehiclePurchase(vehicle.id, {
+                    acquisitionCost,
+                    bodyType,
+                    isNewCar,
+                    purchaseDate,
+                    firstRegistrationDate: firstRegDate || null,
+                    method
+                });
+            } catch (err) {
+                console.error("Failed to update purchase info", err);
+            }
+        });
+    };
 
     const cost = Number(acquisitionCost);
-    const pYear = Number(purchaseYear);
-    const fRegYear = Number(firstRegYear);
+    const pYear = purchaseDate ? new Date(purchaseDate).getFullYear() : new Date().getFullYear();
+    const fRegYear = firstRegDate ? new Date(firstRegDate).getFullYear() : 0;
 
     const usefulLife = (() => {
         if (cost <= 0 || !bodyType) return null;
@@ -87,12 +103,17 @@ function DepreciationPanel({ vehicle }: { vehicle: any }) {
 
     return (
         <Card>
-            <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4">
+                <CardTitle className="text-base flex items-center gap-2 m-0">
                     <TrendingDown className="w-4 h-4 text-brand-500" />
-                    減価償却計算
-                    <span className="ml-auto text-xs text-muted-foreground font-normal">自社保有車・法人税法準拠</span>
+                    購入・減価償却設定
                 </CardTitle>
+                <div className="flex items-center gap-2 ml-auto">
+                    <span className="text-xs text-muted-foreground font-normal hidden sm:inline-block">自社保有車・法人税法準拠</span>
+                    <Button size="sm" onClick={handleSave} disabled={isPending || !purchaseDate} className="bg-brand-500 hover:bg-brand-600 text-white shadow-sm h-8">
+                        {isPending ? '保存中...' : '設定を保存'}
+                    </Button>
+                </div>
             </CardHeader>
             <CardContent className="space-y-5">
                 <div className="grid grid-cols-2 gap-3">
@@ -153,13 +174,13 @@ function DepreciationPanel({ vehicle }: { vehicle: any }) {
                         </div>
                     </div>
                     <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">取得年</label>
-                        <Input type="number" placeholder="2021" value={purchaseYear} onChange={(e) => setPurchaseYear(e.target.value)} />
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">取得日</label>
+                        <Input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} />
                     </div>
                     {!isNewCar && (
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">初度登録年（中古）</label>
-                            <Input type="number" placeholder="2018" value={firstRegYear} onChange={(e) => setFirstRegYear(e.target.value)} />
+                            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">初度登録年月（中古）</label>
+                            <Input type="month" value={firstRegDate ? firstRegDate.substring(0, 7) : ''} onChange={(e) => setFirstRegDate(e.target.value ? `${e.target.value}-01` : '')} />
                         </div>
                     )}
                 </div>

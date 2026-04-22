@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { getUsefulLife } from '@/lib/depreciation';
 import { Car, Plus, Building2, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -83,7 +84,7 @@ export function VehiclesClient({ vehicles, branches, stats }: VehiclesClientProp
                             </div>
 
                             {/* Lease info */}
-                            {v.lease && (
+                            {v.ownershipType === 'leased' && v.lease && (
                                 <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
                                     <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">リース情報</p>
                                     <div className="flex justify-between">
@@ -93,6 +94,33 @@ export function VehiclesClient({ vehicles, branches, stats }: VehiclesClientProp
                                     <div className="flex justify-between text-xs text-muted-foreground">
                                         <span>{new Date(v.lease.contractStartDate).toLocaleDateString('ja-JP')}</span>
                                         <span>〜 {new Date(v.lease.contractEndDate).toLocaleDateString('ja-JP')}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Purchase info */}
+                            {v.ownershipType === 'owned' && v.purchase && (
+                                <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1 mt-2">
+                                    <p className="font-medium text-xs text-brand-600 uppercase tracking-wide">購入・減価償却情報</p>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">取得価額: ¥{v.purchase.acquisitionCost?.toLocaleString()}</span>
+                                        <span className="font-medium text-brand-600">
+                                            {v.purchase.acquisitionCost ? `約 ¥${Math.floor(v.purchase.acquisitionCost / (getUsefulLife({
+                                                bodyType: v.purchase.bodyType,
+                                                isNewCar: v.purchase.isNewCar,
+                                                purchaseDate: new Date(v.purchase.purchaseDate || new Date()),
+                                                firstRegistrationDate: v.purchase.firstRegistrationDate ? new Date(v.purchase.firstRegistrationDate) : undefined
+                                            }) * 12)).toLocaleString()}/月` : '-'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-xs text-muted-foreground">
+                                        <span>想定耐用年数: {getUsefulLife({
+                                            bodyType: v.purchase.bodyType,
+                                            isNewCar: v.purchase.isNewCar,
+                                            purchaseDate: new Date(v.purchase.purchaseDate || new Date()),
+                                            firstRegistrationDate: v.purchase.firstRegistrationDate ? new Date(v.purchase.firstRegistrationDate) : undefined
+                                        })}年</span>
+                                        <span>取得: {v.purchase.purchaseDate ? new Date(v.purchase.purchaseDate).toLocaleDateString('ja-JP') : '-'}</span>
                                     </div>
                                 </div>
                             )}

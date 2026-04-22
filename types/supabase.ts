@@ -156,6 +156,94 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_accidents: {
+        Row: {
+          accident_date: string
+          created_at: string | null
+          description: string
+          id: string
+          repair_cost: number | null
+          severity: string
+          updated_at: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          accident_date: string
+          created_at?: string | null
+          description: string
+          id?: string
+          repair_cost?: number | null
+          severity?: string
+          updated_at?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          accident_date?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          repair_cost?: number | null
+          severity?: string
+          updated_at?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_accidents_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_insurances: {
+        Row: {
+          company_name: string
+          coverage_details: string | null
+          created_at: string | null
+          end_date: string
+          id: string
+          premium_amount: number | null
+          start_date: string
+          type: string
+          updated_at: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          company_name: string
+          coverage_details?: string | null
+          created_at?: string | null
+          end_date: string
+          id?: string
+          premium_amount?: number | null
+          start_date: string
+          type: string
+          updated_at?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          company_name?: string
+          coverage_details?: string | null
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          premium_amount?: number | null
+          start_date?: string
+          type?: string
+          updated_at?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_insurances_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_leases: {
         Row: {
           contract_end_date: string
@@ -187,6 +275,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "vehicle_leases_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: true
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_purchases: {
+        Row: {
+          acquisition_cost: number
+          body_type: string
+          created_at: string | null
+          first_registration_date: string | null
+          id: string
+          is_new_car: boolean
+          method: string
+          purchase_date: string
+          updated_at: string | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          acquisition_cost: number
+          body_type?: string
+          created_at?: string | null
+          first_registration_date?: string | null
+          id?: string
+          is_new_car?: boolean
+          method?: string
+          purchase_date: string
+          updated_at?: string | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          acquisition_cost?: number
+          body_type?: string
+          created_at?: string | null
+          first_registration_date?: string | null
+          id?: string
+          is_new_car?: boolean
+          method?: string
+          purchase_date?: string
+          updated_at?: string | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_purchases_vehicle_id_fkey"
             columns: ["vehicle_id"]
             isOneToOne: true
             referencedRelation: "vehicles"

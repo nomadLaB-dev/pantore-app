@@ -17,7 +17,8 @@ export default async function VehiclesPage() {
         .select(`
             *,
             branch:branches(*),
-            lease:vehicle_leases(*)
+            lease:vehicle_leases(*),
+            purchase:vehicle_purchases(*)
         `)
         .order('created_at', { ascending: false });
 
@@ -36,6 +37,14 @@ export default async function VehiclesPage() {
             contractStartDate: vehicle.lease.contract_start_date,
             contractEndDate: vehicle.lease.contract_end_date,
             monthlyFee: vehicle.lease.monthly_fee,
+        } : null,
+        purchase: vehicle.purchase ? {
+            acquisitionCost: vehicle.purchase.acquisition_cost,
+            purchaseDate: vehicle.purchase.purchase_date,
+            firstRegistrationDate: vehicle.purchase.first_registration_date,
+            bodyType: vehicle.purchase.body_type,
+            isNewCar: vehicle.purchase.is_new_car,
+            method: vehicle.purchase.method,
         } : null,
         insurances: Array.isArray(vehicle.insurances) ? vehicle.insurances : [],
         accidents: Array.isArray(vehicle.accidents) ? vehicle.accidents : [],

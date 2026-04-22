@@ -24,7 +24,8 @@ export async function createVehicle(data: any) {
         licensePlateColor,
         ownershipType,
         branchId,
-        lease
+        lease,
+        purchase
     } = data;
 
     // 1. Insert vehicle
@@ -55,6 +56,18 @@ export async function createVehicle(data: any) {
             monthly_fee: monthlyFee ? parseInt(monthlyFee, 10) : 0,
         });
         if (lError) console.error('Failed to insert lease info:', lError);
+    } else if (ownershipType === 'owned' && purchase) {
+        const { acquisitionCost, purchaseDate, firstRegistrationDate, bodyType, isNewCar, method } = purchase;
+        const { error: pError } = await supabase.from('vehicle_purchases').insert({
+            vehicle_id: vehicle.id,
+            acquisition_cost: acquisitionCost ? parseInt(acquisitionCost, 10) : 0,
+            purchase_date: purchaseDate || new Date().toISOString().split('T')[0],
+            first_registration_date: firstRegistrationDate || null,
+            body_type: bodyType || 'passenger_standard',
+            is_new_car: isNewCar !== undefined ? Boolean(isNewCar) : true,
+            method: method || 'straight'
+        });
+        if (pError) console.error('Failed to insert purchase info:', pError);
     }
 
     revalidatePath('/vehicles');
@@ -71,7 +84,8 @@ export async function updateVehicle(id: string, data: any) {
         licensePlateColor,
         ownershipType,
         branchId,
-        lease
+        lease,
+        purchase
     } = data;
 
     // 1. Update vehicle
@@ -90,22 +104,60 @@ export async function updateVehicle(id: string, data: any) {
 
     if (vError) throw vError;
 
-    // 2. Update/upsert lease info
-    if (ownershipType === 'leased' && lease) {
-        const { leaseCompany, contractStartDate, contractEndDate, monthlyFee } = lease;
-        const { error: lError } = await supabase.from('vehicle_leases').upsert({
-            vehicle_id: id,
-            lease_company: leaseCompany || '未設定',
-            contract_start_date: contractStartDate || new Date().toISOString().split('T')[0],
-            contract_end_date: contractEndDate || new Date().toISOString().split('T')[0],
-            monthly_fee: monthlyFee ? parseInt(monthlyFee, 10) : 0,
-        }, { onConflict: 'vehicle_id' });
-        if (lError) console.error('Failed to upsert lease info:', lError);
+    // 2. Update/upsert lease or purchase info
+    if (ownershipType === 'leased') {
+        if (lease) {
+            const { leaseCompany, contractStartDate, contractEndDate, monthlyFee } = lease;
+            const { error: lError } = await supabase.from('vehicle_leases').upsert({
+                vehicle_id: id,
+                lease_company: leaseCompany || '未設定',
+                contract_start_date: contractStartDate || new Date().toISOString().split('T')[0],
+                contract_end_date: contractEndDate || new Date().toISOString().split('T')[0],
+                monthly_fee: monthlyFee ? parseInt(monthlyFee, 10) : 0,
+            }, { onConflict: 'vehicle_id' });
+            if (lError) console.error('Failed to upsert lease info:', lError);
+        }
+        await supabase.from('vehicle_purchases').delete().eq('vehicle_id', id);
     } else if (ownershipType === 'owned') {
+        if (purchase) {
+            const { acquisitionCost, purchaseDate, firstRegistrationDate, bodyType, isNewCar, method } = purchase;
+            const { error: pError } = await supabase.from('vehicle_purchases').upsert({
+                vehicle_id: id,
+                acquisition_cost: acquisitionCost ? parseInt(acquisitionCost, 10) : 0,
+                purchase_date: purchaseDate || new Date().toISOString().split('T')[0],
+                first_registration_date: firstRegistrationDate || null,
+                body_type: bodyType || 'passenger_standard',
+                is_new_car: isNewCar !== undefined ? Boolean(isNewCar) : true,
+                method: method || 'straight'
+            }, { onConflict: 'vehicle_id' });
+            if (pError) console.error('Failed to upsert purchase info:', pError);
+        }
         await supabase.from('vehicle_leases').delete().eq('vehicle_id', id);
     }
 
     revalidatePath('/vehicles');
     revalidatePath(`/vehicles/${id}`);
+    return { success: true };
+}
+
+export async function updateVehiclePurchase(vehicleId: string, purchase: any) {
+    const supabase = await createClient();
+
+    const { acquisitionCost, purchaseDate, firstRegistrationDate, bodyType, isNewCar, method } = purchase;
+
+    const { error: pError } = await supabase.from('vehicle_purchases').upsert({
+        vehicle_id: vehicleId,
+        acquisition_cost: acquisitionCost ? parseInt(acquisitionCost, 10) : 0,
+        purchase_date: purchaseDate || new Date().toISOString().split('T')[0],
+        first_registration_date: firstRegistrationDate || null,
+        body_type: bodyType || 'passenger_standard',
+        is_new_car: isNewCar !== undefined ? Boolean(isNewCar) : true,
+        method: method || 'straight'
+    }, { onConflict: 'vehicle_id' });
+
+    if (pError) throw pError;
+
+    revalidatePath('/vehicles');
+    revalidatePath(`/vehicles/${vehicleId}`);
     return { success: true };
 }

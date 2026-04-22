@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LicensePlateColorLabel } from '@/types';
+import { VehicleBodyTypeLabel } from '@/lib/depreciation';
 import { updateVehicle } from '@/app/actions/vehicle.actions';
 
 interface Branch {
@@ -43,6 +44,14 @@ export function EditVehicleModal({ open, onClose, vehicle, branches }: Props) {
             contractStartDate: '',
             contractEndDate: '',
             monthlyFee: ''
+        },
+        purchase: {
+            acquisitionCost: '',
+            purchaseDate: '',
+            firstRegistrationDate: '',
+            bodyType: 'passenger_standard',
+            isNewCar: true,
+            method: 'straight',
         }
     });
 
@@ -65,6 +74,21 @@ export function EditVehicleModal({ open, onClose, vehicle, branches }: Props) {
                     contractStartDate: '',
                     contractEndDate: '',
                     monthlyFee: ''
+                },
+                purchase: vehicle.purchase ? {
+                    acquisitionCost: vehicle.purchase.acquisitionCost ? String(vehicle.purchase.acquisitionCost) : '',
+                    purchaseDate: vehicle.purchase.purchaseDate || '',
+                    firstRegistrationDate: vehicle.purchase.firstRegistrationDate || '',
+                    bodyType: vehicle.purchase.bodyType || 'passenger_standard',
+                    isNewCar: vehicle.purchase.isNewCar !== undefined ? vehicle.purchase.isNewCar : true,
+                    method: vehicle.purchase.method || 'straight',
+                } : {
+                    acquisitionCost: '',
+                    purchaseDate: '',
+                    firstRegistrationDate: '',
+                    bodyType: 'passenger_standard',
+                    isNewCar: true,
+                    method: 'straight',
                 }
             });
         }
@@ -172,6 +196,49 @@ export function EditVehicleModal({ open, onClose, vehicle, branches }: Props) {
                                     <Input type="date" value={form.lease.contractEndDate} onChange={(e) => setForm({ ...form, lease: { ...form.lease, contractEndDate: e.target.value } })} />
                                 </div>
                             </div>
+                        </div>
+                    )}
+                    {form.ownershipType === 'owned' && (
+                        <div className="pt-4 border-t border-border space-y-4">
+                            <h4 className="text-sm font-semibold text-brand-600">車両取得・減価償却情報</h4>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-sm font-medium mb-1.5 block">取得価額 (円)</label>
+                                    <Input type="number" placeholder="1500000" value={form.purchase.acquisitionCost} onChange={(e) => setForm({ ...form, purchase: { ...form.purchase, acquisitionCost: e.target.value } })} />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium mb-1.5 block">取得日</label>
+                                    <Input type="date" value={form.purchase.purchaseDate} onChange={(e) => setForm({ ...form, purchase: { ...form.purchase, purchaseDate: e.target.value } })} />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-sm font-medium mb-1.5 block">車種区分</label>
+                                    <Select value={form.purchase.bodyType} onValueChange={(v) => setForm({ ...form, purchase: { ...form.purchase, bodyType: v as string } })}>
+                                        <SelectTrigger><SelectValue placeholder="選択" /></SelectTrigger>
+                                        <SelectContent>
+                                            {Object.entries(VehicleBodyTypeLabel).map(([k, v]) => (
+                                                <SelectItem key={k} value={k}>{v}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium mb-1.5 block">新車 / 中古</label>
+                                    <div className="flex bg-muted p-1 rounded-md">
+                                        <Button type="button" variant="ghost" size="sm" className={`flex-1 h-8 ${form.purchase.isNewCar ? 'bg-background shadow-sm' : ''}`} onClick={() => setForm({ ...form, purchase: { ...form.purchase, isNewCar: true } })}>新車</Button>
+                                        <Button type="button" variant="ghost" size="sm" className={`flex-1 h-8 ${!form.purchase.isNewCar ? 'bg-background shadow-sm' : ''}`} onClick={() => setForm({ ...form, purchase: { ...form.purchase, isNewCar: false } })}>中古</Button>
+                                    </div>
+                                </div>
+                            </div>
+                            {!form.purchase.isNewCar && (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-sm font-medium mb-1.5 block">初度登録年月（中古用）</label>
+                                        <Input type="month" value={form.purchase.firstRegistrationDate ? form.purchase.firstRegistrationDate.substring(0, 7) : ''} onChange={(e) => setForm({ ...form, purchase: { ...form.purchase, firstRegistrationDate: e.target.value ? `${e.target.value}-01` : '' } })} />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
