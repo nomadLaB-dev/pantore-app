@@ -129,6 +129,123 @@ export type Database = {
           },
         ]
       }
+      real_estate_contracts: {
+        Row: {
+          alert_days_before: number | null
+          created_at: string
+          end_date: string
+          id: string
+          landlord: string
+          monthly_rent: number
+          real_estate_id: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          alert_days_before?: number | null
+          created_at?: string
+          end_date: string
+          id?: string
+          landlord: string
+          monthly_rent: number
+          real_estate_id: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          alert_days_before?: number | null
+          created_at?: string
+          end_date?: string
+          id?: string
+          landlord?: string
+          monthly_rent?: number
+          real_estate_id?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "real_estate_contracts_real_estate_id_fkey"
+            columns: ["real_estate_id"]
+            isOneToOne: true
+            referencedRelation: "real_estates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      real_estate_usages: {
+        Row: {
+          created_at: string
+          floor_area: number | null
+          id: string
+          real_estate_id: string
+          updated_at: string
+          usage_type: string
+        }
+        Insert: {
+          created_at?: string
+          floor_area?: number | null
+          id?: string
+          real_estate_id: string
+          updated_at?: string
+          usage_type: string
+        }
+        Update: {
+          created_at?: string
+          floor_area?: number | null
+          id?: string
+          real_estate_id?: string
+          updated_at?: string
+          usage_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "real_estate_usages_real_estate_id_fkey"
+            columns: ["real_estate_id"]
+            isOneToOne: false
+            referencedRelation: "real_estates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      real_estates: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          name: string
+          ownership_type: Database["public"]["Enums"]["real_estate_ownership_type"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          name: string
+          ownership_type?: Database["public"]["Enums"]["real_estate_ownership_type"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          name?: string
+          ownership_type?: Database["public"]["Enums"]["real_estate_ownership_type"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "real_estates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           billing_address: string | null
@@ -392,6 +509,7 @@ export type Database = {
     }
     Enums: {
       employment_category: "full_time" | "part_time" | "contract" | "dispatch"
+      real_estate_ownership_type: "owned" | "leased"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -523,6 +641,7 @@ export const Constants = {
   public: {
     Enums: {
       employment_category: ["full_time", "part_time", "contract", "dispatch"],
+      real_estate_ownership_type: ["owned", "leased"],
     },
   },
 } as const

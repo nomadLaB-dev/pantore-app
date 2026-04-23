@@ -1,14 +1,18 @@
 'use client';
-import { useState, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { createRealEstate } from '@/app/actions/real-estate.actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { updateRealEstate, deleteRealEstate } from '@/app/actions/real-estate.actions';
 
-interface Props { open: boolean; onClose: () => void; }
+interface Props {
+    open: boolean;
+    onClose: () => void;
+    estate: any;
+}
 
-export function NewRealEstateModal({ open, onClose }: Props) {
+export function EditRealEstateModal({ open, onClose, estate }: Props) {
     const [form, setForm] = useState({
         name: '',
         address: '',
@@ -23,23 +27,53 @@ export function NewRealEstateModal({ open, onClose }: Props) {
         }
     });
 
+    useEffect(() => {
+        if (estate) {
+            setForm({
+                name: estate.name || '',
+                address: estate.address || '',
+                ownershipType: estate.ownershipType || 'leased',
+                usageType: estate.usages?.[0]?.type || 'オフィス',
+                floorArea: estate.usages?.[0]?.floorArea ? String(estate.usages[0].floorArea) : '',
+                contract: estate.contract ? {
+                    monthlyRent: estate.contract.monthlyRent ? String(estate.contract.monthlyRent) : '',
+                    landlord: estate.contract.landlord || '',
+                    startDate: estate.contract.startDate || '',
+                    endDate: estate.contract.endDate || ''
+                } : {
+                    monthlyRent: '',
+                    landlord: '',
+                    startDate: '',
+                    endDate: ''
+                }
+            });
+        }
+    }, [estate]);
+
     const [isPending, startTransition] = useTransition();
 
     const onSubmit = () => {
+        if (!estate) return;
         startTransition(async () => {
             try {
-                await createRealEstate(form);
+                await updateRealEstate(estate.id, form);
                 onClose();
-                setForm({
-                    name: '',
-                    address: '',
-                    ownershipType: 'leased',
-                    usageType: 'オフィス',
-                    floorArea: '',
-                    contract: { monthlyRent: '', landlord: '', startDate: '', endDate: '' }
-                });
             } catch (err) {
-                console.error("Failed to create real estate", err);
+                console.error("Failed to update real estate", err);
+            }
+        });
+    };
+
+    const onDelete = () => {
+        if (!estate) return;
+        if (!confirm('この不動産を削除しますか？\n付随する契約情報などもすべて削除されます。')) return;
+
+        startTransition(async () => {
+            try {
+                await deleteRealEstate(estate.id);
+                onClose();
+            } catch (err) {
+                console.error("Failed to delete real estate", err);
             }
         });
     };
@@ -48,9 +82,9 @@ export function NewRealEstateModal({ open, onClose }: Props) {
 
     return (
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md h-[90vh] sm:h-auto overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>不動産を新規登録</DialogTitle>
+                    <DialogTitle>不動産の編集</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                     <div>
@@ -115,15 +149,18 @@ export function NewRealEstateModal({ open, onClose }: Props) {
                         </div>
                     )}
                 </div>
-                <DialogFooter className="mt-2">
-                    <Button variant="outline" onClick={onClose}>キャンセル</Button>
-                    <Button
-                        className="bg-brand-500 hover:bg-brand-600 text-white"
-                        disabled={!form.name || !form.address || (form.ownershipType === 'leased' && (!form.contract.monthlyRent || !form.contract.startDate)) || isPending}
-                        onClick={onSubmit}
-                    >
-                        {isPending ? '保存中…' : '登録する'}
-                    </Button>
+                <DialogFooter className="mt-2 flex-col sm:flex-row gap-2">
+                    <Button variant="destructive" onClick={onDelete} disabled={isPending} className="sm:mr-auto">削除</Button>
+                    <div className="flex gap-2 justify-end">
+                        <Button variant="outline" onClick={onClose}>キャンセル</Button>
+                        <Button
+                            className="bg-brand-500 hover:bg-brand-600 text-white"
+                            disabled={!form.name || !form.address || (form.ownershipType === 'leased' && (!form.contract.monthlyRent || !form.contract.startDate)) || isPending}
+                            onClick={onSubmit}
+                        >
+                            {isPending ? '保存中…' : '更新する'}
+                        </Button>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
