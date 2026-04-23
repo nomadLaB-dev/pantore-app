@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -84,7 +85,7 @@ function MinutesTab({ deal }: { deal: any }) {
                             size="sm"
                             className="bg-brand-500 hover:bg-brand-600 text-white"
                             disabled={!title.trim() || !body.trim()}
-                            onClick={() => { alert('議事録を保存しました（UI デモ）'); setTitle(''); setBody(''); }}
+                            onClick={() => { toast.success('議事録を保存しました', { description: 'UIデモ動作です' }); setTitle(''); setBody(''); }}
                         >
                             保存
                         </Button>
@@ -112,7 +113,7 @@ function MinutesTab({ deal }: { deal: any }) {
                                                     onChange={(e) => setEditBody(e.target.value)}
                                                 />
                                                 <div className="flex gap-2">
-                                                    <Button size="sm" className="bg-brand-500 hover:bg-brand-600 text-white" onClick={() => { setEditId(null); alert('更新しました（UI デモ）'); }}>保存</Button>
+                                                    <Button size="sm" className="bg-brand-500 hover:bg-brand-600 text-white" onClick={() => { setEditId(null); toast.success('更新しました', { description: 'UIデモ動作です' }); }}>保存</Button>
                                                     <Button size="sm" variant="outline" onClick={() => setEditId(null)}>キャンセル</Button>
                                                 </div>
                                             </div>
@@ -174,7 +175,7 @@ function ContractsTab({ deal }: { deal: any }) {
                                                 {c.signedAt && <p>署名: {new Date(c.signedAt).toLocaleDateString('ja-JP')}</p>}
                                             </div>
                                         </div>
-                                        <Button size="sm" variant="outline" className="shrink-0 gap-1.5" onClick={() => alert('PDF ダウンロード（UI デモ）')}>
+                                        <Button size="sm" variant="outline" className="shrink-0 gap-1.5" onClick={() => toast.info('PDF ダウンロード', { description: 'UIデモ動作です' })}>
                                             <Download className="w-3.5 h-3.5" /> PDF
                                         </Button>
                                     </div>
@@ -217,7 +218,7 @@ function ContractsTab({ deal }: { deal: any }) {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setGenModal(false)}>キャンセル</Button>
-                        <Button className="bg-brand-500 hover:bg-brand-600 text-white gap-2" onClick={() => { setGenModal(false); alert('契約書を生成しました（UI デモ）'); }}>
+                        <Button className="bg-brand-500 hover:bg-brand-600 text-white gap-2" onClick={() => { setGenModal(false); toast.success('契約書を生成しました', { description: 'UIデモ動作です' }); }}>
                             <FilePlus2 className="w-4 h-4" /> 生成する
                         </Button>
                     </DialogFooter>
@@ -247,7 +248,7 @@ function InvoicesTab({ deal }: { deal: any }) {
             </div>
 
             <div className="flex justify-end">
-                <Button className="bg-brand-500 hover:bg-brand-600 text-white gap-2" onClick={() => alert('請求書発行（UI デモ）')}>
+                <Button className="bg-brand-500 hover:bg-brand-600 text-white gap-2" onClick={() => toast.info('請求書発行', { description: 'UIデモ動作です' })}>
                     <FileSpreadsheet className="w-4 h-4" /> 請求書を発行
                 </Button>
             </div>
@@ -364,7 +365,7 @@ function AssigneesTab({ deal }: { deal: any }) {
                         <Button
                             className="bg-brand-500 hover:bg-brand-600 text-white"
                             disabled={!handoverForm.assigneeName.trim()}
-                            onClick={() => { setHandoverModal(false); alert('引き継ぎを記録しました（UI デモ）'); }}
+                            onClick={() => { setHandoverModal(false); toast.success('引き継ぎを記録しました', { description: 'UIデモ動作です' }); }}
                         >
                             記録する
                         </Button>

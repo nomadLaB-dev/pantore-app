@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Layers, ArrowRight, Loader2, AlertCircle, Wheat } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Layers, ArrowRight, Loader2, AlertCircle, Wheat, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store';
@@ -15,6 +15,7 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -105,16 +106,44 @@ export default function LoginPage() {
                             />
                         </div>
 
-                        <div>
+                        <div className="relative">
                             <label className="block text-sm font-medium mb-1.5 text-amber-900 dark:text-amber-200">パスワード</label>
-                            <input
-                                type="password"
+                            <motion.input
+                                key="password-input"
+                                animate={{
+                                    filter: showPassword ? ["blur(2px)", "blur(0px)"] : ["blur(2px)", "blur(0px)"],
+                                    opacity: [0.8, 1]
+                                }}
+                                transition={{ duration: 0.3, ease: "easeInOut" }}
+                                type={showPassword ? "text" : "password"}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
-                                className="w-full h-12 bg-white dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl px-4 text-amber-950 dark:text-amber-50 placeholder:text-amber-400/60 dark:placeholder:text-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-all"
+                                className="w-full h-12 bg-white dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl px-4 pr-12 text-amber-950 dark:text-amber-50 placeholder:text-amber-400/60 dark:placeholder:text-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-all"
                                 placeholder="••••••••"
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-[38px] text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 transition-colors focus:outline-none w-8 h-8 flex items-center justify-center"
+                                aria-label={showPassword ? "パスワードを非表示にする" : "パスワードを表示する"}
+                            >
+                                <AnimatePresence mode="wait" initial={false}>
+                                    <motion.div
+                                        key={showPassword ? "hide" : "show"}
+                                        initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
+                                        animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                                        exit={{ opacity: 0, scale: 0.8, rotate: 10 }}
+                                        transition={{ duration: 0.2, ease: "easeOut" }}
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="w-5 h-5" />
+                                        ) : (
+                                            <Eye className="w-5 h-5" />
+                                        )}
+                                    </motion.div>
+                                </AnimatePresence>
+                            </button>
                         </div>
 
                         <button

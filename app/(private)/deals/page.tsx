@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     Handshake, Plus, Search, RefreshCw, Zap, Calendar,
@@ -314,7 +315,7 @@ export default function DealsPage() {
                                                 size="sm"
                                                 variant="outline"
                                                 className="gap-1.5 text-xs hover:border-brand-500 hover:text-brand-600"
-                                                onClick={(e) => { e.stopPropagation(); alert(`請求書発行: ${d.name}\n（機能実装予定）`); }}
+                                                onClick={(e) => { e.stopPropagation(); toast.info(`請求書発行: ${d.name}`, { description: '機能実装予定のデモ動作です' }); }}
                                             >
                                                 <FileSpreadsheet className="w-3.5 h-3.5" />
                                                 請求書
