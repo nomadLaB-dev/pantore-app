@@ -15,9 +15,15 @@ const branches = [
     { id: 'b3', name: '横浜倉庫・拠点' },
 ];
 
+const companies = [
+    { id: 'c1', name: 'モルモット株式会社' },
+    { id: 'c2', name: 'ウサギ株式会社' },
+    { id: 'c3', name: 'キツネ株式会社' },
+];
+
 export function NewEmployeeModal({ open, onClose }: Props) {
     const qc = useQueryClient();
-    const [form, setForm] = useState({ name: '', email: '', hireDate: '', category: 'full_time', branchId: 'b1' });
+    const [form, setForm] = useState({ name: '', name_kana: '', birthDate: '', companyId: '', branchId: '', lineId: '', email: '', tel: '', address: '', emergencyContact: '', hireDate: '', category: 'full_time', hourlyRate: '1085', certificationNum: '', invoiceNum: '', weeklyHoursMin: '', weeklyHoursMax: '' });
 
     const mutation = useMutation({
         mutationFn: async () => {
@@ -30,7 +36,7 @@ export function NewEmployeeModal({ open, onClose }: Props) {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['employees'] });
             onClose();
-            setForm({ name: '', email: '', hireDate: '', category: 'full_time', branchId: 'b1' });
+            setForm({ name: '', name_kana: '', birthDate: '', companyId: '', branchId: '', lineId: '', email: '', tel: '', address: '', emergencyContact: '', hireDate: '', category: 'full_time', hourlyRate: '1085', certificationNum: '', invoiceNum: '', weeklyHoursMin: '', weeklyHoursMax: '' });
         },
     });
 
@@ -38,7 +44,7 @@ export function NewEmployeeModal({ open, onClose }: Props) {
 
     return (
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>社員を新規追加</DialogTitle>
                 </DialogHeader>
@@ -48,13 +54,22 @@ export function NewEmployeeModal({ open, onClose }: Props) {
                         <Input placeholder="山田 太郎" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                     </div>
                     <div>
-                        <label className="text-sm font-medium mb-1.5 block">メールアドレス</label>
-                        <Input type="email" placeholder="yamada@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                        <label className="text-sm font-medium mb-1.5 block">氏名（カナ） <span className="text-red-500">*</span></label>
+                        <Input placeholder="ヤマダ タロウ" value={form.name_kana} onChange={(e) => setForm({ ...form, name_kana: e.target.value })} />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-sm font-medium mb-1.5 block">生年月日 <span className="text-red-500">*</span></label>
+                        <Input type="date" value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="text-sm font-medium mb-1.5 block">入社日 <span className="text-red-500">*</span></label>
-                            <Input type="date" value={form.hireDate} onChange={(e) => setForm({ ...form, hireDate: e.target.value })} />
+                            <label className="text-sm font-medium mb-1.5 block">所属会社 <span className="text-red-500">*</span></label>
+                            <Select value={form.companyId} onValueChange={set('companyId')}>
+                                <SelectTrigger><SelectValue placeholder="会社を選択">{companies.find((c: any) => c.id === form.companyId)?.name}</SelectValue></SelectTrigger>
+                                <SelectContent>
+                                    {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div>
                             <label className="text-sm font-medium mb-1.5 block">所属支社</label>
@@ -67,22 +82,96 @@ export function NewEmployeeModal({ open, onClose }: Props) {
                         </div>
                     </div>
                     <div>
-                        <label className="text-sm font-medium mb-1.5 block">雇用区分</label>
-                        <Select value={form.category} onValueChange={set('category')}>
-                            <SelectTrigger><SelectValue placeholder="選択">{form.category ? EmploymentCategoryLabel[form.category as keyof typeof EmploymentCategoryLabel] : ''}</SelectValue></SelectTrigger>
-                            <SelectContent>
-                                {Object.entries(EmploymentCategoryLabel).map(([k, v]) => (
-                                    <SelectItem key={k} value={k}>{v}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <label className="text-sm font-medium mb-1.5 block">メールアドレス <span className="text-red-500">*</span></label>
+                        <Input type="email" placeholder="yamada@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium mb-1.5 block">電話番号 <span className="text-red-500">*</span></label>
+                        <Input type="tel" placeholder="090-1234-5678" value={form.tel} onChange={(e) => setForm({ ...form, tel: e.target.value })} />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium mb-1.5 block">LINE ID</label>
+                        <Input type="lineId" placeholder="" value={form.lineId} onChange={(e) => setForm({ ...form, lineId: e.target.value })} />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium mb-1.5 block">住所 <span className="text-red-500">*</span></label>
+                        <Input type="address" placeholder="" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium mb-1.5 block">緊急連絡先 <span className="text-red-500">*</span></label>
+                        <Input type="emergencyContact" placeholder="090-1234-5678" value={form.emergencyContact} onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">入社日 <span className="text-red-500">*</span></label>
+                            <Input type="date" value={form.hireDate} onChange={(e) => setForm({ ...form, hireDate: e.target.value })} />
+                        </div>
+
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">雇用区分 <span className="text-red-500">*</span></label>
+                            <Select value={form.category} onValueChange={set('category')}>
+                                <SelectTrigger><SelectValue placeholder="選択">{form.category ? EmploymentCategoryLabel[form.category as keyof typeof EmploymentCategoryLabel] : ''}</SelectValue></SelectTrigger>
+                                <SelectContent>
+                                    {Object.entries(EmploymentCategoryLabel).map(([k, v]) => (
+                                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {(form.category === 'part_time' || form.category === 'dispatch') && (
+                            <div>
+                                <label className="text-sm font-medium mb-1.5 block">時給 <span className="text-red-500">*</span></label>
+                                <Input
+                                    type="number"
+                                    placeholder="1000"
+                                    value={form.hourlyRate}
+                                    onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })}
+                                />
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium mb-1.5 block">認定番号</label>
+                        <Input type="certificationNum" placeholder="" value={form.certificationNum} onChange={(e) => setForm({ ...form, certificationNum: e.target.value })} />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium mb-1.5 block">INVOICE番号</label>
+                        <Input type="invoiceNum" placeholder="" value={form.invoiceNum} onChange={(e) => setForm({ ...form, invoiceNum: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-medium block">週稼働予定時間 <span className="text-red-500">*</span></label>
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
+                                <Input
+                                    type="number"
+                                    className="w-20"
+                                    placeholder="20"
+                                    value={form.weeklyHoursMin}
+                                    onChange={(e) => setForm({ ...form, weeklyHoursMin: e.target.value })}
+                                />
+                                <span className="text-xs text-muted-foreground">時間</span>
+                            </div>
+                            <span className="text-muted-foreground">～</span>
+                            <div className="flex items-center gap-1.5">
+                                <Input
+                                    type="number"
+                                    className="w-20"
+                                    placeholder="40"
+                                    value={form.weeklyHoursMax}
+                                    onChange={(e) => setForm({ ...form, weeklyHoursMax: e.target.value })}
+                                />
+                                <span className="text-xs text-muted-foreground">時間</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <DialogFooter className="mt-2">
                     <Button variant="outline" onClick={onClose}>キャンセル</Button>
                     <Button
                         className="bg-brand-500 hover:bg-brand-600 text-white"
-                        disabled={!form.name || !form.hireDate || mutation.isPending}
+                        disabled={!form.name || !form.name_kana || !form.birthDate || !form.companyId || !form.email || !form.address || !form.emergencyContact || !form.category || ((form.category === 'part_time' || form.category === 'dispatch') ? !form.hourlyRate : false) || !form.weeklyHoursMax || !form.weeklyHoursMin || !form.hireDate || mutation.isPending}
                         onClick={() => mutation.mutate()}
                     >
                         {mutation.isPending ? '保存中…' : '追加する'}
