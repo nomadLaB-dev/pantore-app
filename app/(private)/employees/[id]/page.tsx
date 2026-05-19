@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     ArrowLeft, User, Activity, CalendarDays, Edit3,
     UserCheck, UserX, Briefcase, BadgeJapaneseYen, AlertTriangle,
-    CheckCircle2, Clock, Pencil, MapPin, History
+    CheckCircle2, Clock, Pencil, MapPin, History, Award
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -33,6 +33,7 @@ const TABS = [
     { id: 'workload', name: '人月・稼働履歴', icon: Activity },
     { id: 'employment', name: '雇用・配置履歴', icon: Briefcase },
     { id: 'shifts', name: 'シフト', icon: CalendarDays },
+    { id: 'qualification', name: '資格', icon: Award },
 ] as const;
 type TabId = typeof TABS[number]['id'];
 
@@ -374,6 +375,13 @@ export default function EmployeeDetailPage() {
                         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                             <CalendarDays className="w-12 h-12 mb-4 opacity-30" />
                             <p>シフト機能は開発中です</p>
+                        </div>
+                    )}
+
+                    {activeTab === 'qualification' && (
+                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                            <Award className="w-12 h-12 mb-4 opacity-30" />
+                            <p>資格機能は開発中です</p>
                         </div>
                     )}
                 </CardContent>
