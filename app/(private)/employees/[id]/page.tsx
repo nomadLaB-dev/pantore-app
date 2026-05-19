@@ -65,7 +65,14 @@ export default function EmployeeDetailPage() {
 
     const { data: employee, isLoading } = useQuery<any>({
         queryKey: ['employee', id],
-        queryFn: async () => (await fetch(`/api/employees/${id}`)).json(),
+        queryFn: async () => {
+            const res = await fetch(`/api/employees/${id}`);
+            if (!res.ok) {
+                if (res.status === 404) return null;
+                throw new Error('社員データの取得に失敗しました');
+            }
+            return res.json();
+        },
     });
 
     const { data: workloads = [] } = useQuery<any[]>({
@@ -92,7 +99,7 @@ export default function EmployeeDetailPage() {
     if (isLoading) return <div className="p-8 text-center text-muted-foreground">読み込み中...</div>;
     if (!employee) return <div className="p-8 text-center text-muted-foreground">社員が見つかりません。</div>;
 
-    const acct = accountStatusConfig[employee.accountStatus as AccountStatus];
+    const acct = accountStatusConfig[employee.accountStatus as AccountStatus] || accountStatusConfig.none;
 
     // Contract expiry alert for the current history record
     const currentHistory = employmentHistory[0] as any;

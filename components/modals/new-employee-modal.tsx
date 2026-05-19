@@ -1,6 +1,6 @@
 'use client';
-import { useState } from 'react';
-import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,21 +9,41 @@ import { EmploymentCategoryLabel } from '@/types';
 
 interface Props { open: boolean; onClose: () => void; }
 
-const branches = [
-    { id: 'b1', name: '本社' },
-    { id: 'b2', name: '大阪支社' },
-    { id: 'b3', name: '横浜倉庫・拠点' },
-];
-
-const companies = [
-    { id: 'c1', name: 'モルモット株式会社' },
-    { id: 'c2', name: 'ウサギ株式会社' },
-    { id: 'c3', name: 'キツネ株式会社' },
-];
-
 export function NewEmployeeModal({ open, onClose }: Props) {
     const qc = useQueryClient();
     const [form, setForm] = useState({ name: '', name_kana: '', birthDate: '', companyId: '', branchId: '', lineId: '', email: '', tel: '', address: '', emergencyContact: '', hireDate: '', category: 'full_time', hourlyRate: '1085', certificationNum: '', invoiceNum: '', weeklyHoursMin: '', weeklyHoursMax: '' });
+
+    // テナント一覧（全会社）を取得
+    const { data: dbCompanies = [] } = useQuery<any[]>({
+        queryKey: ['tenants', 'all'],
+        queryFn: async () => {
+            const res = await fetch('/api/tenants?all=true');
+            if (!res.ok) throw new Error('Failed to fetch tenants');
+            return res.json();
+        },
+        enabled: open,
+    });
+
+    // 支社一覧を取得
+    const { data: dbBranches = [] } = useQuery<any[]>({
+        queryKey: ['branches'],
+        queryFn: async () => {
+            const res = await fetch('/api/branches');
+            if (!res.ok) throw new Error('Failed to fetch branches');
+            return res.json();
+        },
+        enabled: open,
+    });
+
+    // 会社が変更されたら、選択済みの支社をリセット
+    useEffect(() => {
+        setForm((f) => ({ ...f, branchId: '' }));
+    }, [form.companyId]);
+
+    // 選択された会社に属する支社をフィルタリング
+    const filteredBranches = dbBranches.filter(
+        (b: any) => b.tenant_id === form.companyId
+    );
 
     const mutation = useMutation({
         mutationFn: async () => {
@@ -65,18 +85,38 @@ export function NewEmployeeModal({ open, onClose }: Props) {
                         <div>
                             <label className="text-sm font-medium mb-1.5 block">所属会社 <span className="text-red-500">*</span></label>
                             <Select value={form.companyId} onValueChange={set('companyId')}>
-                                <SelectTrigger><SelectValue placeholder="会社を選択">{companies.find((c: any) => c.id === form.companyId)?.name}</SelectValue></SelectTrigger>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="会社を選択">
+                                        {dbCompanies.find((c: any) => c.id === form.companyId)?.name || ''}
+                                    </SelectValue>
+                                </SelectTrigger>
                                 <SelectContent>
-                                    {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                    {dbCompanies.map((c) => (
+                                        <SelectItem key={c.id} value={c.id}>
+                                            {c.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div>
                             <label className="text-sm font-medium mb-1.5 block">所属支社</label>
-                            <Select value={form.branchId} onValueChange={set('branchId')}>
-                                <SelectTrigger><SelectValue placeholder="支社を選択">{branches.find((b: any) => b.id === form.branchId)?.name}</SelectValue></SelectTrigger>
+                            <Select
+                                value={form.branchId}
+                                onValueChange={set('branchId')}
+                                disabled={!form.companyId}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder={form.companyId ? "支社を選択" : "先に会社を選択してください"}>
+                                        {filteredBranches.find((b: any) => b.id === form.branchId)?.name || ''}
+                                    </SelectValue>
+                                </SelectTrigger>
                                 <SelectContent>
-                                    {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                                    {filteredBranches.map((b) => (
+                                        <SelectItem key={b.id} value={b.id}>
+                                            {b.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
