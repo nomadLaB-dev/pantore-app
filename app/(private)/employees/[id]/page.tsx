@@ -12,6 +12,7 @@ import { EmploymentCategoryLabel, SalaryTypeLabel, AccountStatus, FIXED_TERM_CAT
 import { Badge } from '@/components/ui/badge';
 import { EmploymentHistoryModal } from '@/components/modals/employment-history-modal';
 import { WorkloadModal } from '@/components/modals/workload-modal';
+import { QualificationModal } from '@/components/modals/qualification-modal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -27,6 +28,20 @@ const accountStatusConfig: Record<AccountStatus, { label: string; className: str
     active: { label: 'アカウント有効', className: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' },
     disabled: { label: 'アカウント無効', className: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' },
     none: { label: '未発行', className: 'bg-transparent border border-border text-muted-foreground' },
+};
+
+const QUAL_LABELS: Record<string, string> = {
+    ipd: 'IPD',
+    inter: 'Inter',
+    fedex: 'FedEx',
+    q_dome: 'Q-DOME',
+    mediford: 'MEDIFORD',
+};
+
+const QUAL_STATUS_LABELS: Record<string, string> = {
+    none: '無資格',
+    training: '研修中',
+    qualified: '有資格',
 };
 
 const TABS = [
@@ -63,6 +78,7 @@ export default function EmployeeDetailPage() {
     // Modal state
     const [empHistModal, setEmpHistModal] = useState<{ open: boolean; record?: any }>({ open: false });
     const [workloadModal, setWorkloadModal] = useState<{ open: boolean; record?: any }>({ open: false });
+    const [qualificationModal, setQualificationModal] = useState<{ open: boolean; record?: any }>({ open: false });
 
     const { data: employee, isLoading } = useQuery<any>({
         queryKey: ['employee', id],
@@ -84,6 +100,11 @@ export default function EmployeeDetailPage() {
     const { data: employmentHistory = [] } = useQuery<any[]>({
         queryKey: ['employee_employment_history', id],
         queryFn: async () => (await fetch(`/api/employees/${id}/employment-history`)).json(),
+    });
+
+    const { data: qualifications = [] } = useQuery<any[]>({
+        queryKey: ['employee_qualifications', id],
+        queryFn: async () => (await fetch(`/api/employees/${id}/qualifications`)).json(),
     });
 
     const statusMutation = useMutation({
@@ -379,9 +400,74 @@ export default function EmployeeDetailPage() {
                     )}
 
                     {activeTab === 'qualification' && (
-                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                            <Award className="w-12 h-12 mb-4 opacity-30" />
-                            <p>資格機能は開発中です</p>
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-semibold">資格情報</h3>
+                                <Button size="sm" variant="outline" onClick={() => setQualificationModal({ open: true })}>＋ 追加</Button>
+                            </div>
+                            {qualifications.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground border border-dashed rounded-xl">
+                                    <Award className="w-12 h-12 mb-4 opacity-30" />
+                                    <p>登録されている資格情報はありません</p>
+                                </div>
+                            ) : (
+                                <div className="grid gap-3">
+                                    {qualifications.map((q: any) => (
+                                        <div
+                                            key={q.qualification}
+                                            className="flex flex-col md:flex-row md:items-center justify-between p-4 border border-border rounded-xl hover:border-brand-400 hover:bg-muted/40 transition-colors text-left gap-4"
+                                        >
+                                            <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-4 items-center">
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground mb-0.5">資格区分</p>
+                                                    <span className="font-semibold text-sm">
+                                                        {QUAL_LABELS[q.qualification] || q.qualification}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground mb-0.5">ステータス</p>
+                                                    <span className="text-sm font-medium">
+                                                        {QUAL_STATUS_LABELS[q.qualificationStatus] || q.qualificationStatus}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground mb-0.5">アクティブ状態</p>
+                                                    <span className={cn(
+                                                        'text-xs px-2 py-0.5 rounded-full font-medium inline-block',
+                                                        q.isActive
+                                                            ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
+                                                            : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                                                    )}>
+                                                        {q.isActive ? 'アクティブ' : '非アクティブ'}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground mb-0.5">資格取得日</p>
+                                                    <span className="text-sm">
+                                                        {q.acquiredDate ? new Date(q.acquiredDate).toLocaleDateString('ja-JP') : '—'}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground mb-0.5">最終勤務日</p>
+                                                    <span className="text-sm">
+                                                        {q.lastWorkDate ? new Date(q.lastWorkDate).toLocaleDateString('ja-JP') : '—'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-end items-center">
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="text-muted-foreground hover:text-brand-500 hover:bg-muted gap-1.5"
+                                                    onClick={() => setQualificationModal({ open: true, record: q })}
+                                                >
+                                                    <Pencil className="w-3.5 h-3.5" /> 編集
+                                                  </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </CardContent>
@@ -399,6 +485,12 @@ export default function EmployeeDetailPage() {
                 record={workloadModal.record}
                 open={workloadModal.open}
                 onClose={() => setWorkloadModal({ open: false })}
+            />
+            <QualificationModal
+                employeeId={id}
+                record={qualificationModal.record}
+                open={qualificationModal.open}
+                onClose={() => setQualificationModal({ open: false })}
             />
         </div>
     );
