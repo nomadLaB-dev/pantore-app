@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     ArrowLeft, User, Activity, CalendarDays, Edit3,
     UserCheck, UserX, Briefcase, BadgeJapaneseYen, AlertTriangle,
-    CheckCircle2, Clock, Pencil, MapPin, History, Award
+    CheckCircle2, Clock, Pencil, MapPin, History, Award, Phone, Mail, AtSign
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmploymentHistoryModal } from '@/components/modals/employment-history-modal';
 import { WorkloadModal } from '@/components/modals/workload-modal';
 import { QualificationModal } from '@/components/modals/qualification-modal';
+import { NewEmployeeModal } from '@/components/modals/new-employee-modal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -79,6 +80,7 @@ export default function EmployeeDetailPage() {
     const [empHistModal, setEmpHistModal] = useState<{ open: boolean; record?: any }>({ open: false });
     const [workloadModal, setWorkloadModal] = useState<{ open: boolean; record?: any }>({ open: false });
     const [qualificationModal, setQualificationModal] = useState<{ open: boolean; record?: any }>({ open: false });
+    const [editModalOpen, setEditModalOpen] = useState(false);
 
     const { data: employee, isLoading } = useQuery<any>({
         queryKey: ['employee', id],
@@ -161,7 +163,10 @@ export default function EmployeeDetailPage() {
             {/* Profile header */}
             <Card>
                 <CardContent className="pt-6 flex flex-col sm:flex-row items-start gap-6 relative">
-                    <button className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-brand-500 hover:bg-muted rounded-xl transition-colors hidden sm:block">
+                    <button
+                        onClick={() => setEditModalOpen(true)}
+                        className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-brand-500 hover:bg-muted rounded-xl transition-colors hidden sm:block"
+                    >
                         <Edit3 className="w-4 h-4" />
                     </button>
 
@@ -181,9 +186,16 @@ export default function EmployeeDetailPage() {
                                 {acct.label}
                             </span>
                         </div>
-                        <p className="text-muted-foreground text-sm mb-4">{employee.email}</p>
+                        <p className="text-muted-foreground text-sm flex items-center gap-2">{employee.name_kana}</p>
+                        <p className="text-muted-foreground text-sm flex items-center gap-2"><Mail className="w-4 h-4 shrink-0" />{employee.email}</p>
+                        <p className="text-muted-foreground text-sm flex items-center gap-2"><Phone className="w-4 h-4 shrink-0" /><span>{employee.tel} / {employee.emergencyContact}</span></p>
+                        <p className="text-muted-foreground text-sm mb-4 flex items-center gap-2"><AtSign className="w-4 h-4 shrink-0" />{employee.lineId || '—'}</p>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-2 text-sm">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-2 text-sm mb-4">
+                            <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">会社</p>
+                                <p className="font-medium">{employee.tenant?.name ?? '—'}</p>
+                            </div>
                             <div>
                                 <p className="text-xs text-muted-foreground mb-0.5">支社</p>
                                 <p className="font-medium">{employee.branch?.name ?? '—'}</p>
@@ -192,7 +204,13 @@ export default function EmployeeDetailPage() {
                                 <p className="text-xs text-muted-foreground mb-0.5">入社日</p>
                                 <p className="font-medium">{new Date(employee.hireDate).toLocaleDateString('ja-JP')}</p>
                             </div>
-                            {employee.currentSalary && (
+                            {employee.leaveDate && (
+                                <div>
+                                    <p className="text-xs text-muted-foreground mb-0.5">退職日</p>
+                                    <p className="font-medium">{new Date(employee.leaveDate).toLocaleDateString('ja-JP')}</p>
+                                </div>
+                            )}
+                            {employee.currentSalary && (employee.currentEmploymentCategory === 'part_time' || employee.currentEmploymentCategory === 'dispatch') && (
                                 <div>
                                     <p className="text-xs text-muted-foreground mb-0.5">現在の給与</p>
                                     <p className="font-medium">{formatSalary(employee.currentSalary, employee.currentSalaryType)}</p>
@@ -209,12 +227,21 @@ export default function EmployeeDetailPage() {
                                     </div>
                                 </div>
                             )}
-                            {employee.leaveDate && (
-                                <div>
-                                    <p className="text-xs text-muted-foreground mb-0.5">退職日</p>
-                                    <p className="font-medium">{new Date(employee.leaveDate).toLocaleDateString('ja-JP')}</p>
-                                </div>
-                            )}
+                            <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">invoiceNo</p>
+                                <p className="font-medium">{employee.invoiceNum || '—'}</p>
+                            </div> 
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                            <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">住所</p>
+                                <p className="font-medium">{employee.address || '—'}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">生年月日</p>
+                                <p className="font-medium">{employee.birthDate || employee.birthday ? new Date(employee.birthDate ?? employee.birthday).toLocaleDateString('ja-JP') : '—'}</p>
+                            </div>
                         </div>
 
                         {!employee.leaveDate && (
@@ -491,6 +518,12 @@ export default function EmployeeDetailPage() {
                 record={qualificationModal.record}
                 open={qualificationModal.open}
                 onClose={() => setQualificationModal({ open: false })}
+            />
+            <NewEmployeeModal
+                employee={employee}
+                open={editModalOpen}
+                showLeaveDate={true}
+                onClose={() => setEditModalOpen(false)}
             />
         </div>
     );

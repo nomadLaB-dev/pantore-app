@@ -7,11 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmploymentCategoryLabel } from '@/types';
 
-interface Props { open: boolean; onClose: () => void; }
+interface Props { open: boolean; onClose: () => void; employee?: any; showLeaveDate?: boolean; }
 
-export function NewEmployeeModal({ open, onClose }: Props) {
+const empty = { name: '', name_kana: '', birthDate: '', companyId: '', branchId: '', lineId: '', email: '', tel: '', address: '', emergencyContact: '', hireDate: '', leaveDate: '', category: 'full_time', hourlyRate: '1085', certificationNum: '', invoiceNum: '', weeklyHoursMin: '', weeklyHoursMax: '' };
+
+export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Props) {
     const qc = useQueryClient();
-    const [form, setForm] = useState({ name: '', name_kana: '', birthDate: '', companyId: '', branchId: '', lineId: '', email: '', tel: '', address: '', emergencyContact: '', hireDate: '', category: 'full_time', hourlyRate: '1085', certificationNum: '', invoiceNum: '', weeklyHoursMin: '', weeklyHoursMax: '' });
+    const isEdit = !!employee;
+    const [form, setForm] = useState(empty);
 
     // テナント一覧（全会社）を取得
     const { data: dbCompanies = [] } = useQuery<any[]>({
@@ -35,10 +38,41 @@ export function NewEmployeeModal({ open, onClose }: Props) {
         enabled: open,
     });
 
-    // 会社が変更されたら、選択済みの支社をリセット
+    // 会社が変更されたら、選択済みの支社をリセット（ただし編集初期表示時を除く）
     useEffect(() => {
-        setForm((f) => ({ ...f, branchId: '' }));
-    }, [form.companyId]);
+        if (!employee || form.companyId !== employee.companyId) {
+            setForm((f) => ({ ...f, branchId: '' }));
+        }
+    }, [form.companyId, employee]);
+
+    useEffect(() => {
+        if (open) {
+            if (employee) {
+                setForm({
+                    name: employee.name || '',
+                    name_kana: employee.name_kana || '',
+                    birthDate: employee.birthDate ? new Date(employee.birthDate).toISOString().slice(0, 10) : '',
+                    companyId: employee.companyId || '',
+                    branchId: employee.branchId || '',
+                    lineId: employee.lineId || '',
+                    email: employee.email || '',
+                    tel: employee.tel || '',
+                    address: employee.address || '',
+                    emergencyContact: employee.emergencyContact || '',
+                    hireDate: employee.hireDate ? new Date(employee.hireDate).toISOString().slice(0, 10) : '',
+                    leaveDate: employee.leaveDate ? new Date(employee.leaveDate).toISOString().slice(0, 10) : '',
+                    category: employee.currentEmploymentCategory || 'full_time',
+                    hourlyRate: employee.currentSalary ? String(employee.currentSalary) : '1085',
+                    certificationNum: employee.certificationNum || '',
+                    invoiceNum: employee.invoiceNum || '',
+                    weeklyHoursMin: employee.weeklyHoursMin ? String(employee.weeklyHoursMin) : '',
+                    weeklyHoursMax: employee.weeklyHoursMax ? String(employee.weeklyHoursMax) : '',
+                });
+            } else {
+                setForm(empty);
+            }
+        }
+    }, [open, employee]);
 
     // 選択された会社に属する支社をフィルタリング
     const filteredBranches = dbBranches.filter(
@@ -47,26 +81,30 @@ export function NewEmployeeModal({ open, onClose }: Props) {
 
     const mutation = useMutation({
         mutationFn: async () => {
-            await fetch('/api/employees', {
-                method: 'POST',
+            const url = isEdit ? `/api/employees/${employee.id}` : '/api/employees';
+            const method = isEdit ? 'PUT' : 'POST';
+            const body = isEdit ? { ...form } : { ...form, leaveDate: null, accountStatus: 'none' };
+            await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...form, leaveDate: null, accountStatus: 'none' }),
+                body: JSON.stringify(body),
             });
         },
         onSuccess: () => {
+            if (isEdit) qc.invalidateQueries({ queryKey: ['employee', employee.id] });
             qc.invalidateQueries({ queryKey: ['employees'] });
             onClose();
-            setForm({ name: '', name_kana: '', birthDate: '', companyId: '', branchId: '', lineId: '', email: '', tel: '', address: '', emergencyContact: '', hireDate: '', category: 'full_time', hourlyRate: '1085', certificationNum: '', invoiceNum: '', weeklyHoursMin: '', weeklyHoursMax: '' });
+            setForm(empty);
         },
     });
 
-    const set = (key: string) => (v: string | null) => v && setForm((f) => ({ ...f, [key]: v }));
+    const set = (key: string) => (v: string | null) => setForm((f) => ({ ...f, [key]: v ?? '' }));
 
     return (
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
             <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>社員を新規追加</DialogTitle>
+                    <DialogTitle>{isEdit ? '社員情報を編集' : '社員を新規追加'}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                     <div>
@@ -146,7 +184,12 @@ export function NewEmployeeModal({ open, onClose }: Props) {
                             <label className="text-sm font-medium mb-1.5 block">入社日 <span className="text-red-500">*</span></label>
                             <Input type="date" value={form.hireDate} onChange={(e) => setForm({ ...form, hireDate: e.target.value })} />
                         </div>
-
+                        {showLeaveDate && isEdit && (
+                            <div>
+                                <label className="text-sm font-medium mb-1.5 block">退職日</label>
+                                <Input type="date" value={form.leaveDate} onChange={(e) => setForm({ ...form, leaveDate: e.target.value })} />
+                            </div>
+                        )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -214,7 +257,7 @@ export function NewEmployeeModal({ open, onClose }: Props) {
                         disabled={!form.name || !form.name_kana || !form.birthDate || !form.companyId || !form.email || !form.address || !form.emergencyContact || !form.category || ((form.category === 'part_time' || form.category === 'dispatch') ? !form.hourlyRate : false) || !form.weeklyHoursMax || !form.weeklyHoursMin || !form.hireDate || mutation.isPending}
                         onClick={() => mutation.mutate()}
                     >
-                        {mutation.isPending ? '保存中…' : '追加する'}
+                        {mutation.isPending ? '保存中…' : (isEdit ? '保存する' : '追加する')}
                     </Button>
                 </DialogFooter>
             </DialogContent>
