@@ -30,6 +30,21 @@ const accountStatusConfig: Record<AccountStatus, { label: string; className: str
     none: { label: '未発行', className: 'bg-transparent border border-border text-muted-foreground' },
 };
 
+const employeeStatusConfig: Record<'active' | 'scheduled' | 'retired', { label: string; className: string }> = {
+    active: {
+        label: '在籍',
+        className: 'border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/5 hover:bg-amber-500/10',
+    },
+    scheduled: {
+        label: '退職予定',
+        className: 'border-red-500 text-red-600 dark:text-red-400 bg-red-500/5 hover:bg-red-500/10',
+    },
+    retired: {
+        label: '退職済',
+        className: 'border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400 bg-slate-500/5 hover:bg-slate-500/10',
+    },
+};
+
 export default function EmployeesPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [showArchived, setShowArchived] = useState(false);
@@ -42,6 +57,20 @@ export default function EmployeesPage() {
             return (await fetch('/api/employees?includeArchived=true')).json();
         },
     });
+
+    const getEmployeeStatus = (employee: any): 'active' | 'scheduled' | 'retired' => {
+        if (!employee.leaveDate) return 'active';
+        const leaveDate = new Date(employee.leaveDate);
+        const today = new Date();
+        leaveDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        return leaveDate >= today ? 'scheduled' : 'retired';
+    };
+
+    const isCurrentEmployee = (employee: any) => {
+        const status = getEmployeeStatus(employee);
+        return status === 'active' || status === 'scheduled';
+    };
 
     // Mock account status mutation
     const statusMutation = useMutation({
@@ -57,15 +86,16 @@ export default function EmployeesPage() {
 
     const filtered = employees.filter(
         (e) =>
-            (showArchived || !e.leaveDate) &&
+            (showArchived ? !isCurrentEmployee(e) : isCurrentEmployee(e)) &&
             (e.name.includes(searchTerm) ||
                 e.email.includes(searchTerm) ||
                 e.branch?.name?.includes(searchTerm)),
     );
 
-    const active = employees.filter((e) => !e.leaveDate && e.accountStatus === 'active').length;
-    const disabled = employees.filter((e) => !e.leaveDate && e.accountStatus === 'disabled').length;
-    const noAccount = employees.filter((e) => !e.leaveDate && e.accountStatus === 'none').length;
+    const active = employees.filter((e) => isCurrentEmployee(e) && e.accountStatus === 'active').length;
+    const disabled = employees.filter((e) => isCurrentEmployee(e) && e.accountStatus === 'disabled').length;
+    const noAccount = employees.filter((e) => isCurrentEmployee(e) && e.accountStatus === 'none').length;
+    const archived = employees.filter((e) => !isCurrentEmployee(e)).length;
 
     return (
         <div className="space-y-6">
@@ -86,7 +116,7 @@ export default function EmployeesPage() {
                     { label: '在籍中（有効）', value: active },
                     { label: 'アカウント無効', value: disabled },
                     { label: '未発行', value: noAccount },
-                    { label: '退職済（アーカイブ）', value: employees.filter((e) => e.leaveDate).length },
+                    { label: '退職済（アーカイブ）', value: archived },
                 ].map((s) => (
                     <Card key={s.label}>
                         <CardContent className="pt-5 pb-4">
@@ -148,8 +178,16 @@ export default function EmployeesPage() {
                         ) : (
                             filtered.map((emp) => {
                                 const acct = accountStatusConfig[emp.accountStatus as AccountStatus];
+                                const status = getEmployeeStatus(emp);
+                                const statusCfg = employeeStatusConfig[status];
                                 return (
-                                    <TableRow key={emp.id} className={cn(emp.leaveDate && 'opacity-60')}>
+                                    <TableRow
+                                        key={emp.id}
+                                        className={cn(
+                                            status === 'scheduled' && 'bg-[#F0F0F0] dark:bg-[#2C2C2C] hover:bg-[#E5E5E5] dark:hover:bg-[#383838] transition-colors',
+                                            status === 'retired' && 'opacity-60 bg-slate-50/50 dark:bg-slate-900/50'
+                                        )}
+                                    >
                                         <TableCell>
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
@@ -185,15 +223,15 @@ export default function EmployeesPage() {
                                         </TableCell>
 
                                         <TableCell className="text-center hidden sm:table-cell">
-                                            <Badge variant={emp.leaveDate ? 'secondary' : 'outline'} className={emp.leaveDate ? '' : 'border-brand-500 text-brand-600 dark:text-brand-400'}>
-                                                {emp.leaveDate ? 'アーカイブ' : '在籍中'}
+                                            <Badge variant="outline" className={cn('text-xs font-medium border', statusCfg.className)}>
+                                                {statusCfg.label}
                                             </Badge>
                                         </TableCell>
 
                                         <TableCell className="text-right">
                                             <div className="flex items-center justify-end gap-1">
                                                 {/* Account action buttons */}
-                                                {!emp.leaveDate && (
+                                                {status !== 'retired' && (
                                                     <>
                                                         {emp.accountStatus !== 'active' ? (
                                                             <Button
