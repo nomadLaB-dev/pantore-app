@@ -26,9 +26,9 @@ const categoryColors: Record<string, string> = {
 };
 
 const accountStatusConfig: Record<AccountStatus, { label: string; className: string }> = {
-    active: { label: 'アカウント有効', className: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' },
-    disabled: { label: 'アカウント無効', className: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' },
-    none: { label: '未発行', className: 'bg-transparent border border-border text-muted-foreground' },
+    active: { label: 'アカウント有', className: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' },
+    disabled: { label: 'アカウント無', className: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' },
+    none: { label: 'アカウント無', className: 'bg-transparent border border-border text-muted-foreground' },
 };
 
 const QUAL_LABELS: Record<string, string> = {
@@ -230,7 +230,7 @@ export default function EmployeeDetailPage() {
                             <div>
                                 <p className="text-xs text-muted-foreground mb-0.5">invoiceNo</p>
                                 <p className="font-medium">{employee.invoiceNum || '—'}</p>
-                            </div> 
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm">
@@ -248,11 +248,11 @@ export default function EmployeeDetailPage() {
                             <div className="flex gap-2 mt-4">
                                 {employee.accountStatus !== 'active' ? (
                                     <Button size="sm" className="gap-2 bg-green-500 hover:bg-green-600 text-white" onClick={() => statusMutation.mutate('active')} disabled={statusMutation.isPending}>
-                                        <UserCheck className="w-4 h-4" /> Activate アカウント発行
+                                        <UserCheck className="w-4 h-4" /> アカウントの有効化
                                     </Button>
                                 ) : (
-                                    <Button size="sm" variant="outline" className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800" onClick={() => statusMutation.mutate('disabled')} disabled={statusMutation.isPending}>
-                                        <UserX className="w-4 h-4" /> Disable アカウント停止
+                                    <Button size="sm" variant="outline" className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800" onClick={() => statusMutation.mutate('none')} disabled={statusMutation.isPending}>
+                                        <UserX className="w-4 h-4" /> アカウントの停止
                                     </Button>
                                 )}
                             </div>
@@ -489,7 +489,7 @@ export default function EmployeeDetailPage() {
                                                     onClick={() => setQualificationModal({ open: true, record: q })}
                                                 >
                                                     <Pencil className="w-3.5 h-3.5" /> 編集
-                                                  </Button>
+                                                </Button>
                                             </div>
                                         </div>
                                     ))}

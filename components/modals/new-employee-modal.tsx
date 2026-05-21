@@ -9,7 +9,7 @@ import { EmploymentCategoryLabel } from '@/types';
 
 interface Props { open: boolean; onClose: () => void; employee?: any; showLeaveDate?: boolean; }
 
-const empty = { name: '', name_kana: '', birthDate: '', companyId: '', branchId: '', lineId: '', email: '', tel: '', address: '', emergencyContact: '', hireDate: '', leaveDate: '', category: 'full_time', hourlyRate: '1085', certificationNum: '', invoiceNum: '', weeklyHoursMin: '', weeklyHoursMax: '' };
+const empty = { name: '', name_kana: '', birthDate: '', companyId: '', branchId: '', lineId: '', email: '', tel: '', address: '', emergencyContact: '', hireDate: '', leaveDate: '', category: 'full_time', hourlyRate: '1085', certificationNum: '', invoiceNum: '', weeklyHoursMin: '', weeklyHoursMax: '', proficiencyRate: '' };
 
 export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Props) {
     const qc = useQueryClient();
@@ -67,6 +67,7 @@ export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Pro
                     invoiceNum: employee.invoiceNum || '',
                     weeklyHoursMin: employee.weeklyHoursMin ? String(employee.weeklyHoursMin) : '',
                     weeklyHoursMax: employee.weeklyHoursMax ? String(employee.weeklyHoursMax) : '',
+                    proficiencyRate: employee.proficiencyRate !== undefined && employee.proficiencyRate !== null ? Number(employee.proficiencyRate).toFixed(1) : '',
                 });
             } else {
                 setForm(empty);
@@ -248,6 +249,24 @@ export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Pro
                                 <span className="text-xs text-muted-foreground">時間</span>
                             </div>
                         </div>
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium mb-1.5 block">習熟度</label>
+                        <Select
+                            value={form.proficiencyRate}
+                            onValueChange={set('proficiencyRate')}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="選択してください">
+                                    {form.proficiencyRate === '1.0' ? '1.0' : form.proficiencyRate === '0.5' ? '0.5' : ''}
+                                </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="">選択してください</SelectItem>
+                                <SelectItem value="1.0">1.0</SelectItem>
+                                <SelectItem value="0.5">0.5</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
                 <DialogFooter className="mt-2">

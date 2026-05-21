@@ -1,9 +1,11 @@
 'use client';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Users, Car, Building2, ChevronRight, UserCheck } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FIXED_TERM_CATEGORIES } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -21,10 +23,32 @@ function daysUntil(dateStr: string) {
     return Math.ceil((d.getTime() - today.getTime()) / 86400000);
 }
 
+function getEmployeeStatus(employee: any): 'active' | 'scheduled' | 'retired' {
+    if (!employee.leaveDate) return 'active';
+
+    // 日本時間(JST)の今日の日付（YYYY-MM-DD）を取得
+    const jstOffset = 9 * 60 * 60 * 1000;
+    const todayJST = new Date(Date.now() + jstOffset);
+    const todayStr = todayJST.toISOString().split('T')[0];
+
+    // 退職日の日付部分（YYYY-MM-DD）を取得
+    const leaveDateStr = employee.leaveDate.split('T')[0];
+
+    // 文字列の比較により、タイムゾーンや時間の丸め処理による境界ズレを防ぎます
+    return leaveDateStr >= todayStr ? 'scheduled' : 'retired';
+}
+
+function isCurrentEmployee(employee: any) {
+    const status = getEmployeeStatus(employee);
+    return status === 'active' || status === 'scheduled';
+}
+
 export default function DashboardPage() {
+    const [selectedAreaId, setSelectedAreaId] = useState<string>('10');
+
     const { data: employees = [] } = useQuery<any[]>({
-        queryKey: ['employees'],
-        queryFn: async () => (await fetch('/api/employees')).json(),
+        queryKey: ['employees', { includeArchived: true }],
+        queryFn: async () => (await fetch('/api/employees?includeArchived=true')).json(),
     });
     const { data: vehicles = [] } = useQuery<any[]>({
         queryKey: ['vehicles'],
@@ -35,13 +59,29 @@ export default function DashboardPage() {
         queryFn: async () => (await fetch('/api/contracts')).json(),
     });
 
-    const activeEmployees = employees.filter((e: any) => !e.leaveDate).length;
+    // エリア一覧の取得
+    const { data: areasData } = useQuery<any>({
+        queryKey: ['staff-allocation-areas'],
+        queryFn: async () => (await fetch('/api/dashboard/staff-allocation')).json(),
+    });
+    const areas = areasData?.areas || [];
+
+    // 選択されたエリアの支社所属人数一覧の取得
+    const { data: branchesData, isLoading: isLoadingBranches } = useQuery<any>({
+        queryKey: ['staff-allocation-branches', selectedAreaId],
+        queryFn: async () => (await fetch(`/api/dashboard/staff-allocation?areaId=${selectedAreaId}`)).json(),
+        enabled: !!selectedAreaId,
+    });
+    const branches = branchesData?.branches || [];
+
+    const activeEmployees = employees.filter((e: any) => isCurrentEmployee(e)).length;
     const totalAccidents = vehicles.reduce((s: number, v: any) => s + v.accidents.length, 0);
     const alertContracts = contracts.filter((c: any) => c.daysLeft <= 90);
 
     // Employee contract expiry alerts (fixed-term, within 60 days, no renewalPlanned)
     const expiringEmployees = employees
         .filter((e: any) => {
+            if (!isCurrentEmployee(e)) return false; // 退職した人は除外
             if (!e.currentContractEnd || e.currentRenewalPlanned) return false;
             if (!FIXED_TERM_CATEGORIES.includes(e.currentEmploymentCategory)) return false;
             const days = daysUntil(e.currentContractEnd);
@@ -170,39 +210,65 @@ export default function DashboardPage() {
                         </CardContent>
                     </Card>
                 </motion.div>
+            </div>
 
-                {/* Recent accidents */}
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42 }}>
-                    <Card className="h-full">
-                        <CardHeader className="pb-2 flex-row items-center justify-between">
-                            <CardTitle className="text-base flex items-center gap-2">
-                                <Car className="w-4 h-4 text-muted-foreground" /> 最近の事故記録
-                            </CardTitle>
-                            <Link href="/vehicles" className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-0.5">
-                                車両一覧 <ChevronRight className="w-3 h-3" />
-                            </Link>
-                        </CardHeader>
-                        <CardContent>
-                            {vehicles.flatMap((v: any) => v.accidents.map((a: any) => ({ ...a, vehicleName: `${v.manufacturer} ${v.model}` }))).length === 0 ? (
-                                <p className="text-center py-8 text-muted-foreground text-sm">事故の記録はありません</p>
+            {/* 人員管理ダッシュボード */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="mt-6">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            <Users className="w-5 h-5 text-brand-500" /> 人員管理
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">エリア:</span>
+                            {areas.length > 0 ? (
+                                <Select value={selectedAreaId} onValueChange={(val) => setSelectedAreaId(val ?? '')}>
+                                    <SelectTrigger className="w-[140px] h-9">
+                                        <SelectValue placeholder="エリアを選択">
+                                            {areas.find((area: any) => area.id === selectedAreaId)?.name || ''}
+                                        </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {areas.map((area: any) => (
+                                            <SelectItem key={area.id} value={area.id}>
+                                                {area.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             ) : (
-                                <div className="divide-y divide-border">
-                                    {vehicles.flatMap((v: any) => v.accidents.map((a: any) => ({ ...a, vehicleName: `${v.manufacturer} ${v.model}` }))).map((a: any) => (
-                                        <div key={a.id} className="flex items-center gap-3 py-3">
-                                            <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0" />
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-sm font-medium truncate">{a.vehicleName}</p>
-                                                <p className="text-xs text-muted-foreground truncate">{a.description}</p>
-                                            </div>
-                                            <span className="text-xs text-muted-foreground shrink-0">{new Date(a.accidentDate).toLocaleDateString('ja-JP')}</span>
-                                        </div>
-                                    ))}
+                                <div className="text-sm border rounded px-3 py-1 bg-background text-muted-foreground w-[140px] h-9 flex items-center justify-between">
+                                    読み込み中...
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoadingBranches ? (
+                            <p className="text-sm text-muted-foreground text-center py-6">読み込み中...</p>
+                        ) : branches.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-6">該当する支社はありません</p>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                                {branches.map((b: any) => (
+                                    <Card key={b.id} className="bg-muted/30">
+                                        <CardContent className="p-4 flex flex-col justify-between h-full">
+                                            <p className="text-sm font-semibold text-foreground truncate" title={b.name}>
+                                                {b.name}
+                                            </p>
+                                            <div className="mt-4 flex items-baseline gap-1">
+                                                <span className="text-2xl font-bold">{b.manWeeks.toFixed(1)}</span>
+                                                <span className="text-xs text-muted-foreground">人週</span>
+                                                <span className="text-sm text-muted-foreground ml-2">/ {b.employeeCount}名</span>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </motion.div>
         </div>
     );
 }

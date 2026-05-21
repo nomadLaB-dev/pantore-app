@@ -46,6 +46,7 @@ export async function GET(req: Request) {
             currentRenewalPlanned: false,
             currentPrimaryBranch: e.branch,
             currentAssignmentNote: null,
+            proficiencyRate: e.proficiency_rate,
         }));
 
         return NextResponse.json(result);
@@ -93,6 +94,7 @@ export async function POST(req: Request) {
                 invoice: body.invoiceNum || null,
                 certification_num: body.certificationNum || null,
                 line_id: body.lineId || null,
+                proficiency_rate: body.proficiencyRate ? Number(body.proficiencyRate) : null,
             })
             .select()
             .single();

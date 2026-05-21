@@ -56,6 +56,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             currentRenewalPlanned: false,
             currentPrimaryBranch: employee.branch,
             currentAssignmentNote: null,
+            proficiencyRate: employee.proficiency_rate,
         };
 
         return NextResponse.json(result);
@@ -96,6 +97,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         if (body.invoiceNum !== undefined) updateData.invoice = body.invoiceNum || null;
         if (body.certificationNum !== undefined) updateData.certification_num = body.certificationNum || null;
         if (body.lineId !== undefined) updateData.line_id = body.lineId || null;
+        if (body.proficiencyRate !== undefined) updateData.proficiency_rate = body.proficiencyRate ? Number(body.proficiencyRate) : null;
 
         const { data: employee, error } = await supabase
             .from('employees')
@@ -144,6 +146,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             currentRenewalPlanned: false,
             currentPrimaryBranch: employee.branch,
             currentAssignmentNote: null,
+            proficiencyRate: employee.proficiency_rate,
         };
 
         return NextResponse.json(result);

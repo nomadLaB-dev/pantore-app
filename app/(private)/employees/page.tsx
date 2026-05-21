@@ -25,9 +25,9 @@ const categoryColors: Record<string, string> = {
 };
 
 const accountStatusConfig: Record<AccountStatus, { label: string; className: string }> = {
-    active: { label: '有効', className: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' },
-    disabled: { label: '無効', className: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' },
-    none: { label: '未発行', className: 'bg-transparent border border-border text-muted-foreground' },
+    active: { label: '有', className: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' },
+    disabled: { label: '無', className: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' },
+    none: { label: '無', className: 'bg-transparent border border-border text-muted-foreground' },
 };
 
 const employeeStatusConfig: Record<'active' | 'scheduled' | 'retired', { label: string; className: string }> = {
@@ -52,7 +52,7 @@ export default function EmployeesPage() {
     const queryClient = useQueryClient();
 
     const { data: employees = [], isLoading } = useQuery<any[]>({
-        queryKey: ['employees'],
+        queryKey: ['employees', { includeArchived: true }],
         queryFn: async () => {
             return (await fetch('/api/employees?includeArchived=true')).json();
         },
@@ -60,11 +60,17 @@ export default function EmployeesPage() {
 
     const getEmployeeStatus = (employee: any): 'active' | 'scheduled' | 'retired' => {
         if (!employee.leaveDate) return 'active';
-        const leaveDate = new Date(employee.leaveDate);
-        const today = new Date();
-        leaveDate.setHours(0, 0, 0, 0);
-        today.setHours(0, 0, 0, 0);
-        return leaveDate >= today ? 'scheduled' : 'retired';
+
+        // 日本時間(JST)の今日の日付（YYYY-MM-DD）を取得
+        const jstOffset = 9 * 60 * 60 * 1000;
+        const todayJST = new Date(Date.now() + jstOffset);
+        const todayStr = todayJST.toISOString().split('T')[0];
+
+        // 退職日の日付部分（YYYY-MM-DD）を取得
+        const leaveDateStr = employee.leaveDate.split('T')[0];
+
+        // 文字列の比較により、タイムゾーンや時間の丸め処理による境界ズレを防ぎます
+        return leaveDateStr >= todayStr ? 'scheduled' : 'retired';
     };
 
     const isCurrentEmployee = (employee: any) => {
@@ -93,8 +99,8 @@ export default function EmployeesPage() {
     );
 
     const active = employees.filter((e) => isCurrentEmployee(e) && e.accountStatus === 'active').length;
-    const disabled = employees.filter((e) => isCurrentEmployee(e) && e.accountStatus === 'disabled').length;
     const noAccount = employees.filter((e) => isCurrentEmployee(e) && e.accountStatus === 'none').length;
+    const total = active + noAccount;
     const archived = employees.filter((e) => !isCurrentEmployee(e)).length;
 
     return (
@@ -113,10 +119,10 @@ export default function EmployeesPage() {
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                    { label: '在籍中（有効）', value: active },
-                    { label: 'アカウント無効', value: disabled },
-                    { label: '未発行', value: noAccount },
-                    { label: '退職済（アーカイブ）', value: archived },
+                    { label: '在籍中', value: total },
+                    { label: 'アカウント有', value: active },
+                    { label: 'アカウント無', value: noAccount },
+                    { label: '退職済', value: archived },
                 ].map((s) => (
                     <Card key={s.label}>
                         <CardContent className="pt-5 pb-4">
@@ -146,7 +152,7 @@ export default function EmployeesPage() {
                         onClick={() => setShowArchived(!showArchived)}
                     >
                         {showArchived ? (
-                            <><ArchiveRestore className="w-4 h-4" />アーカイブを非表示</>
+                            <><ArchiveRestore className="w-4 h-4" />在職者を表示</>
                         ) : (
                             <><Archive className="w-4 h-4" />退職者を表示</>
                         )}
@@ -230,30 +236,6 @@ export default function EmployeesPage() {
 
                                         <TableCell className="text-right">
                                             <div className="flex items-center justify-end gap-1">
-                                                {/* Account action buttons */}
-                                                {status !== 'retired' && (
-                                                    <>
-                                                        {emp.accountStatus !== 'active' ? (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="gap-1.5 text-green-600 border-green-200 hover:bg-green-50 dark:border-green-800 dark:hover:bg-green-900/20 text-xs h-8"
-                                                                onClick={() => statusMutation.mutate({ id: emp.id, status: 'active' })}
-                                                            >
-                                                                <UserCheck className="w-3.5 h-3.5" /> Activate
-                                                            </Button>
-                                                        ) : (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="gap-1.5 text-slate-500 border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 text-xs h-8"
-                                                                onClick={() => statusMutation.mutate({ id: emp.id, status: 'disabled' })}
-                                                            >
-                                                                <UserX className="w-3.5 h-3.5" /> Disable
-                                                            </Button>
-                                                        )}
-                                                    </>
-                                                )}
                                                 <Link href={`/employees/${emp.id}`}>
                                                     <Button variant="ghost" size="sm" className="gap-1 text-brand-500 h-8">
                                                         詳細 <ChevronRight className="w-3 h-3" />
