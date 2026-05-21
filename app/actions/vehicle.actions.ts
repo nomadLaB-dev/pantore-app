@@ -6,16 +6,9 @@ import { revalidatePath } from 'next/cache';
 export async function createVehicle(data: any) {
     const supabase = await createClient();
 
-    // Get current employee/tenant details
+    // Get current user for auth check
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error('Unauthorized');
-
-    const { data: employee, error: empError } = await supabase
-        .from('employees')
-        .select('tenant_id')
-        .eq('user_id', user.id)
-        .single();
-    if (empError || !employee) throw new Error('Employee not found');
 
     const {
         manufacturer,
@@ -24,6 +17,7 @@ export async function createVehicle(data: any) {
         licensePlateColor,
         ownershipType,
         branchId,
+        companyId,
         lease,
         purchase
     } = data;
@@ -32,8 +26,8 @@ export async function createVehicle(data: any) {
     const { data: vehicle, error: vError } = await supabase
         .from('vehicles')
         .insert({
-            tenant_id: employee.tenant_id,
-            branch_id: branchId,
+            tenant_id: companyId,
+            branch_id: branchId || null,
             manufacturer,
             model,
             license_plate: licensePlate,
@@ -48,26 +42,38 @@ export async function createVehicle(data: any) {
     // 2. Insert lease info
     if (ownershipType === 'leased' && lease) {
         const { leaseCompany, contractStartDate, contractEndDate, monthlyFee } = lease;
+        const parsedMonthlyFee = monthlyFee && !isNaN(Number(monthlyFee)) ? parseInt(monthlyFee, 10) : 0;
         const { error: lError } = await supabase.from('vehicle_leases').insert({
             vehicle_id: vehicle.id,
             lease_company: leaseCompany || '未設定',
             contract_start_date: contractStartDate || new Date().toISOString().split('T')[0],
             contract_end_date: contractEndDate || new Date().toISOString().split('T')[0],
-            monthly_fee: monthlyFee ? parseInt(monthlyFee, 10) : 0,
+            monthly_fee: parsedMonthlyFee,
         });
-        if (lError) console.error('Failed to insert lease info:', lError);
+        if (lError) {
+            console.error('Failed to insert lease info:', lError);
+            // Rollback the created vehicle
+            await supabase.from('vehicles').delete().eq('id', vehicle.id);
+            throw lError;
+        }
     } else if (ownershipType === 'owned' && purchase) {
-        const { acquisitionCost, purchaseDate, firstRegistrationDate, bodyType, isNewCar, method } = purchase;
+        const { acquisitionCost, purchaseDate, bodyType, isNewCar, method } = purchase;
+        const parsedAcquisitionCost = acquisitionCost && !isNaN(Number(acquisitionCost)) ? parseInt(acquisitionCost, 10) : 0;
         const { error: pError } = await supabase.from('vehicle_purchases').insert({
             vehicle_id: vehicle.id,
-            acquisition_cost: acquisitionCost ? parseInt(acquisitionCost, 10) : 0,
+            acquisition_cost: parsedAcquisitionCost,
             purchase_date: purchaseDate || new Date().toISOString().split('T')[0],
-            first_registration_date: firstRegistrationDate || null,
+            first_registration_date: null, // Always NULL as per instructions
             body_type: bodyType || 'passenger_standard',
             is_new_car: isNewCar !== undefined ? Boolean(isNewCar) : true,
             method: method || 'straight'
         });
-        if (pError) console.error('Failed to insert purchase info:', pError);
+        if (pError) {
+            console.error('Failed to insert purchase info:', pError);
+            // Rollback the created vehicle
+            await supabase.from('vehicles').delete().eq('id', vehicle.id);
+            throw pError;
+        }
     }
 
     revalidatePath('/vehicles');
@@ -143,17 +149,18 @@ export async function updateVehicle(id: string, data: any) {
 export async function updateVehiclePurchase(vehicleId: string, purchase: any) {
     const supabase = await createClient();
 
-    const { acquisitionCost, purchaseDate, firstRegistrationDate, bodyType, isNewCar, method } = purchase;
+        const { acquisitionCost, purchaseDate, firstRegistrationDate, bodyType, isNewCar, method } = purchase;
 
-    const { error: pError } = await supabase.from('vehicle_purchases').upsert({
-        vehicle_id: vehicleId,
-        acquisition_cost: acquisitionCost ? parseInt(acquisitionCost, 10) : 0,
-        purchase_date: purchaseDate || new Date().toISOString().split('T')[0],
-        first_registration_date: firstRegistrationDate || null,
-        body_type: bodyType || 'passenger_standard',
-        is_new_car: isNewCar !== undefined ? Boolean(isNewCar) : true,
-        method: method || 'straight'
-    }, { onConflict: 'vehicle_id' });
+        const { error: pError } = await supabase.from('vehicle_purchases').upsert({
+            vehicle_id: vehicleId,
+            acquisition_cost: acquisitionCost ? parseInt(acquisitionCost, 10) : 0,
+            purchase_date: purchaseDate || new Date().toISOString().split('T')[0],
+            first_registration_date: firstRegistrationDate || null,
+            body_type: bodyType || 'passenger_standard',
+            is_new_car: isNewCar !== undefined ? Boolean(isNewCar) : true,
+            method: method || 'straight',
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'vehicle_id' });
 
     if (pError) throw pError;
 

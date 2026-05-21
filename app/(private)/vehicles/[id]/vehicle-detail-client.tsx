@@ -36,28 +36,49 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 function DepreciationPanel({ vehicle }: { vehicle: any }) {
-    const purchase = vehicle.purchase;
+    // 1. 初期値を取得（nullの場合はデフォルト値を設定）
+    const initialPurchase = vehicle.purchase || {
+        acquisitionCost: '',
+        bodyType: 'passenger_standard',
+        isNewCar: true,
+        purchaseDate: '',
+        firstRegistrationDate: '',
+        method: 'straight'
+    };
 
-    const [acquisitionCost, setAcquisitionCost] = useState<string>(purchase?.acquisitionCost ? String(purchase.acquisitionCost) : '');
-    const [bodyType, setBodyType] = useState<VehicleBodyType>(purchase?.bodyType ?? 'passenger_standard');
-    const [isNewCar, setIsNewCar] = useState<boolean>(purchase?.isNewCar ?? true);
-    const [purchaseDate, setPurchaseDate] = useState<string>(purchase?.purchaseDate ?? '');
-    const [firstRegDate, setFirstRegDate] = useState<string>(purchase?.firstRegistrationDate ?? '');
-    const [method, setMethod] = useState<DepreciationMethod>(purchase?.method ?? 'straight');
+    const [acquisitionCost, setAcquisitionCost] = useState<string>(initialPurchase?.acquisitionCost ? String(initialPurchase.acquisitionCost) : '');
+    const [bodyType, setBodyType] = useState<VehicleBodyType>(initialPurchase?.bodyType ?? 'passenger_standard');
+    const [isNewCar, setIsNewCar] = useState<boolean>(initialPurchase?.isNewCar ?? true);
+    const [purchaseDate, setPurchaseDate] = useState<string>(initialPurchase?.purchaseDate ?? '');
+    const [firstRegDate, setFirstRegDate] = useState<string>(initialPurchase?.firstRegistrationDate ?? '');
+    const [method, setMethod] = useState<DepreciationMethod>(initialPurchase?.method ?? 'straight');
 
     const [isPending, startTransition] = useTransition();
 
+    // 3. 変更検知（初期値と比較）
+    const isDirty =
+        acquisitionCost !== String(initialPurchase.acquisitionCost || '') ||
+        bodyType !== initialPurchase.bodyType ||
+        isNewCar !== initialPurchase.isNewCar ||
+        purchaseDate !== (initialPurchase.purchaseDate || '') ||
+        firstRegDate !== (initialPurchase.firstRegistrationDate || '') ||
+        method !== initialPurchase.method;
+
     const handleSave = () => {
+        if (!isDirty) return; // 念のためのガード
         startTransition(async () => {
             try {
+                // DB更新用のアクションを呼び出し
                 await updateVehiclePurchase(vehicle.id, {
-                    acquisitionCost,
+                    acquisitionCost: Number(acquisitionCost),
                     bodyType,
                     isNewCar,
                     purchaseDate,
                     firstRegistrationDate: firstRegDate || null,
                     method
                 });
+                // 必要であればここで router.refresh() 等を実行してデータを再取得し、
+                // 親コンポーネント経由で初期値を更新するのがベストプラクティスです。
             } catch (err) {
                 console.error("Failed to update purchase info", err);
             }
@@ -110,7 +131,7 @@ function DepreciationPanel({ vehicle }: { vehicle: any }) {
                 </CardTitle>
                 <div className="flex items-center gap-2 ml-auto">
                     <span className="text-xs text-muted-foreground font-normal hidden sm:inline-block">自社保有車・法人税法準拠</span>
-                    <Button size="sm" onClick={handleSave} disabled={isPending || !purchaseDate} className="bg-brand-500 hover:bg-brand-600 text-white shadow-sm h-8">
+                    <Button size="sm" onClick={handleSave} disabled={isPending || !purchaseDate || !isDirty} className="bg-brand-500 hover:bg-brand-600 text-white shadow-sm h-8">
                         {isPending ? '保存中...' : '設定を保存'}
                     </Button>
                 </div>
