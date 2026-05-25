@@ -42,7 +42,7 @@ CREATE TRIGGER update_vehicle_mileage_updated_at
 CREATE TABLE IF NOT EXISTS vehicle_inspection (		
     id TEXT PRIMARY KEY,
     vehicle_id TEXT REFERENCES vehicles(id) ON DELETE CASCADE NOT NULL,
-    accidents_id TEXT REFERENCES accidents(id) ON DELETE SET NULL,
+    accidents_id TEXT REFERENCES vehicle_accidents(id) ON DELETE SET NULL,
     inspection_type inspection_type NOT NULL,
     inspection_start_date DATE NOT NULL,
     inspection_end_date DATE NOT NULL,
