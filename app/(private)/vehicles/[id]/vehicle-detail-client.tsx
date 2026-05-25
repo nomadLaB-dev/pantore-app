@@ -3,7 +3,7 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import {
     ArrowLeft, Car, Building2, AlertTriangle, CalendarDays, Receipt,
-    TrendingDown, Calculator, Info, ShieldCheck, Plus,
+    TrendingDown, Calculator, Info, ShieldCheck, Plus, Snowflake,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -300,6 +300,9 @@ export function VehicleDetailClient({ vehicle }: { vehicle: any }) {
                             <Badge variant={vehicle.ownershipType === 'leased' ? 'secondary' : 'outline'}>
                                 {vehicle.ownershipType === 'leased' ? 'リース' : '自社保有'}
                             </Badge>
+                            {vehicle.tireType === 'studless' && (
+                                <Snowflake className="w-4 h-4 text-sky-500 shrink-0" />
+                            )}
                         </div>
                         <p className="font-mono text-muted-foreground">{vehicle.licensePlate}</p>
                     </div>

@@ -39,6 +39,7 @@ export function EditVehicleModal({ open, onClose, vehicle, branches }: Props) {
         licensePlateColor: 'white',
         ownershipType: 'owned',
         branchId: '',
+        tireType: 'normal',
         lease: {
             leaseCompany: '',
             contractStartDate: '',
@@ -64,6 +65,7 @@ export function EditVehicleModal({ open, onClose, vehicle, branches }: Props) {
                 licensePlateColor: vehicle.licensePlateColor || 'white',
                 ownershipType: vehicle.ownershipType || 'owned',
                 branchId: vehicle.branchId || '',
+                tireType: vehicle.tireType || 'normal',
                 lease: vehicle.lease ? {
                     leaseCompany: vehicle.lease.leaseCompany || '',
                     contractStartDate: vehicle.lease.contractStartDate || '',
@@ -163,14 +165,23 @@ export function EditVehicleModal({ open, onClose, vehicle, branches }: Props) {
                         </div>
                     </div>
 
-                    <div>
-                        <label className="text-sm font-medium mb-1.5 block">配属支社</label>
-                        <Select value={form.branchId} onValueChange={set('branchId')}>
-                            <SelectTrigger><SelectValue placeholder="支社を選択">{branches.find((b: Branch) => b.id === form.branchId)?.name}</SelectValue></SelectTrigger>
-                            <SelectContent>
-                                {branches.map((b: Branch) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">配属支社</label>
+                            <Select value={form.branchId} onValueChange={set('branchId')}>
+                                <SelectTrigger><SelectValue placeholder="支社を選択">{branches.find((b: Branch) => b.id === form.branchId)?.name}</SelectValue></SelectTrigger>
+                                <SelectContent>
+                                    {branches.map((b: Branch) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">タイヤの種類</label>
+                            <div className="flex bg-muted p-1 rounded-md">
+                                <Button type="button" variant="ghost" size="sm" className={`flex-1 h-8 ${form.tireType === 'normal' ? 'bg-background shadow-sm' : ''}`} onClick={() => setForm({ ...form, tireType: 'normal' })}>ノーマル</Button>
+                                <Button type="button" variant="ghost" size="sm" className={`flex-1 h-8 ${form.tireType === 'studless' ? 'bg-background shadow-sm' : ''}`} onClick={() => setForm({ ...form, tireType: 'studless' })}>スタッドレス</Button>
+                            </div>
+                        </div>
                     </div>
 
                     {form.ownershipType === 'leased' && (

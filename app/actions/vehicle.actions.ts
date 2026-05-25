@@ -18,6 +18,7 @@ export async function createVehicle(data: any) {
         ownershipType,
         branchId,
         companyId,
+        tireType,
         lease,
         purchase
     } = data;
@@ -32,7 +33,8 @@ export async function createVehicle(data: any) {
             model,
             license_plate: licensePlate,
             license_plate_color: licensePlateColor,
-            ownership_type: ownershipType
+            ownership_type: ownershipType,
+            tire_type: tireType || 'normal'
         })
         .select()
         .single();
@@ -90,6 +92,7 @@ export async function updateVehicle(id: string, data: any) {
         licensePlateColor,
         ownershipType,
         branchId,
+        tireType,
         lease,
         purchase
     } = data;
@@ -104,6 +107,7 @@ export async function updateVehicle(id: string, data: any) {
             license_plate_color: licensePlateColor,
             ownership_type: ownershipType,
             branch_id: branchId,
+            tire_type: tireType || 'normal',
             updated_at: new Date().toISOString()
         })
         .eq('id', id);

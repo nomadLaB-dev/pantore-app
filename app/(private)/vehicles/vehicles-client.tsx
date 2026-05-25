@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { getUsefulLife } from '@/lib/depreciation';
-import { Car, Plus, Building2, ChevronRight } from 'lucide-react';
+import { Car, Plus, Building2, ChevronRight, Snowflake } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -67,7 +67,12 @@ export function VehiclesClient({ vehicles, branches, stats }: VehiclesClientProp
                         <CardHeader className="pb-3">
                             <div className="flex items-start justify-between">
                                 <div>
-                                    <CardTitle className="text-base">{v.manufacturer} {v.model}</CardTitle>
+                                    <CardTitle className="text-base flex items-center gap-1.5">
+                                        <span>{v.manufacturer} {v.model}</span>
+                                        {v.tireType === 'studless' && (
+                                            <Snowflake className="w-4 h-4 text-sky-500 shrink-0" />
+                                        )}
+                                    </CardTitle>
                                     <p className="text-xs text-muted-foreground mt-0.5 font-mono">{v.licensePlate}</p>
                                 </div>
                                 <Badge variant={v.ownershipType === 'leased' ? 'secondary' : 'outline'}>

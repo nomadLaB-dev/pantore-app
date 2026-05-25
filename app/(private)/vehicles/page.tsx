@@ -31,6 +31,7 @@ export default async function VehiclesPage() {
         licensePlateColor: vehicle.license_plate_color,
         ownershipType: vehicle.ownership_type,
         branchId: vehicle.branch_id,
+        tireType: vehicle.tire_type,
         branch: vehicle.branch ? { id: vehicle.branch.id, name: vehicle.branch.name } : null,
         lease: vehicle.lease ? {
             leaseCompany: vehicle.lease.lease_company,
