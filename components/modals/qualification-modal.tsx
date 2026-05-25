@@ -35,6 +35,11 @@ const empty = {
     acquiredDate: '',
     lastWorkDate: '',
     isActive: true,
+    trainingDate: '',
+    ojt1stDate: '',
+    ojt2ndDate: '',
+    ojt3rdDate: '',
+    assessmentDate: '',
 };
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -62,6 +67,11 @@ export function QualificationModal({ employeeId, record, open, onClose }: Props)
                     acquiredDate: record.acquiredDate ? formatDate(record.acquiredDate) : '',
                     lastWorkDate: record.lastWorkDate ? formatDate(record.lastWorkDate) : '',
                     isActive: record.isActive !== undefined ? record.isActive : true,
+                    trainingDate: record.trainingDate ? formatDate(record.trainingDate) : '',
+                    ojt1stDate: record.ojt1stDate ? formatDate(record.ojt1stDate) : '',
+                    ojt2ndDate: record.ojt2ndDate ? formatDate(record.ojt2ndDate) : '',
+                    ojt3rdDate: record.ojt3rdDate ? formatDate(record.ojt3rdDate) : '',
+                    assessmentDate: record.assessmentDate ? formatDate(record.assessmentDate) : '',
                 });
             } else {
                 setForm(empty);
@@ -93,7 +103,7 @@ export function QualificationModal({ employeeId, record, open, onClose }: Props)
         }
     });
 
-    const isFormValid = form.qualification && form.acquiredDate;
+    const isFormValid = !!form.qualification;
 
     return (
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -161,9 +171,62 @@ export function QualificationModal({ employeeId, record, open, onClose }: Props)
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                            <label className="text-sm font-medium mb-1.5 block">
+                                研修日
+                            </label>
+                            <Input
+                                type="date"
+                                value={form.trainingDate}
+                                onChange={(e) => setForm({ ...form, trainingDate: e.target.value })}
+                            />
+                        </div>
+
                         <div>
                             <label className="text-sm font-medium mb-1.5 block">
-                                資格取得日 <span className="text-red-500">*</span>
+                                OJT1回目
+                            </label>
+                            <Input
+                                type="date"
+                                value={form.ojt1stDate}
+                                onChange={(e) => setForm({ ...form, ojt1stDate: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">
+                                OJT2回目
+                            </label>
+                            <Input
+                                type="date"
+                                value={form.ojt2ndDate}
+                                onChange={(e) => setForm({ ...form, ojt2ndDate: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">
+                                OJT3回目
+                            </label>
+                            <Input
+                                type="date"
+                                value={form.ojt3rdDate}
+                                onChange={(e) => setForm({ ...form, ojt3rdDate: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">
+                                見極め日
+                            </label>
+                            <Input
+                                type="date"
+                                value={form.assessmentDate}
+                                onChange={(e) => setForm({ ...form, assessmentDate: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">
+                                資格取得日
                             </label>
                             <Input
                                 type="date"

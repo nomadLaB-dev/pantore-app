@@ -26,6 +26,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             lastWorkDate: q.last_work_date,
             isActive: q.is_active,
             createdAt: q.created_at,
+            trainingDate: q.training_date,
+            ojt1stDate: q.ojt_1st_date,
+            ojt2ndDate: q.ojt_2nd_date,
+            ojt3rdDate: q.ojt_3rd_date,
+            assessmentDate: q.assessment_date,
         }));
 
         return NextResponse.json(result);
@@ -41,7 +46,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         const body = await req.json();
         const supabase = await createClient();
 
-        const { qualification, qualificationStatus, acquiredDate, lastWorkDate, isActive } = body;
+        const {
+            qualification,
+            qualificationStatus,
+            acquiredDate,
+            lastWorkDate,
+            isActive,
+            trainingDate,
+            ojt1stDate,
+            ojt2ndDate,
+            ojt3rdDate,
+            assessmentDate,
+        } = body;
 
         // Check if the qualification already exists for this employee
         const { data: existing, error: checkError } = await supabase
@@ -71,6 +87,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 last_work_date: lastWorkDate || null,
                 is_active: isActive,
                 created_at: new Date().toISOString(),
+                training_date: trainingDate || null,
+                ojt_1st_date: ojt1stDate || null,
+                ojt_2nd_date: ojt2ndDate || null,
+                ojt_3rd_date: ojt3rdDate || null,
+                assessment_date: assessmentDate || null,
             })
             .select()
             .single();
@@ -93,7 +114,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         const body = await req.json();
         const supabase = await createClient();
 
-        const { qualification, qualificationStatus, acquiredDate, lastWorkDate, isActive } = body;
+        const {
+            qualification,
+            qualificationStatus,
+            acquiredDate,
+            lastWorkDate,
+            isActive,
+            trainingDate,
+            ojt1stDate,
+            ojt2ndDate,
+            ojt3rdDate,
+            assessmentDate,
+        } = body;
 
         // Update qualification using composite filter employee_id and qualification
         const { data: updated, error: updateError } = await supabase
@@ -103,6 +135,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
                 acquired_date: acquiredDate || null,
                 last_work_date: lastWorkDate || null,
                 is_active: isActive,
+                training_date: trainingDate || null,
+                ojt_1st_date: ojt1stDate || null,
+                ojt_2nd_date: ojt2ndDate || null,
+                ojt_3rd_date: ojt3rdDate || null,
+                assessment_date: assessmentDate || null,
             })
             .eq('employee_id', id)
             .eq('qualification', qualification)

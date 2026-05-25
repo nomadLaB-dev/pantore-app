@@ -85,11 +85,45 @@ export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Pro
             const url = isEdit ? `/api/employees/${employee.id}` : '/api/employees';
             const method = isEdit ? 'PUT' : 'POST';
             const body = isEdit ? { ...form } : { ...form, leaveDate: null, accountStatus: 'none' };
-            await fetch(url, {
+            const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
             });
+
+            if (!res.ok) {
+                throw new Error('社員情報の保存に失敗しました。');
+            }
+
+            // 新規登録時のみ、全5資格の初期ステータス（none）レコードを自動登録する
+            if (!isEdit) {
+                const newEmployee = await res.json();
+                if (newEmployee && newEmployee.id) {
+                    const qualifications = ['ipd', 'inter', 'fedex', 'q_dome', 'mediford'];
+                    const promises = qualifications.map(async (q) => {
+                        const qRes = await fetch(`/api/employees/${newEmployee.id}/qualifications`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                qualification: q,
+                                qualificationStatus: 'none',
+                                acquiredDate: null,
+                                lastWorkDate: null,
+                                isActive: true,
+                                trainingDate: null,
+                                ojt1stDate: null,
+                                ojt2ndDate: null,
+                                ojt3rdDate: null,
+                                assessmentDate: null,
+                            }),
+                        });
+                        if (!qRes.ok) {
+                            console.error(`Failed to register initial qualification: ${q}`);
+                        }
+                    });
+                    await Promise.all(promises);
+                }
+            }
         },
         onSuccess: () => {
             if (isEdit) qc.invalidateQueries({ queryKey: ['employee', employee.id] });
