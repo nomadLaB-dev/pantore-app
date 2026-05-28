@@ -44,6 +44,7 @@ export default async function VehicleDetailPage({
         ownershipType: vehicleResponse.ownership_type,
         branchId: vehicleResponse.branch_id,
         tireType: vehicleResponse.tire_type,
+        isTransportBureauApplied: vehicleResponse.is_transport_bureau_applied,
         branch: vehicleResponse.branch ? { id: vehicleResponse.branch.id, name: vehicleResponse.branch.name } : null,
         lease: vehicleResponse.lease ? {
             leaseCompany: vehicleResponse.lease.lease_company,

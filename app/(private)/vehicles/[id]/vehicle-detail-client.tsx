@@ -471,7 +471,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: any }) {
                     <CardTitle className="text-base flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 text-orange-500" />
                         事故履歴
-                        <Badge variant="secondary" className="ml-auto">{accidents.length}件</Badge>
+                        <Badge variant="secondary" className="ml-1">{accidents.length}件</Badge>
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -514,8 +514,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: any }) {
                 <CardContent>
                     {inspections.length === 0 ? (
                         <div className="text-center py-8">
-                            <Wrench className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-                            <p className="text-muted-foreground">まだ点検情報が登録されていません</p>
+                            <p className="text-muted-foreground">点検情報はありません</p>
                         </div>
                     ) : (
                         <div className="space-y-4">
@@ -537,13 +536,13 @@ export function VehicleDetailClient({ vehicle }: { vehicle: any }) {
                                                 <div className="flex items-center gap-1.5 font-mono">
                                                     <CalendarDays className="w-3.5 h-3.5" />
                                                     <span>
-                                                        期間: {insp.inspectionStartDate ? new Date(insp.inspectionStartDate).toLocaleDateString('ja-JP') : '—'} 
+                                                        期間: {insp.inspectionStartDate ? new Date(insp.inspectionStartDate).toLocaleDateString('ja-JP') : '—'}
                                                         {insp.inspectionEndDate ? ` 〜 ${new Date(insp.inspectionEndDate).toLocaleDateString('ja-JP')}` : ''}
                                                     </span>
                                                 </div>
                                                 {(insp.nextInspectionMileage || insp.nextInspectionDate) && (
                                                     <div className="text-brand-600 dark:text-brand-400 font-mono pl-5">
-                                                        次回目安: {insp.nextInspectionMileage ? `${Number(insp.nextInspectionMileage).toLocaleString()} km` : ''} 
+                                                        次回目安: {insp.nextInspectionMileage ? `${Number(insp.nextInspectionMileage).toLocaleString()} km` : ''}
                                                         {insp.nextInspectionMileage && insp.nextInspectionDate ? ' / ' : ''}
                                                         {insp.nextInspectionDate ? new Date(insp.nextInspectionDate).toLocaleDateString('ja-JP') : ''}
                                                     </div>

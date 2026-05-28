@@ -38,6 +38,7 @@ export function NewVehicleModal({ open, onClose, branches }: Props) {
         ownershipType: 'owned',
         branchId: '',
         companyId: '',
+        isTransportBureauApplied: false,
         lease: {
             leaseCompany: '',
             contractStartDate: '',
@@ -96,6 +97,7 @@ export function NewVehicleModal({ open, onClose, branches }: Props) {
                 ownershipType: 'owned',
                 branchId: '',
                 companyId: '',
+                isTransportBureauApplied: false,
                 lease: {
                     leaseCompany: '',
                     contractStartDate: '',
@@ -204,6 +206,19 @@ export function NewVehicleModal({ open, onClose, branches }: Props) {
                                 </SelectContent>
                             </Select>
                         </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                        <input
+                            type="checkbox"
+                            id="isTransportBureauApplied"
+                            checked={form.isTransportBureauApplied}
+                            onChange={(e) => setForm({ ...form, isTransportBureauApplied: e.target.checked })}
+                            className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                        />
+                        <label htmlFor="isTransportBureauApplied" className="text-sm font-medium cursor-pointer select-none">
+                            運輸支局申請済み
+                        </label>
                     </div>
 
                     {form.ownershipType === 'leased' && (

@@ -32,6 +32,7 @@ export default async function VehiclesPage() {
         ownershipType: vehicle.ownership_type,
         branchId: vehicle.branch_id,
         tireType: vehicle.tire_type,
+        isTransportBureauApplied: vehicle.is_transport_bureau_applied,
         branch: vehicle.branch ? { id: vehicle.branch.id, name: vehicle.branch.name } : null,
         lease: vehicle.lease ? {
             leaseCompany: vehicle.lease.lease_company,
@@ -61,6 +62,7 @@ export default async function VehiclesPage() {
     const leasedCount = vehicles.filter((v) => v.ownershipType === 'leased').length;
     const ownedCount = totalVehiclesCount - leasedCount;
     const branchCount = new Set(vehicles.map((v) => v.branchId)).size;
+    const notAppliedCount = vehicles.filter((v) => v.isTransportBureauApplied === false).length;
 
     return (
         <VehiclesClient
@@ -70,7 +72,8 @@ export default async function VehiclesPage() {
                 totalVehiclesCount,
                 leasedCount,
                 ownedCount,
-                branchCount
+                branchCount,
+                notAppliedCount
             }}
         />
     );
