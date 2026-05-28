@@ -286,3 +286,30 @@ export interface Deal {
     createdAt: Date;
 }
 
+// 点検区分 (inspection_type) の型定義
+export type InspectionType =
+    | 'vehicle_inspection'
+    | 'annual_inspection'
+    | 'oil_change'
+    | 'tire_change_seasonal'
+    | 'tire_replacement'
+    | 'battery_replacement'
+    | 'wiper_replacement'
+    | 'brake_pad_replacement'
+    | 'repair'
+    | 'other';
+
+export const InspectionTypeLabel: Record<InspectionType, string> = {
+    vehicle_inspection: '車検',
+    annual_inspection: '12ヶ月点検',
+    oil_change: 'オイル交換',
+    tire_change_seasonal: 'タイヤ履き替え',
+    tire_replacement: 'タイヤ新品交換',
+    battery_replacement: 'バッテリー交換',
+    wiper_replacement: 'ワイパー交換',
+    brake_pad_replacement: 'ブレーキパッド交換',
+    repair: '修理',
+    other: 'その他',
+};
+
+

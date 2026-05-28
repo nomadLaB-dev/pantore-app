@@ -3,7 +3,7 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import {
     ArrowLeft, Car, Building2, AlertTriangle, CalendarDays, Receipt,
-    TrendingDown, Calculator, Info, ShieldCheck, Plus, Snowflake,
+    TrendingDown, Calculator, Info, ShieldCheck, Plus, Snowflake, ChartNoAxesColumnIncreasing, Wrench,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,8 +16,12 @@ import {
     type VehicleBodyType, type DepreciationMethod, type DepreciationScheduleRow,
 } from '@/lib/depreciation';
 import { updateVehiclePurchase } from '@/app/actions/vehicle.actions';
-import { InsuranceTypeLabel } from '@/types';
+import { InsuranceTypeLabel, InspectionTypeLabel } from '@/types';
 import { InsuranceModal } from '@/components/modals/insurance-modal';
+import { NewMileageModal } from '@/components/modals/new-mileage-modal';
+import { MileageHistoryModal } from '@/components/modals/mileage-history-modal';
+import { InspectionModal } from '@/components/modals/inspection-modal';
+import { InspectionHistoryModal } from '@/components/modals/inspection-history-modal';
 import { cn } from '@/lib/utils';
 
 const severityMap = {
@@ -278,10 +282,53 @@ function DepreciationPanel({ vehicle }: { vehicle: any }) {
 
 export function VehicleDetailClient({ vehicle }: { vehicle: any }) {
     const [showInsuranceModal, setShowInsuranceModal] = useState(false);
+    const [showMileageModal, setShowMileageModal] = useState(false);
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [showInspectionModal, setShowInspectionModal] = useState(false);
+    const [showInspectionHistoryModal, setShowInspectionHistoryModal] = useState(false);
     const [editingInsurance, setEditingInsurance] = useState<any | null>(null);
+    const [editingMileage, setEditingMileage] = useState<any | null>(null);
+    const [editingInspection, setEditingInspection] = useState<any | null>(null);
 
     const accidents = Array.isArray(vehicle.accidents) ? vehicle.accidents : [];
     const insurances = Array.isArray(vehicle.insurances) ? vehicle.insurances : [];
+    const mileages = Array.isArray(vehicle.mileages) ? vehicle.mileages : [];
+    const inspections = Array.isArray(vehicle.inspections) ? vehicle.inspections : [];
+
+    // 直近12ヶ月の年月 (YYYY-MM) を生成
+    const getPast12Months = () => {
+        const months = [];
+        const now = new Date();
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            months.push(`${year}-${month}`);
+        }
+        return months;
+    };
+
+    const months = getPast12Months();
+
+    // 各月の実走行距離 (最後の測定値 - 最初の測定値) を計算
+    const monthlyDistances = months.map(m => {
+        const monthRecords = mileages.filter((rec: any) => rec.recordDate.startsWith(m));
+        if (monthRecords.length === 0) {
+            return { label: parseInt(m.split('-')[1], 10) + '月', distance: 0, fullLabel: m };
+        }
+        const vals = monthRecords.map((r: any) => Number(r.mileage));
+        const maxVal = Math.max(...vals);
+        const minVal = Math.min(...vals);
+        const distance = maxVal - minVal;
+        return {
+            label: parseInt(m.split('-')[1], 10) + '月',
+            distance: distance > 0 ? distance : 0,
+            fullLabel: m
+        };
+    });
+
+    const maxDistance = Math.max(...monthlyDistances.map(d => d.distance), 1);
+    const latestMileage = mileages[0];
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
@@ -398,6 +445,26 @@ export function VehicleDetailClient({ vehicle }: { vehicle: any }) {
             </Card>
 
             <InsuranceModal vehicleId={vehicle.id} open={showInsuranceModal} onClose={() => setShowInsuranceModal(false)} editingInsurance={editingInsurance} />
+            <NewMileageModal vehicleId={vehicle.id} open={showMileageModal} onClose={() => setShowMileageModal(false)} editingMileage={editingMileage} />
+            <MileageHistoryModal
+                open={showHistoryModal}
+                onClose={() => setShowHistoryModal(false)}
+                mileages={mileages}
+                onEditMileage={(m) => {
+                    setEditingMileage(m);
+                    setShowMileageModal(true);
+                }}
+            />
+            <InspectionModal vehicleId={vehicle.id} open={showInspectionModal} onClose={() => setShowInspectionModal(false)} editingInspection={editingInspection} />
+            <InspectionHistoryModal
+                open={showInspectionHistoryModal}
+                onClose={() => setShowInspectionHistoryModal(false)}
+                inspections={inspections}
+                onEditInspection={(insp) => {
+                    setEditingInspection(insp);
+                    setShowInspectionModal(true);
+                }}
+            />
 
             <Card>
                 <CardHeader>
@@ -426,6 +493,182 @@ export function VehicleDetailClient({ vehicle }: { vehicle: any }) {
                                     <p className="text-sm">{acc.description}</p>
                                 </div>
                             ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Wrench className="w-4 h-4 text-brand-500" />
+                            点検情報
+                            <Badge variant="secondary" className="ml-1">{inspections.length}件</Badge>
+                        </CardTitle>
+                        <Button variant="outline" size="sm" onClick={() => { setEditingInspection(null); setShowInspectionModal(true); }} className="gap-1.5 h-8">
+                            <Plus className="w-3.5 h-3.5" /> 追加
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {inspections.length === 0 ? (
+                        <div className="text-center py-8">
+                            <Wrench className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                            <p className="text-muted-foreground">まだ点検情報が登録されていません</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="space-y-3">
+                                {inspections.slice(0, 3).map((insp: any) => (
+                                    <div key={insp.id} className="p-4 rounded-xl border border-border bg-muted/20 flex items-start justify-between gap-4 group">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-semibold text-sm">
+                                                    {InspectionTypeLabel[insp.inspectionType as keyof typeof InspectionTypeLabel] || '不明な点検'}
+                                                </span>
+                                                {insp.inspectionCost && (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        ¥{Number(insp.inspectionCost).toLocaleString()}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground space-y-0.5">
+                                                <div className="flex items-center gap-1.5 font-mono">
+                                                    <CalendarDays className="w-3.5 h-3.5" />
+                                                    <span>
+                                                        期間: {insp.inspectionStartDate ? new Date(insp.inspectionStartDate).toLocaleDateString('ja-JP') : '—'} 
+                                                        {insp.inspectionEndDate ? ` 〜 ${new Date(insp.inspectionEndDate).toLocaleDateString('ja-JP')}` : ''}
+                                                    </span>
+                                                </div>
+                                                {(insp.nextInspectionMileage || insp.nextInspectionDate) && (
+                                                    <div className="text-brand-600 dark:text-brand-400 font-mono pl-5">
+                                                        次回目安: {insp.nextInspectionMileage ? `${Number(insp.nextInspectionMileage).toLocaleString()} km` : ''} 
+                                                        {insp.nextInspectionMileage && insp.nextInspectionDate ? ' / ' : ''}
+                                                        {insp.nextInspectionDate ? new Date(insp.nextInspectionDate).toLocaleDateString('ja-JP') : ''}
+                                                    </div>
+                                                )}
+                                                {insp.notes && (
+                                                    <div className="text-slate-500 italic pl-5 text-[11px]">
+                                                        備考: {insp.notes}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-xs text-brand-500 hover:text-brand-600 h-8 px-2.5"
+                                            onClick={() => {
+                                                setEditingInspection(insp);
+                                                setShowInspectionModal(true);
+                                            }}
+                                        >
+                                            編集
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex justify-center pt-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full text-xs"
+                                    onClick={() => setShowInspectionHistoryModal(true)}
+                                >
+                                    全データを閲覧 ({inspections.length}件)
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <ChartNoAxesColumnIncreasing className="w-4 h-4" />
+                            走行距離
+                            <Badge variant="secondary" className="ml-1">{mileages.length}件</Badge>
+                        </CardTitle>
+                        <Button variant="outline" size="sm" onClick={() => { setEditingMileage(null); setShowMileageModal(true); }} className="gap-1.5 h-8">
+                            <Plus className="w-3.5 h-3.5" /> 追加
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {mileages.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-6">走行距離の記録はありません</p>
+                    ) : (
+                        <div className="space-y-4">
+                            {/* 1. グラフの表示 */}
+                            <div className="bg-muted/30 rounded-xl p-4 border border-border">
+                                <p className="text-xs text-muted-foreground mb-3 font-medium">月間実走行距離 (km) - 直近12ヶ月</p>
+                                <div className="flex justify-between items-end h-40 pt-4 px-2">
+                                    {monthlyDistances.map((d, idx) => {
+                                        const percentage = (d.distance / maxDistance) * 100;
+                                        return (
+                                            <div key={idx} className="flex flex-col items-center justify-end h-full flex-1 group relative">
+                                                {/* Tooltip */}
+                                                <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[10px] py-1 px-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 shadow-md">
+                                                    {d.fullLabel}: {d.distance.toLocaleString()} km
+                                                </div>
+                                                {/* Bar */}
+                                                <div
+                                                    className="w-4 sm:w-6 bg-orange-500 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-500 rounded-t-sm transition-all duration-300 relative"
+                                                    style={{ height: `${percentage > 0 ? Math.max(percentage, 4) : 0}%` }}
+                                                />
+                                                {/* Label */}
+                                                <span className="text-[10px] text-muted-foreground mt-2 font-mono">
+                                                    {d.label}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* 2. 最新の走行距離 */}
+                            {latestMileage && (
+                                <div className="border-t border-border pt-4">
+                                    <p className="text-xs text-muted-foreground mb-2 font-medium">最新の走行距離</p>
+                                    <div className="p-4 rounded-xl border border-border flex items-center justify-between bg-muted/20">
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-xs text-muted-foreground flex items-center gap-1.5 font-mono">
+                                                <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
+                                                {new Date(latestMileage.recordDate).toLocaleDateString('ja-JP')}
+                                            </div>
+                                            <div className="font-semibold text-sm">
+                                                {latestMileage.mileage ? Number(latestMileage.mileage).toLocaleString() : '0'} km
+                                            </div>
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-xs text-brand-500 hover:text-brand-600 h-8 px-2.5"
+                                            onClick={() => {
+                                                setEditingMileage(latestMileage);
+                                                setShowMileageModal(true);
+                                            }}
+                                        >
+                                            編集
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 3. 過去分の閲覧ボタン */}
+                            <div className="flex justify-center pt-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full text-xs"
+                                    onClick={() => setShowHistoryModal(true)}
+                                >
+                                    全データを閲覧 ({mileages.length}件)
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </CardContent>

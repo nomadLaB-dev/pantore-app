@@ -22,7 +22,9 @@ export default async function VehicleDetailPage({
             lease:vehicle_leases(*),
             purchase:vehicle_purchases(*),
             insurances:vehicle_insurances(*),
-            accidents:vehicle_accidents(*)
+            accidents:vehicle_accidents(*),
+            mileages:vehicle_mileage(*),
+            inspections:vehicle_inspection(*)
         `)
         .eq('id', id)
         .single();
@@ -74,6 +76,22 @@ export default async function VehicleDetailPage({
             severity: acc.severity,
             repairCost: acc.repair_cost,
         })).sort((a: any, b: any) => new Date(b.accidentDate).getTime() - new Date(a.accidentDate).getTime()),
+        mileages: (vehicleResponse.mileages || []).map((m: any) => ({
+            id: m.id,
+            recordDate: m.record_date,
+            mileage: m.mileage,
+        })).sort((a: any, b: any) => new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime()),
+        inspections: (vehicleResponse.inspections || []).map((insp: any) => ({
+            id: insp.id,
+            accidentsId: insp.accidents_id,
+            inspectionType: insp.inspection_type,
+            inspectionStartDate: insp.inspection_start_date,
+            inspectionEndDate: insp.inspection_end_date,
+            inspectionCost: insp.inspection_cost,
+            nextInspectionMileage: insp.next_inspection_mileage,
+            nextInspectionDate: insp.next_inspection_date,
+            notes: insp.notes,
+        })).sort((a: any, b: any) => new Date(b.inspectionStartDate).getTime() - new Date(a.inspectionStartDate).getTime()),
         createdAt: vehicleResponse.created_at,
         updatedAt: vehicleResponse.updated_at,
     };
