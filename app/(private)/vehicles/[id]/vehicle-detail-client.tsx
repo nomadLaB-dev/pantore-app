@@ -23,6 +23,7 @@ import { MileageHistoryModal } from '@/components/modals/mileage-history-modal';
 import { InspectionModal } from '@/components/modals/inspection-modal';
 import { InspectionHistoryModal } from '@/components/modals/inspection-history-modal';
 import { VehicleAccidentsModal } from '@/components/modals/vehicle-accidents-modal';
+import { AccidentHistoryModal } from '@/components/modals/accident-history-modal';
 import { cn } from '@/lib/utils';
 
 const severityMap = {
@@ -288,6 +289,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: any }) {
     const [showInspectionModal, setShowInspectionModal] = useState(false);
     const [showInspectionHistoryModal, setShowInspectionHistoryModal] = useState(false);
     const [showAccidentModal, setShowAccidentModal] = useState(false);
+    const [showAccidentHistoryModal, setShowAccidentHistoryModal] = useState(false);
     const [editingInsurance, setEditingInsurance] = useState<any | null>(null);
     const [editingMileage, setEditingMileage] = useState<any | null>(null);
     const [editingInspection, setEditingInspection] = useState<any | null>(null);
@@ -458,7 +460,7 @@ export function VehicleDetailClient({ vehicle }: { vehicle: any }) {
                     setShowMileageModal(true);
                 }}
             />
-            <InspectionModal vehicleId={vehicle.id} open={showInspectionModal} onClose={() => setShowInspectionModal(false)} editingInspection={editingInspection} />
+            <InspectionModal vehicleId={vehicle.id} open={showInspectionModal} onClose={() => setShowInspectionModal(false)} editingInspection={editingInspection} accidents={accidents} />
             <InspectionHistoryModal
                 open={showInspectionHistoryModal}
                 onClose={() => setShowInspectionHistoryModal(false)}
@@ -474,6 +476,15 @@ export function VehicleDetailClient({ vehicle }: { vehicle: any }) {
                 record={editingAccident}
                 open={showAccidentModal}
                 onClose={() => setShowAccidentModal(false)}
+            />
+            <AccidentHistoryModal
+                open={showAccidentHistoryModal}
+                onClose={() => setShowAccidentHistoryModal(false)}
+                accidents={accidents}
+                onEditAccident={(acc) => {
+                    setEditingAccident(acc);
+                    setShowAccidentModal(true);
+                }}
             />
 
             <Card>
@@ -493,34 +504,46 @@ export function VehicleDetailClient({ vehicle }: { vehicle: any }) {
                     {accidents.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-6">事故の記録はありません</p>
                     ) : (
-                        <div className="space-y-3">
-                            {accidents.slice(0, 3).map((acc: any) => (
-                                <div key={acc.id} className="p-4 rounded-xl border border-border bg-muted/20 flex items-start justify-between gap-4 group">
-                                    <div className="space-y-1 flex-1">
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                                            <CalendarDays className="w-3.5 h-3.5" />
-                                            <span>
-                                                {acc.accidentDate ? new Date(acc.accidentDate).toLocaleDateString('ja-JP') : '—'}
-                                            </span>
-                                            <span className={`text-xs px-2 py-0.5 rounded font-medium ${severityMap[acc.severity as keyof typeof severityMap].class}`}>
-                                                {severityMap[acc.severity as keyof typeof severityMap].label}
-                                            </span>
+                        <div className="space-y-4">
+                            <div className="space-y-3">
+                                {accidents.slice(0, 3).map((acc: any) => (
+                                    <div key={acc.id} className="p-4 rounded-xl border border-border bg-muted/20 flex items-start justify-between gap-4 group">
+                                        <div className="space-y-1 flex-1">
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                                                <CalendarDays className="w-3.5 h-3.5" />
+                                                <span>
+                                                    {acc.accidentDate ? new Date(acc.accidentDate).toLocaleDateString('ja-JP') : '—'}
+                                                </span>
+                                                <span className={`text-xs px-2 py-0.5 rounded font-medium ${severityMap[acc.severity as keyof typeof severityMap].class}`}>
+                                                    {severityMap[acc.severity as keyof typeof severityMap].label}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm font-medium">{acc.description}</p>
                                         </div>
-                                        <p className="text-sm font-medium">{acc.description}</p>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-xs text-brand-500 hover:text-brand-600 h-8 px-2.5"
+                                            onClick={() => {
+                                                setEditingAccident(acc);
+                                                setShowAccidentModal(true);
+                                            }}
+                                        >
+                                            編集
+                                        </Button>
                                     </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-xs text-brand-500 hover:text-brand-600 h-8 px-2.5"
-                                        onClick={() => {
-                                            setEditingAccident(acc);
-                                            setShowAccidentModal(true);
-                                        }}
-                                    >
-                                        編集
-                                    </Button>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
+                            <div className="flex justify-center pt-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full text-xs"
+                                    onClick={() => setShowAccidentHistoryModal(true)}
+                                >
+                                    全データを閲覧 ({accidents.length}件)
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </CardContent>
