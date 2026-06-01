@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { getUsefulLife } from '@/lib/depreciation';
-import { Car, Plus, Building2, ChevronRight, Snowflake, MessageCircleWarning } from 'lucide-react';
+import { Car, Plus, Building2, ChevronRight, Snowflake, MessageCircleWarning, Wrench } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,9 +14,8 @@ interface VehiclesClientProps {
     branches: any[];
     stats: {
         totalVehiclesCount: number;
-        leasedCount: number;
-        ownedCount: number;
-        branchCount: number;
+        activeCount: number;
+        inRepairCount: number;
         notAppliedCount: number;
     };
 }
@@ -44,9 +43,9 @@ export function VehiclesClient({ vehicles, branches, stats }: VehiclesClientProp
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                    { label: '管理台数', value: stats.totalVehiclesCount, icon: Car, color: 'text-blue-500' },
-                    { label: 'リース台数', value: stats.leasedCount, icon: Car, color: 'text-brand-500' },
-                    { label: '自社保有', value: stats.ownedCount, icon: Car, color: 'text-violet-500' },
+                    { label: '総管理台数', value: stats.totalVehiclesCount, icon: Car, color: 'text-blue-500' },
+                    { label: '実働可能台数', value: stats.activeCount, icon: Car, color: 'text-brand-500' },
+                    { label: '修理中', value: stats.inRepairCount, icon: Wrench, color: 'text-violet-500' },
                     { label: '運輸支局未申請', value: stats.notAppliedCount, icon: MessageCircleWarning, color: 'text-red-500' },
                 ].map((s) => (
                     <Card key={s.label}>

@@ -11,7 +11,8 @@ export async function GET() {
             .select(`
                 *,
                 branch:branches(*),
-                accidents:vehicle_accidents(*)
+                accidents:vehicle_accidents(*),
+                inspections:vehicle_inspection(*)
             `)
             .order('created_at', { ascending: false });
 
@@ -36,6 +37,13 @@ export async function GET() {
                 accidentDate: acc.accident_date,
                 description: acc.description,
                 severity: acc.severity,
+            })),
+            inspections: (vehicle.inspections || []).map((insp: any) => ({
+                id: insp.id,
+                accidentsId: insp.accidents_id,
+                inspectionType: insp.inspection_type,
+                inspectionStartDate: insp.inspection_start_date,
+                inspectionEndDate: insp.inspection_end_date,
             })),
             createdAt: vehicle.created_at,
             updatedAt: vehicle.updated_at,

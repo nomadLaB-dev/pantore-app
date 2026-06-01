@@ -45,6 +45,7 @@ function isCurrentEmployee(employee: any) {
 
 export default function DashboardPage() {
     const [selectedAreaId, setSelectedAreaId] = useState<string>('10');
+    const [selectedVehicleAreaId, setSelectedVehicleAreaId] = useState<string>('10');
 
     const { data: employees = [] } = useQuery<any[]>({
         queryKey: ['employees', { includeArchived: true }],
@@ -66,13 +67,20 @@ export default function DashboardPage() {
     });
     const areas = areasData?.areas || [];
 
-    // 選択されたエリアの支社所属人数一覧の取得
     const { data: branchesData, isLoading: isLoadingBranches } = useQuery<any>({
         queryKey: ['staff-allocation-branches', selectedAreaId],
         queryFn: async () => (await fetch(`/api/dashboard/staff-allocation?areaId=${selectedAreaId}`)).json(),
         enabled: !!selectedAreaId,
     });
     const branches = branchesData?.branches || [];
+
+    // 選択されたエリアの支社所属車両台数一覧の取得
+    const { data: vehicleBranchesData, isLoading: isLoadingVehicleBranches } = useQuery<any>({
+        queryKey: ['staff-allocation-branches-vehicle', selectedVehicleAreaId],
+        queryFn: async () => (await fetch(`/api/dashboard/staff-allocation?areaId=${selectedVehicleAreaId}`)).json(),
+        enabled: !!selectedVehicleAreaId,
+    });
+    const vehicleBranches = vehicleBranchesData?.branches || [];
 
     const activeEmployees = employees.filter((e: any) => isCurrentEmployee(e)).length;
     const totalAccidents = vehicles.reduce((s: number, v: any) => s + v.accidents.length, 0);
@@ -265,6 +273,89 @@ export default function DashboardPage() {
                                     </Card>
                                 ))}
                             </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </motion.div>
+
+            {/* 車両管理ダッシュボード */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }} className="mt-6">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            <Car className="w-5 h-5 text-brand-500" /> 車両管理
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">エリア:</span>
+                            {areas.length > 0 ? (
+                                <Select value={selectedVehicleAreaId} onValueChange={(val) => setSelectedVehicleAreaId(val ?? '')}>
+                                    <SelectTrigger className="w-[140px] h-9">
+                                        <SelectValue placeholder="エリアを選択">
+                                            {areas.find((area: any) => area.id === selectedVehicleAreaId)?.name || ''}
+                                        </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {areas.map((area: any) => (
+                                            <SelectItem key={area.id} value={area.id}>
+                                                {area.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            ) : (
+                                <div className="text-sm border rounded px-3 py-1 bg-background text-muted-foreground w-[140px] h-9 flex items-center justify-between">
+                                    読み込み中...
+                                </div>
+                            )}
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoadingVehicleBranches ? (
+                            <p className="text-sm text-muted-foreground text-center py-6">読み込み中...</p>
+                        ) : vehicleBranches.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-6">該当する支社はありません</p>
+                        ) : (
+                            (() => {
+                                // 日本標準時（JST）の本日の日付（YYYY-MM-DD）を取得
+                                const today = new Date();
+                                const todayStr = new Date(today.getTime() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+                                return (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                                        {vehicleBranches.map((b: any) => {
+                                            // 支社に所属する車両の集計
+                                            const branchVehicles = vehicles.filter((v: any) => v.branchId === b.id);
+                                            
+                                            // 修理中車両の集計
+                                            const repairCount = branchVehicles.filter((v: any) => 
+                                                v.inspections?.some((insp: any) => 
+                                                    insp.inspectionStartDate && insp.inspectionStartDate <= todayStr &&
+                                                    insp.inspectionEndDate && insp.inspectionEndDate >= todayStr
+                                                )
+                                            ).length;
+
+                                            const activeCount = branchVehicles.length - repairCount;
+
+                                            return (
+                                                <Card key={b.id} className="bg-muted/30">
+                                                    <CardContent className="p-4 flex flex-col justify-between h-full">
+                                                        <p className="text-sm font-semibold text-foreground truncate" title={b.name}>
+                                                            {b.name}
+                                                        </p>
+                                                        <div className="mt-4 flex flex-col gap-1">
+                                                            <div className="flex items-baseline gap-1">
+                                                                <span className="text-2xl font-bold">{activeCount}</span>
+                                                                <span className="text-sm text-muted-foreground">/ {branchVehicles.length}台</span>
+                                                            </div>
+                                                            <p className="text-[10px] text-muted-foreground">実働可能台数 / 保持台数</p>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()
                         )}
                     </CardContent>
                 </Card>

@@ -18,7 +18,8 @@ export default async function VehiclesPage() {
             *,
             branch:branches(*),
             lease:vehicle_leases(*),
-            purchase:vehicle_purchases(*)
+            purchase:vehicle_purchases(*),
+            inspections:vehicle_inspection(*)
         `)
         .order('created_at', { ascending: false });
 
@@ -50,6 +51,17 @@ export default async function VehiclesPage() {
         } : null,
         insurances: Array.isArray(vehicle.insurances) ? vehicle.insurances : [],
         accidents: Array.isArray(vehicle.accidents) ? vehicle.accidents : [],
+        inspections: Array.isArray(vehicle.inspections) ? vehicle.inspections.map((insp: any) => ({
+            id: insp.id,
+            accidentsId: insp.accidents_id,
+            inspectionType: insp.inspection_type,
+            inspectionStartDate: insp.inspection_start_date,
+            inspectionEndDate: insp.inspection_end_date,
+            inspectionCost: insp.inspection_cost,
+            nextInspectionMileage: insp.next_inspection_mileage,
+            nextInspectionDate: insp.next_inspection_date,
+            notes: insp.notes,
+        })) : [],
         createdAt: vehicle.created_at,
         updatedAt: vehicle.updated_at,
     }));
@@ -59,9 +71,22 @@ export default async function VehiclesPage() {
     }
 
     const totalVehiclesCount = vehicles.length;
-    const leasedCount = vehicles.filter((v) => v.ownershipType === 'leased').length;
-    const ownedCount = totalVehiclesCount - leasedCount;
-    const branchCount = new Set(vehicles.map((v) => v.branchId)).size;
+    
+    // 日本標準時（JST）の本日の日付（YYYY-MM-DD）を取得
+    const today = new Date();
+    const todayStr = new Date(today.getTime() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // 修理中台数（本日時点で修理中の車両数）の集計
+    const inRepairCount = vehicles.filter((v) => 
+        v.inspections.some((insp: any) => 
+            insp.inspectionStartDate && insp.inspectionStartDate <= todayStr &&
+            insp.inspectionEndDate && insp.inspectionEndDate >= todayStr
+        )
+    ).length;
+
+    // 実働可能台数
+    const activeCount = totalVehiclesCount - inRepairCount;
+    
     const notAppliedCount = vehicles.filter((v) => v.isTransportBureauApplied === false).length;
 
     return (
@@ -70,9 +95,8 @@ export default async function VehiclesPage() {
             branches={branches}
             stats={{
                 totalVehiclesCount,
-                leasedCount,
-                ownedCount,
-                branchCount,
+                activeCount,
+                inRepairCount,
                 notAppliedCount
             }}
         />
