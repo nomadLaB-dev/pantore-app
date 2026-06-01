@@ -76,6 +76,8 @@ export default async function VehicleDetailPage({
             description: acc.description,
             severity: acc.severity,
             repairCost: acc.repair_cost,
+            isBodilyInjury: acc.is_bodily_injury,
+            isPropertyDamage: acc.is_property_damage,
         })).sort((a: any, b: any) => new Date(b.accidentDate).getTime() - new Date(a.accidentDate).getTime()),
         mileages: (vehicleResponse.mileages || []).map((m: any) => ({
             id: m.id,

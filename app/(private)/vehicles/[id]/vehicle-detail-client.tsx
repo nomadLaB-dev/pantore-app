@@ -22,6 +22,7 @@ import { NewMileageModal } from '@/components/modals/new-mileage-modal';
 import { MileageHistoryModal } from '@/components/modals/mileage-history-modal';
 import { InspectionModal } from '@/components/modals/inspection-modal';
 import { InspectionHistoryModal } from '@/components/modals/inspection-history-modal';
+import { VehicleAccidentsModal } from '@/components/modals/vehicle-accidents-modal';
 import { cn } from '@/lib/utils';
 
 const severityMap = {
@@ -286,9 +287,11 @@ export function VehicleDetailClient({ vehicle }: { vehicle: any }) {
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [showInspectionModal, setShowInspectionModal] = useState(false);
     const [showInspectionHistoryModal, setShowInspectionHistoryModal] = useState(false);
+    const [showAccidentModal, setShowAccidentModal] = useState(false);
     const [editingInsurance, setEditingInsurance] = useState<any | null>(null);
     const [editingMileage, setEditingMileage] = useState<any | null>(null);
     const [editingInspection, setEditingInspection] = useState<any | null>(null);
+    const [editingAccident, setEditingAccident] = useState<any | null>(null);
 
     const accidents = Array.isArray(vehicle.accidents) ? vehicle.accidents : [];
     const insurances = Array.isArray(vehicle.insurances) ? vehicle.insurances : [];
@@ -465,32 +468,57 @@ export function VehicleDetailClient({ vehicle }: { vehicle: any }) {
                     setShowInspectionModal(true);
                 }}
             />
+            <VehicleAccidentsModal
+                vehicleId={vehicle.id}
+                v_accidentsId={editingAccident?.id || ''}
+                record={editingAccident}
+                open={showAccidentModal}
+                onClose={() => setShowAccidentModal(false)}
+            />
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-orange-500" />
-                        事故履歴
-                        <Badge variant="secondary" className="ml-1">{accidents.length}件</Badge>
-                    </CardTitle>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-base flex items-center gap-2 m-0">
+                            <AlertTriangle className="w-4 h-4 text-orange-500" />
+                            事故履歴
+                            <Badge variant="secondary" className="ml-1">{accidents.length}件</Badge>
+                        </CardTitle>
+                        <Button variant="outline" size="sm" onClick={() => { setEditingAccident(null); setShowAccidentModal(true); }} className="gap-1.5 h-8">
+                            <Plus className="w-3.5 h-3.5" /> 追加
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     {accidents.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-6">事故の記録はありません</p>
                     ) : (
                         <div className="space-y-3">
-                            {accidents.map((acc: any) => (
-                                <div key={acc.id} className="p-4 rounded-xl border border-border space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <CalendarDays className="w-3 h-3" />
-                                            {new Date(acc.accidentDate).toLocaleDateString('ja-JP')}
+                            {accidents.slice(0, 3).map((acc: any) => (
+                                <div key={acc.id} className="p-4 rounded-xl border border-border bg-muted/20 flex items-start justify-between gap-4 group">
+                                    <div className="space-y-1 flex-1">
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                                            <CalendarDays className="w-3.5 h-3.5" />
+                                            <span>
+                                                {acc.accidentDate ? new Date(acc.accidentDate).toLocaleDateString('ja-JP') : '—'}
+                                            </span>
+                                            <span className={`text-xs px-2 py-0.5 rounded font-medium ${severityMap[acc.severity as keyof typeof severityMap].class}`}>
+                                                {severityMap[acc.severity as keyof typeof severityMap].label}
+                                            </span>
                                         </div>
-                                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${severityMap[acc.severity as keyof typeof severityMap].class}`}>
-                                            {severityMap[acc.severity as keyof typeof severityMap].label}
-                                        </span>
+                                        <p className="text-sm font-medium">{acc.description}</p>
                                     </div>
-                                    <p className="text-sm">{acc.description}</p>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs text-brand-500 hover:text-brand-600 h-8 px-2.5"
+                                        onClick={() => {
+                                            setEditingAccident(acc);
+                                            setShowAccidentModal(true);
+                                        }}
+                                    >
+                                        編集
+                                    </Button>
                                 </div>
                             ))}
                         </div>

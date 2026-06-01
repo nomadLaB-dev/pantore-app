@@ -96,7 +96,9 @@ export function InspectionModal({ vehicleId, open, onClose, editingInspection }:
                             onValueChange={(v) => setForm({ ...form, inspection_type: v ?? '' })}
                         >
                             <SelectTrigger>
-                                <SelectValue placeholder="点検区分を選択" />
+                                <SelectValue placeholder="点検区分を選択">
+                                    {form.inspection_type ? InspectionTypeLabel[form.inspection_type as keyof typeof InspectionTypeLabel] : ''}
+                                </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                                 {Object.entries(InspectionTypeLabel).map(([key, label]) => (
@@ -118,7 +120,7 @@ export function InspectionModal({ vehicleId, open, onClose, editingInspection }:
                             />
                         </div>
                         <div>
-                            <label className="text-sm font-medium mb-1.5 block">点検終了日</label>
+                            <label className="text-sm font-medium mb-1.5 block">点検終了日 <span className="text-red-500">*</span></label>
                             <Input
                                 type="date"
                                 value={form.inspection_end_date}
@@ -182,7 +184,7 @@ export function InspectionModal({ vehicleId, open, onClose, editingInspection }:
                         <Button variant="outline" onClick={onClose}>キャンセル</Button>
                         <Button
                             className="bg-brand-500 hover:bg-brand-600 text-white"
-                            disabled={!form.inspection_type || !form.inspection_start_date || mutation.isPending}
+                            disabled={!form.inspection_type || !form.inspection_start_date || !form.inspection_end_date || mutation.isPending}
                             onClick={() => mutation.mutate()}
                         >
                             {mutation.isPending ? '保存中…' : editingInspection ? '更新する' : '追加する'}

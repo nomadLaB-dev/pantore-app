@@ -157,22 +157,106 @@ export async function updateVehicle(id: string, data: any) {
 export async function updateVehiclePurchase(vehicleId: string, purchase: any) {
     const supabase = await createClient();
 
-        const { acquisitionCost, purchaseDate, firstRegistrationDate, bodyType, isNewCar, method } = purchase;
+    const { acquisitionCost, purchaseDate, firstRegistrationDate, bodyType, isNewCar, method } = purchase;
 
-        const { error: pError } = await supabase.from('vehicle_purchases').upsert({
-            vehicle_id: vehicleId,
-            acquisition_cost: acquisitionCost ? parseInt(acquisitionCost, 10) : 0,
-            purchase_date: purchaseDate || new Date().toISOString().split('T')[0],
-            first_registration_date: firstRegistrationDate || null,
-            body_type: bodyType || 'passenger_standard',
-            is_new_car: isNewCar !== undefined ? Boolean(isNewCar) : true,
-            method: method || 'straight',
-            updated_at: new Date().toISOString()
-        }, { onConflict: 'vehicle_id' });
+    const { error: pError } = await supabase.from('vehicle_purchases').upsert({
+        vehicle_id: vehicleId,
+        acquisition_cost: acquisitionCost ? parseInt(acquisitionCost, 10) : 0,
+        purchase_date: purchaseDate || new Date().toISOString().split('T')[0],
+        first_registration_date: firstRegistrationDate || null,
+        body_type: bodyType || 'passenger_standard',
+        is_new_car: isNewCar !== undefined ? Boolean(isNewCar) : true,
+        method: method || 'straight',
+        updated_at: new Date().toISOString()
+    }, { onConflict: 'vehicle_id' });
 
     if (pError) throw pError;
 
     revalidatePath('/vehicles');
     revalidatePath(`/vehicles/${vehicleId}`);
+    return { success: true };
+}
+
+export async function createVehicleAccident(vehicleId: string, data: any) {
+    const supabase = await createClient();
+
+    // Get current user for auth check
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw new Error('Unauthorized');
+
+    const payload = {
+        vehicle_id: vehicleId,
+        accident_date: data.accident_date,
+        description: data.description,
+        severity: data.severity || 'low',
+        repair_cost: data.repair_cost ? parseInt(data.repair_cost, 10) : null,
+        is_bodily_injury: data.is_bodily_injury !== undefined ? Boolean(data.is_bodily_injury) : false,
+        is_property_damage: data.is_property_damage !== undefined ? Boolean(data.is_property_damage) : false,
+    };
+
+    const { data: accident, error } = await supabase
+        .from('vehicle_accidents')
+        .insert(payload)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Failed to create vehicle accident:', error);
+        throw error;
+    }
+
+    revalidatePath(`/vehicles/${vehicleId}`);
+    revalidatePath('/vehicles');
+    return accident;
+}
+
+export async function updateVehicleAccident(vehicleId: string, accidentId: string, data: any) {
+    const supabase = await createClient();
+
+    // Get current user for auth check
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw new Error('Unauthorized');
+
+    const payload = {
+        accident_date: data.accident_date,
+        description: data.description,
+        severity: data.severity || 'low',
+        repair_cost: data.repair_cost ? parseInt(data.repair_cost, 10) : null,
+        is_bodily_injury: data.is_bodily_injury !== undefined ? Boolean(data.is_bodily_injury) : false,
+        is_property_damage: data.is_property_damage !== undefined ? Boolean(data.is_property_damage) : false,
+        updated_at: new Date().toISOString()
+    };
+
+    const { data: accident, error } = await supabase
+        .from('vehicle_accidents')
+        .update(payload)
+        .eq('id', accidentId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Failed to update vehicle accident:', error);
+        throw error;
+    }
+
+    revalidatePath(`/vehicles/${vehicleId}`);
+    revalidatePath('/vehicles');
+    return accident;
+}
+
+export async function deleteAccidents(vehicleId: string, accidentsId: string) {
+    const supabase = await createClient();
+    const { error } = await supabase
+        .from('vehicle_accidents')
+        .delete()
+        .eq('id', accidentsId);
+
+    if (error) {
+        console.error('Error deleting accidents:', error);
+        throw error;
+    }
+
+    revalidatePath(`/vehicles/${vehicleId}`);
+    revalidatePath('/vehicles');
     return { success: true };
 }
