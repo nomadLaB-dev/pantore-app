@@ -78,10 +78,17 @@ export default async function RealEstatesPage() {
         };
     });
 
+    const today = new Date();
     const stats = {
         totalEstates: estates.length,
-        leasedCount: estates.filter((e: any) => e.ownershipType === 'leased').length,
-        ownedCount: estates.filter((e: any) => e.ownershipType === 'owned').length
+        notAppliedCount: estates.filter((e: any) => e.officeRegistrationStatus === 'not_applied').length,
+        aboutToExpireCount: estates.filter((e: any) => {
+            if (!e.contract?.endDate) return false;
+            const endDate = new Date(e.contract.endDate);
+            const diffTime = endDate.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays <= 90;
+        }).length
     };
 
     const masters = {

@@ -222,7 +222,7 @@ export function NewRealEstateModal({ open, onClose, masters }: Props) {
                                     <Input type="date" value={form.contract.startDate} onChange={(e) => setForm({ ...form, contract: { ...form.contract, startDate: e.target.value } })} />
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium mb-1.5 block">契約終了日</label>
+                                    <label className="text-sm font-medium mb-1.5 block">契約終了日 <span className="text-red-500">*</span></label>
                                     <Input type="date" value={form.contract.endDate} onChange={(e) => setForm({ ...form, contract: { ...form.contract, endDate: e.target.value } })} />
                                 </div>
                             </div>
@@ -347,7 +347,7 @@ export function NewRealEstateModal({ open, onClose, masters }: Props) {
                     <Button variant="outline" onClick={onClose}>キャンセル</Button>
                     <Button
                         className="bg-brand-500 hover:bg-brand-600 text-white"
-                        disabled={!form.name || !form.address || (form.ownershipType === 'leased' && (!form.contract.monthlyRent || !form.contract.startDate)) || isPending}
+                        disabled={!form.name || !form.address || (form.ownershipType === 'leased' && (!form.contract.monthlyRent || !form.contract.startDate || !form.contract.endDate)) || isPending}
                         onClick={onSubmit}
                     >
                         {isPending ? '保存中…' : '登録する'}

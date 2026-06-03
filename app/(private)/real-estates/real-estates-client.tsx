@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Building2, Plus, MapPin, FileText } from 'lucide-react';
+import { Building2, Plus, MapPin, FileText, MessageCircleCheck, RotateCcw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,8 +12,8 @@ interface RealEstatesClientProps {
     estates: any[];
     stats: {
         totalEstates: number;
-        leasedCount: number;
-        ownedCount: number;
+        notAppliedCount: number;
+        aboutToExpireCount: number;
     };
     masters: {
         tenants: { id: string; name: string }[];
@@ -35,6 +35,15 @@ const regStatusMap: Record<string, string> = {
     'not_applied': '未申請',
     'not_required': '申請不要',
     'applied': '申請済み'
+};
+
+const isAboutToExpire = (endDateStr: string | null | undefined) => {
+    if (!endDateStr) return false;
+    const endDate = new Date(endDateStr);
+    const today = new Date();
+    const diffTime = endDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays <= 90;
 };
 
 export function RealEstatesClient({ estates, stats, masters }: RealEstatesClientProps) {
@@ -59,14 +68,17 @@ export function RealEstatesClient({ estates, stats, masters }: RealEstatesClient
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4">
                 {[
-                    { label: '管理物件数', value: stats.totalEstates },
-                    { label: '賃借', value: stats.leasedCount },
-                    { label: '自社保有', value: stats.ownedCount },
+                    { label: '管理物件', value: stats.totalEstates, icon: Building2, color: 'text-brand-500' },
+                    { label: '未申請', value: stats.notAppliedCount, icon: MessageCircleCheck, color: 'text-red-500' },
+                    { label: 'そろそろ更新', value: stats.aboutToExpireCount, icon: RotateCcw, color: 'text-green-600' },
                 ].map((s) => (
                     <Card key={s.label}>
-                        <CardContent className="pt-5 pb-4">
-                            <p className="text-xs text-muted-foreground">{s.label}</p>
-                            <p className="text-2xl font-bold">{s.value}</p>
+                        <CardContent className="pt-5 pb-4 flex items-center gap-3">
+                            <s.icon className={`w-8 h-8 ${s.color} shrink-0`} />
+                            <div>
+                                <p className="text-xs text-muted-foreground">{s.label}</p>
+                                <p className="text-2xl font-bold">{s.value}</p>
+                            </div>
                         </CardContent>
                     </Card>
                 ))}
@@ -83,7 +95,15 @@ export function RealEstatesClient({ estates, stats, masters }: RealEstatesClient
                                         <Building2 className="w-5 h-5 text-muted-foreground" />
                                     </div>
                                     <div>
-                                        <CardTitle className="text-base">{e.name}</CardTitle>
+                                        <CardTitle className="text-base flex items-center gap-1.5">
+                                            <span>{e.name}</span>
+                                            {e.officeRegistrationStatus === 'not_applied' && (
+                                                <MessageCircleCheck className="w-4 h-4 text-red-500 shrink-0" />
+                                            )}
+                                            {isAboutToExpire(e.contract?.endDate) && (
+                                                <RotateCcw className="w-4 h-4 text-green-600 shrink-0" />
+                                            )}
+                                        </CardTitle>
                                         <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                                             <MapPin className="w-3 h-3" />{e.address}
                                         </p>
