@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Building2, Plus, MapPin, FileText, MessageCircleCheck, RotateCcw } from 'lucide-react';
+import { Building2, Plus, MapPin, FileText, RotateCcw, MessageCircleWarning } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,7 +69,7 @@ export function RealEstatesClient({ estates, stats, masters }: RealEstatesClient
             <div className="grid grid-cols-3 gap-4">
                 {[
                     { label: '管理物件', value: stats.totalEstates, icon: Building2, color: 'text-brand-500' },
-                    { label: '未申請', value: stats.notAppliedCount, icon: MessageCircleCheck, color: 'text-red-500' },
+                    { label: '未申請', value: stats.notAppliedCount, icon: MessageCircleWarning, color: 'text-red-500' },
                     { label: 'そろそろ更新', value: stats.aboutToExpireCount, icon: RotateCcw, color: 'text-green-600' },
                 ].map((s) => (
                     <Card key={s.label}>
@@ -98,7 +98,7 @@ export function RealEstatesClient({ estates, stats, masters }: RealEstatesClient
                                         <CardTitle className="text-base flex items-center gap-1.5">
                                             <span>{e.name}</span>
                                             {e.officeRegistrationStatus === 'not_applied' && (
-                                                <MessageCircleCheck className="w-4 h-4 text-red-500 shrink-0" />
+                                                <MessageCircleWarning className="w-4 h-4 text-red-500 shrink-0" />
                                             )}
                                             {isAboutToExpire(e.contract?.endDate) && (
                                                 <RotateCcw className="w-4 h-4 text-green-600 shrink-0" />
