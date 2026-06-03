@@ -10,18 +10,58 @@ interface Props {
     open: boolean;
     onClose: () => void;
     estate: any;
+    masters: {
+        tenants: { id: string; name: string }[];
+        branches: { id: string; name: string }[];
+        usageTypes: string[];
+        registrationStatuses: string[];
+    };
 }
 
-export function EditRealEstateModal({ open, onClose, estate }: Props) {
+const usageTypeLabels: Record<string, string> = {
+    'office': '事務所',
+    'commercial_office': 'オフィス',
+    'warehouse': '倉庫',
+    'parking_lot': '駐車場',
+    'other': 'その他'
+};
+
+const regStatusLabels: Record<string, string> = {
+    'not_applied': '未申請',
+    'not_required': '申請不要',
+    'applied': '申請済み'
+};
+
+export function EditRealEstateModal({ open, onClose, estate, masters }: Props) {
     const [form, setForm] = useState({
+        tenantId: '',
+        branchesId: 'none',
+        officeRegistrationStatus: 'not_applied',
         name: '',
         address: '',
         ownershipType: 'leased',
-        usageType: 'オフィス',
+        usageType: 'office',
         floorArea: '',
         contract: {
             monthlyRent: '',
             landlord: '',
+            startDate: '',
+            endDate: ''
+        },
+        restFacility: {
+            isAttachedToOffice: true,
+            address: '',
+            landlord: '',
+            monthlyRent: '',
+            startDate: '',
+            endDate: ''
+        },
+        garage: {
+            isAttachedToOffice: true,
+            address: '',
+            landlord: '',
+            monthlyRent: '',
+            capacity: '',
             startDate: '',
             endDate: ''
         }
@@ -30,10 +70,13 @@ export function EditRealEstateModal({ open, onClose, estate }: Props) {
     useEffect(() => {
         if (estate) {
             setForm({
+                tenantId: estate.tenantId || '',
+                branchesId: estate.branchesId || 'none',
+                officeRegistrationStatus: estate.officeRegistrationStatus || 'not_applied',
                 name: estate.name || '',
                 address: estate.address || '',
                 ownershipType: estate.ownershipType || 'leased',
-                usageType: estate.usages?.[0]?.type || 'オフィス',
+                usageType: estate.usages?.[0]?.type || 'office',
                 floorArea: estate.usages?.[0]?.floorArea ? String(estate.usages[0].floorArea) : '',
                 contract: estate.contract ? {
                     monthlyRent: estate.contract.monthlyRent ? String(estate.contract.monthlyRent) : '',
@@ -43,6 +86,38 @@ export function EditRealEstateModal({ open, onClose, estate }: Props) {
                 } : {
                     monthlyRent: '',
                     landlord: '',
+                    startDate: '',
+                    endDate: ''
+                },
+                restFacility: estate.restFacility ? {
+                    isAttachedToOffice: estate.restFacility.isAttachedToOffice,
+                    address: estate.restFacility.address || '',
+                    landlord: estate.restFacility.landlord || '',
+                    monthlyRent: estate.restFacility.monthlyRent ? String(estate.restFacility.monthlyRent) : '',
+                    startDate: estate.restFacility.startDate || '',
+                    endDate: estate.restFacility.endDate || ''
+                } : {
+                    isAttachedToOffice: true,
+                    address: '',
+                    landlord: '',
+                    monthlyRent: '',
+                    startDate: '',
+                    endDate: ''
+                },
+                garage: estate.garage ? {
+                    isAttachedToOffice: estate.garage.isAttachedToOffice,
+                    address: estate.garage.address || '',
+                    landlord: estate.garage.landlord || '',
+                    monthlyRent: estate.garage.monthlyRent ? String(estate.garage.monthlyRent) : '',
+                    capacity: estate.garage.capacity ? String(estate.garage.capacity) : '',
+                    startDate: estate.garage.startDate || '',
+                    endDate: estate.garage.endDate || ''
+                } : {
+                    isAttachedToOffice: true,
+                    address: '',
+                    landlord: '',
+                    monthlyRent: '',
+                    capacity: '',
                     startDate: '',
                     endDate: ''
                 }
@@ -56,7 +131,11 @@ export function EditRealEstateModal({ open, onClose, estate }: Props) {
         if (!estate) return;
         startTransition(async () => {
             try {
-                await updateRealEstate(estate.id, form);
+                const submitData = {
+                    ...form,
+                    branchesId: form.branchesId === 'none' ? null : form.branchesId
+                };
+                await updateRealEstate(estate.id, submitData);
                 onClose();
             } catch (err) {
                 console.error("Failed to update real estate", err);
@@ -82,7 +161,7 @@ export function EditRealEstateModal({ open, onClose, estate }: Props) {
 
     return (
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-            <DialogContent className="sm:max-w-md h-[90vh] sm:h-auto overflow-y-auto">
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>不動産の編集</DialogTitle>
                 </DialogHeader>
@@ -95,14 +174,19 @@ export function EditRealEstateModal({ open, onClose, estate }: Props) {
                         <label className="text-sm font-medium mb-1.5 block">住所 <span className="text-red-500">*</span></label>
                         <Input placeholder="東京都新宿区西新宿2-8-1" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
                     </div>
+
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-sm font-medium mb-1.5 block">利用用途</label>
                             <Select value={form.usageType} onValueChange={set('usageType')}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger>
+                                    <SelectValue>
+                                        {usageTypeLabels[form.usageType] || form.usageType}
+                                    </SelectValue>
+                                </SelectTrigger>
                                 <SelectContent>
-                                    {['オフィス', '倉庫', '駐車場', '店舗', 'その他'].map((t) => (
-                                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                                    {masters.usageTypes.map((t) => (
+                                        <SelectItem key={t} value={t}>{usageTypeLabels[t] || t}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -112,15 +196,67 @@ export function EditRealEstateModal({ open, onClose, estate }: Props) {
                             <Input type="number" placeholder="100" value={form.floorArea} onChange={(e) => setForm({ ...form, floorArea: e.target.value })} />
                         </div>
                     </div>
-                    <div>
-                        <label className="text-sm font-medium mb-1.5 block">保有形態</label>
-                        <Select value={form.ownershipType} onValueChange={set('ownershipType')}>
-                            <SelectTrigger><SelectValue placeholder="選択">{form.ownershipType === 'owned' ? '自社保有' : form.ownershipType === 'leased' ? '賃借' : ''}</SelectValue></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="leased">賃借</SelectItem>
-                                <SelectItem value="owned">自社保有</SelectItem>
-                            </SelectContent>
-                        </Select>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">会社</label>
+                            <Select value={form.tenantId} onValueChange={set('tenantId')}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="会社を選択">
+                                        {masters.tenants.find((t) => t.id === form.tenantId)?.name || '会社を選択'}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {masters.tenants.map((t) => (
+                                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">支社</label>
+                            <Select value={form.branchesId} onValueChange={set('branchesId')}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="支社を選択">
+                                        {form.branchesId === 'none' ? '選択なし' : (masters.branches.find((b) => b.id === form.branchesId)?.name || '支社を選択')}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">選択なし</SelectItem>
+                                    {masters.branches.map((b) => (
+                                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">保有形態</label>
+                            <Select value={form.ownershipType} onValueChange={set('ownershipType')}>
+                                <SelectTrigger><SelectValue placeholder="選択">{form.ownershipType === 'owned' ? '自社保有' : form.ownershipType === 'leased' ? '賃借' : ''}</SelectValue></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="leased">賃借</SelectItem>
+                                    <SelectItem value="owned">自社保有</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">申請ステータス</label>
+                            <Select value={form.officeRegistrationStatus} onValueChange={set('officeRegistrationStatus')}>
+                                <SelectTrigger>
+                                    <SelectValue>
+                                        {regStatusLabels[form.officeRegistrationStatus] || form.officeRegistrationStatus}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {masters.registrationStatuses.map((s) => (
+                                        <SelectItem key={s} value={s}>{regStatusLabels[s] || s}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
                     {form.ownershipType === 'leased' && (
@@ -148,6 +284,120 @@ export function EditRealEstateModal({ open, onClose, estate }: Props) {
                             </div>
                         </div>
                     )}
+
+                    {/* 休憩所情報（利用用途が事務所 office の場合のみ表示） */}
+                    {form.usageType === 'office' && (
+                        <div className="pt-4 border-t border-border space-y-4">
+                            <h4 className="text-sm font-semibold text-brand-600">休憩所情報</h4>
+                            <div className="flex items-center">
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={form.restFacility.isAttachedToOffice}
+                                        onChange={(e) => setForm({
+                                            ...form,
+                                            restFacility: { ...form.restFacility, isAttachedToOffice: e.target.checked }
+                                        })}
+                                    />
+                                    <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-500"></div>
+                                    <span className="ml-2 text-sm font-medium text-muted-foreground">事務所と同じ</span>
+                                </label>
+                            </div>
+
+                            {!form.restFacility.isAttachedToOffice && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-sm font-medium mb-1.5 block">住所</label>
+                                        <Input placeholder="住所を入力" value={form.restFacility.address} onChange={(e) => setForm({ ...form, restFacility: { ...form.restFacility, address: e.target.value } })} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-sm font-medium mb-1.5 block">家主・貸主</label>
+                                            <Input placeholder="家主・貸主名" value={form.restFacility.landlord} onChange={(e) => setForm({ ...form, restFacility: { ...form.restFacility, landlord: e.target.value } })} />
+                                        </div>
+                                        <div>
+                                            <label className="text-sm font-medium mb-1.5 block">月額 (円)</label>
+                                            <Input type="number" placeholder="月額" value={form.restFacility.monthlyRent} onChange={(e) => setForm({ ...form, restFacility: { ...form.restFacility, monthlyRent: e.target.value } })} />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-sm font-medium mb-1.5 block">契約開始日</label>
+                                            <Input type="date" value={form.restFacility.startDate} onChange={(e) => setForm({ ...form, restFacility: { ...form.restFacility, startDate: e.target.value } })} />
+                                        </div>
+                                        <div>
+                                            <label className="text-sm font-medium mb-1.5 block">契約終了日</label>
+                                            <Input type="date" value={form.restFacility.endDate} onChange={(e) => setForm({ ...form, restFacility: { ...form.restFacility, endDate: e.target.value } })} />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* 駐車場情報（利用用途が事務所 office の場合のみ表示） */}
+                    {form.usageType === 'office' && (
+                        <div className="pt-4 border-t border-border space-y-4">
+                            <h4 className="text-sm font-semibold text-brand-600">駐車場情報</h4>
+                            <div className="flex items-center justify-between gap-4">
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={form.garage.isAttachedToOffice}
+                                        onChange={(e) => setForm({
+                                            ...form,
+                                            garage: { ...form.garage, isAttachedToOffice: e.target.checked }
+                                        })}
+                                    />
+                                    <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-500"></div>
+                                    <span className="ml-2 text-sm font-medium text-muted-foreground">事務所と同じ</span>
+                                </label>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <label className="text-sm font-medium text-muted-foreground">収容台数</label>
+                                    <Input
+                                        type="number"
+                                        placeholder="5"
+                                        className="w-20 h-8"
+                                        value={form.garage.capacity}
+                                        onChange={(e) => setForm({ ...form, garage: { ...form.garage, capacity: e.target.value } })}
+                                    />
+                                </div>
+                            </div>
+
+                            {!form.garage.isAttachedToOffice && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-sm font-medium mb-1.5 block">住所</label>
+                                        <Input placeholder="住所を入力" value={form.garage.address} onChange={(e) => setForm({ ...form, garage: { ...form.garage, address: e.target.value } })} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-sm font-medium mb-1.5 block">家主・貸主</label>
+                                            <Input placeholder="家主・貸主名" value={form.garage.landlord} onChange={(e) => setForm({ ...form, garage: { ...form.garage, landlord: e.target.value } })} />
+                                        </div>
+                                        <div>
+                                            <label className="text-sm font-medium mb-1.5 block">月額 (円)</label>
+                                            <Input type="number" placeholder="月額" value={form.garage.monthlyRent} onChange={(e) => setForm({ ...form, garage: { ...form.garage, monthlyRent: e.target.value } })} />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-sm font-medium mb-1.5 block">契約開始日</label>
+                                            <Input type="date" value={form.garage.startDate} onChange={(e) => setForm({ ...form, garage: { ...form.garage, startDate: e.target.value } })} />
+                                        </div>
+                                        <div>
+                                            <label className="text-sm font-medium mb-1.5 block">契約終了日</label>
+                                            <Input type="date" value={form.garage.endDate} onChange={(e) => setForm({ ...form, garage: { ...form.garage, endDate: e.target.value } })} />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                 </div>
                 <DialogFooter className="mt-2 flex-col sm:flex-row gap-2">
                     <Button variant="destructive" onClick={onDelete} disabled={isPending} className="sm:mr-auto">削除</Button>

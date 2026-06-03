@@ -9,27 +9,27 @@ export async function createRealEstate(data: any) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error('Unauthorized');
 
-    const { data: employee, error: empError } = await supabase
-        .from('employees')
-        .select('tenant_id')
-        .eq('user_id', user.id)
-        .single();
-    if (empError || !employee) throw new Error('Employee not found');
-
     const {
+        tenantId,
+        branchesId,
+        officeRegistrationStatus,
         name,
         address,
         ownershipType,
         usageType,
         floorArea,
-        contract
+        contract,
+        restFacility,
+        garage
     } = data;
 
     // 1. Insert real estate
     const { data: estate, error: reError } = await supabase
         .from('real_estates')
         .insert({
-            tenant_id: employee.tenant_id,
+            tenant_id: tenantId,
+            branches_id: branchesId || null,
+            office_registration_status: officeRegistrationStatus || 'not_applied',
             name,
             address,
             ownership_type: ownershipType
@@ -63,6 +63,50 @@ export async function createRealEstate(data: any) {
         if (cError) console.error('Failed to insert contract info:', cError);
     }
 
+    // 4. Insert rest facility if usage is office
+    if (usageType === 'office' && restFacility) {
+        const isAttached = restFacility.isAttachedToOffice;
+        const fAddress = isAttached ? address : restFacility.address;
+        const fLandlord = isAttached ? (contract?.landlord || '') : (restFacility.landlord || '');
+        const fRent = isAttached ? 0 : (restFacility.monthlyRent ? parseInt(restFacility.monthlyRent, 10) : 0);
+        const fStart = isAttached ? (contract?.startDate || null) : (restFacility.startDate || null);
+        const fEnd = isAttached ? (contract?.endDate || null) : (restFacility.endDate || null);
+
+        const { error: rfError } = await supabase.from('real_estates_rest_facilities').insert({
+            real_estate_id: estate.id,
+            is_attached_to_office: isAttached,
+            address: fAddress,
+            landlord: fLandlord,
+            monthly_rent: fRent,
+            start_date: fStart,
+            end_date: fEnd
+        });
+        if (rfError) console.error('Failed to insert rest facility info:', rfError);
+    }
+
+    // 5. Insert garage if usage is office
+    if (usageType === 'office' && garage) {
+        const isAttached = garage.isAttachedToOffice;
+        const gAddress = isAttached ? address : garage.address;
+        const gLandlord = isAttached ? (contract?.landlord || '') : (garage.landlord || '');
+        const gRent = isAttached ? 0 : (garage.monthlyRent ? parseInt(garage.monthlyRent, 10) : 0);
+        const gStart = isAttached ? (contract?.startDate || null) : (garage.startDate || null);
+        const gEnd = isAttached ? (contract?.endDate || null) : (garage.endDate || null);
+        const gCapacity = garage.capacity ? parseInt(garage.capacity, 10) : null;
+
+        const { error: gError } = await supabase.from('real_estates_garages').insert({
+            real_estate_id: estate.id,
+            is_attached_to_office: isAttached,
+            address: gAddress,
+            landlord: gLandlord,
+            monthly_rent: gRent,
+            start_date: gStart,
+            end_date: gEnd,
+            capacity: gCapacity
+        });
+        if (gError) console.error('Failed to insert garage info:', gError);
+    }
+
     revalidatePath('/real-estates');
     return estate;
 }
@@ -71,18 +115,26 @@ export async function updateRealEstate(id: string, data: any) {
     const supabase = await createClient();
 
     const {
+        tenantId,
+        branchesId,
+        officeRegistrationStatus,
         name,
         address,
         ownershipType,
         usageType,
         floorArea,
-        contract
+        contract,
+        restFacility,
+        garage
     } = data;
 
     // 1. Update real estate
     const { error: reError } = await supabase
         .from('real_estates')
         .update({
+            tenant_id: tenantId,
+            branches_id: branchesId || null,
+            office_registration_status: officeRegistrationStatus,
             name,
             address,
             ownership_type: ownershipType,
@@ -92,10 +144,8 @@ export async function updateRealEstate(id: string, data: any) {
 
     if (reError) throw reError;
 
-    // 2. Update usage info (assuming 1-to-1 usage for simplicity per modal design)
+    // 2. Update usage info
     if (usageType) {
-        // Since we didn't specify UNIQUE on real_estate_id for usages (though logically we could have),
-        // we'll delete and re-insert if multiple exist, or just use delete-insert.
         await supabase.from('real_estate_usages').delete().eq('real_estate_id', id);
         await supabase.from('real_estate_usages').insert({
             real_estate_id: id,
@@ -120,6 +170,52 @@ export async function updateRealEstate(id: string, data: any) {
         }
     } else if (ownershipType === 'owned') {
         await supabase.from('real_estate_contracts').delete().eq('real_estate_id', id);
+    }
+
+    // 4. Update rest facility info
+    await supabase.from('real_estates_rest_facilities').delete().eq('real_estate_id', id);
+    if (usageType === 'office' && restFacility) {
+        const isAttached = restFacility.isAttachedToOffice;
+        const fAddress = isAttached ? address : restFacility.address;
+        const fLandlord = isAttached ? (contract?.landlord || '') : (restFacility.landlord || '');
+        const fRent = isAttached ? 0 : (restFacility.monthlyRent ? parseInt(restFacility.monthlyRent, 10) : 0);
+        const fStart = isAttached ? (contract?.startDate || null) : (restFacility.startDate || null);
+        const fEnd = isAttached ? (contract?.endDate || null) : (restFacility.endDate || null);
+
+        const { error: rfError } = await supabase.from('real_estates_rest_facilities').insert({
+            real_estate_id: id,
+            is_attached_to_office: isAttached,
+            address: fAddress,
+            landlord: fLandlord,
+            monthly_rent: fRent,
+            start_date: fStart,
+            end_date: fEnd
+        });
+        if (rfError) console.error('Failed to insert rest facility info on update:', rfError);
+    }
+
+    // 5. Update garage info
+    await supabase.from('real_estates_garages').delete().eq('real_estate_id', id);
+    if (usageType === 'office' && garage) {
+        const isAttached = garage.isAttachedToOffice;
+        const gAddress = isAttached ? address : garage.address;
+        const gLandlord = isAttached ? (contract?.landlord || '') : (garage.landlord || '');
+        const gRent = isAttached ? 0 : (garage.monthlyRent ? parseInt(garage.monthlyRent, 10) : 0);
+        const gStart = isAttached ? (contract?.startDate || null) : (garage.startDate || null);
+        const gEnd = isAttached ? (contract?.endDate || null) : (garage.endDate || null);
+        const gCapacity = garage.capacity ? parseInt(garage.capacity, 10) : null;
+
+        const { error: gError } = await supabase.from('real_estates_garages').insert({
+            real_estate_id: id,
+            is_attached_to_office: isAttached,
+            address: gAddress,
+            landlord: gLandlord,
+            monthly_rent: gRent,
+            start_date: gStart,
+            end_date: gEnd,
+            capacity: gCapacity
+        });
+        if (gError) console.error('Failed to insert garage info on update:', gError);
     }
 
     revalidatePath('/real-estates');

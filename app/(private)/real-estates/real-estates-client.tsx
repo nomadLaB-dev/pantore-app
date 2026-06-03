@@ -15,9 +15,29 @@ interface RealEstatesClientProps {
         leasedCount: number;
         ownedCount: number;
     };
+    masters: {
+        tenants: { id: string; name: string }[];
+        branches: { id: string; name: string }[];
+        usageTypes: string[];
+        registrationStatuses: string[];
+    };
 }
 
-export function RealEstatesClient({ estates, stats }: RealEstatesClientProps) {
+const usageTypeMap: Record<string, string> = {
+    'office': '事務所',
+    'commercial_office': 'オフィス',
+    'warehouse': '倉庫',
+    'parking_lot': '駐車場',
+    'other': 'その他'
+};
+
+const regStatusMap: Record<string, string> = {
+    'not_applied': '未申請',
+    'not_required': '申請不要',
+    'applied': '申請済み'
+};
+
+export function RealEstatesClient({ estates, stats, masters }: RealEstatesClientProps) {
     const [showNewModal, setShowNewModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [selectedEstate, setSelectedEstate] = useState<any>(null);
@@ -32,8 +52,8 @@ export function RealEstatesClient({ estates, stats }: RealEstatesClientProps) {
                 <Button className="bg-brand-500 hover:bg-brand-600 text-white gap-2" onClick={() => setShowNewModal(true)}>
                     <Plus className="w-4 h-4" /> 新規登録
                 </Button>
-                <NewRealEstateModal open={showNewModal} onClose={() => setShowNewModal(false)} />
-                <EditRealEstateModal open={showEditModal} onClose={() => { setShowEditModal(false); setSelectedEstate(null); }} estate={selectedEstate} />
+                <NewRealEstateModal open={showNewModal} onClose={() => setShowNewModal(false)} masters={masters} />
+                <EditRealEstateModal open={showEditModal} onClose={() => { setShowEditModal(false); setSelectedEstate(null); }} estate={selectedEstate} masters={masters} />
             </div>
 
             {/* Stats */}
@@ -67,17 +87,29 @@ export function RealEstatesClient({ estates, stats }: RealEstatesClientProps) {
                                         <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                                             <MapPin className="w-3 h-3" />{e.address}
                                         </p>
+                                        <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1 text-[11px] text-muted-foreground">
+                                            <span>会社: {masters.tenants.find(t => t.id === e.tenantId)?.name || '未設定'}</span>
+                                            <span>•</span>
+                                            <span>支社: {masters.branches.find(b => b.id === e.branchesId)?.name || '未設定'}</span>
+                                        </div>
                                     </div>
                                 </div>
-                                <Badge variant={e.ownershipType === 'leased' ? 'secondary' : 'outline'}>
-                                    {e.ownershipType === 'leased' ? '賃借' : '自社保有'}
-                                </Badge>
+                                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                    <Badge variant={e.ownershipType === 'leased' ? 'secondary' : 'outline'}>
+                                        {e.ownershipType === 'leased' ? '賃借' : '自社保有'}
+                                    </Badge>
+                                    {e.officeRegistrationStatus && (
+                                        <Badge variant={e.officeRegistrationStatus === 'applied' ? 'default' : 'outline'} className={e.officeRegistrationStatus === 'applied' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}>
+                                            {regStatusMap[e.officeRegistrationStatus] || e.officeRegistrationStatus}
+                                        </Badge>
+                                    )}
+                                </div>
                             </div>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {e.usages.map((u: any) => (
                                 <div key={u.id} className="bg-muted/50 rounded-lg p-3 text-sm flex justify-between">
-                                    <span className="text-muted-foreground">{u.type}</span>
+                                    <span className="text-muted-foreground">{usageTypeMap[u.type] || u.type}</span>
                                     <span className="font-medium">{u.floorArea} m²</span>
                                 </div>
                             ))}
