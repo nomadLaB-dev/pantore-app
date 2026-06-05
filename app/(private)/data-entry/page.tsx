@@ -67,6 +67,7 @@ export default function DataEntry() {
     const editingCellRef = useRef<[number, number] | null>(null);
     const isFetchingGmailRef = useRef(false);
     const [isFetchingGmail, setIsFetchingGmail] = useState(false);
+    const tenantIdRef = useRef<string | null>(null);
 
     useEffect(() => {
         tabDataRef.current = tabData;
@@ -108,12 +109,13 @@ export default function DataEntry() {
         for (const row of incoming) {
             const match = existingRows.find((e: any) => (row.uid && e.uid === row.uid) || (row.id && e.id === row.id));
             const dbRow = {
-                collect_date: row.collectDate || '', area: row.area || '', system_type: row.systemType || '',
+                tenant_id: tenantIdRef.current,
+                collect_date: row.collectDate || null, area: row.area || '', system_type: row.systemType || '',
                 collect_time: row.collectTime || '', uid: row.uid || '', facility_name: row.facilityName || '',
                 delivery_type: row.deliveryType || '', base: row.base || '', facility_code: row.facilityCode || '',
-                visit_place: row.visitPlace || '', trial_name: row.trialName || '', request_date: row.requestDate || '',
+                visit_place: row.visitPlace || '', trial_name: row.trialName || '', request_date: row.requestDate || null,
                 request_time: row.requestTime || '', service: row.service || '', con_no: row.conNo || '',
-                box_count: row.boxCount || '', request: row.request || '', courier_code: row.courierCode || '',
+                box_count: row.boxCount ? Number(row.boxCount) : null, request: row.request || '', courier_code: row.courierCode || '',
                 courier_name: row.courierName || '', reference: row.reference || '', rev: row.rev || '', note: row.note || '',
             };
             if (match) { toUpdate.push({ id: (match as any).id, ...dbRow }); }
@@ -139,18 +141,18 @@ export default function DataEntry() {
             setTabData(cleared);
             setHistory([cleared]);
             historyIdx.current = 0;
-            await supabase.from('data_entry_drafts').upsert({ id: 'global', state_json: cleared, updated_at: new Date().toISOString() });
+            await supabase.from('data_entry_drafts').upsert({ id: 'global', tenant_id: tenantIdRef.current, state_json: cleared, updated_at: new Date().toISOString() });
         }
     };
 
     const handleDraftSave = async () => {
         if (document.activeElement?.tagName === 'TEXTAREA') (document.activeElement as HTMLElement).blur();
-        await supabase.from('data_entry_drafts').upsert({ id: 'global', state_json: tabDataRef.current, updated_at: new Date().toISOString() });
+        await supabase.from('data_entry_drafts').upsert({ id: 'global', tenant_id: tenantIdRef.current, state_json: tabDataRef.current, updated_at: new Date().toISOString() });
         alert('一時保存しました。');
     };
 
     const handleSave = async () => {
-        await supabase.from('data_entry_drafts').upsert({ id: 'global', state_json: tabData, updated_at: new Date().toISOString() });
+        await supabase.from('data_entry_drafts').upsert({ id: 'global', tenant_id: tenantIdRef.current, state_json: tabData, updated_at: new Date().toISOString() });
         await saveSchedulesToDb(tabData, true);
     };
 
@@ -195,6 +197,11 @@ export default function DataEntry() {
     useEffect(() => {
         const initData = async () => {
             try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    const { data: emp } = await supabase.from('employees').select('tenant_id').eq('user_id', user.id).single();
+                    if (emp?.tenant_id) tenantIdRef.current = emp.tenant_id;
+                }
                 const { data: draftData } = await supabase.from('data_entry_drafts').select('state_json').eq('id', 'global').single();
                 if (draftData?.state_json) {
                     const loaded = draftData.state_json as Record<string, string[][]>;
@@ -247,7 +254,7 @@ export default function DataEntry() {
                 if (document.activeElement?.tagName === 'TEXTAREA') (document.activeElement as HTMLElement).blur();
                 setTimeout(async () => {
                     const td = tabDataRef.current;
-                    await supabase.from('data_entry_drafts').upsert({ id: 'global', state_json: td, updated_at: new Date().toISOString() });
+                    await supabase.from('data_entry_drafts').upsert({ id: 'global', tenant_id: tenantIdRef.current, state_json: td, updated_at: new Date().toISOString() });
                     await saveSchedulesToDb(td, true);
                 }, 50);
             }
