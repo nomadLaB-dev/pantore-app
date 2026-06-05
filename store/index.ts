@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { User, Branch } from '@/types';
+import { User, Branch, SpecimenRole } from '@/types';
 
 interface AppState {
     currentUser: User | null;
@@ -10,6 +10,8 @@ interface AppState {
     toggleSidebar: () => void;
     branches: Branch[];
     setBranches: (branches: Branch[]) => void;
+    specimenRole: SpecimenRole | null;
+    setSpecimenRole: (role: SpecimenRole | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -21,4 +23,6 @@ export const useAppStore = create<AppState>((set) => ({
     toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
     branches: [],
     setBranches: (branches) => set({ branches }),
+    specimenRole: null,
+    setSpecimenRole: (role) => set({ specimenRole: role }),
 }));

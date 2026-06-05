@@ -286,6 +286,104 @@ export interface Deal {
     createdAt: Date;
 }
 
+// ============================================================
+// SpecimenDX 統合型定義
+// ============================================================
+
+export type SpecimenRole = 'admin' | 'staff' | 'base' | 'driver';
+
+export type ScheduleSystemType = 'M' | 'Q' | 'IP' | 'I' | 'F';
+
+export type AttendanceStatus = 'not_started' | 'working' | 'on_break' | 'finished';
+
+export const AttendanceStatusLabel: Record<AttendanceStatus, string> = {
+    not_started: '未出勤',
+    working: '勤務中',
+    on_break: '休憩中',
+    finished: '退勤済',
+};
+
+export interface ScheduleRow {
+    id: string;
+    systemType: ScheduleSystemType;
+    deliveryType: string;
+    uid: string;
+    collectDate: string;
+    collectTime: string;
+    area: string;
+    base: string;
+    facilityCode: string;
+    facilityName: string;
+    visitPlace: string;
+    trialName: string;
+    requestDate: string;
+    requestTime: string;
+    service: string;
+    conNo: string;
+    boxCount: string;
+    request: string;
+    courierCode: string;
+    courierName: string;
+    reference: string;
+    rev: string;
+    note: string;
+}
+
+export interface AttendanceRecord {
+    id: string;
+    tenantId: string;
+    employeeId: string;
+    status: AttendanceStatus;
+    time: string | null;
+    lastUpdated: string;
+}
+
+export interface Facility {
+    id: string;
+    tenantId: string;
+    facility: string;
+    area: string | null;
+    locationName: string | null;
+    address: string | null;
+    createdAt: string;
+}
+
+export interface DeliveryArea {
+    id: string;
+    tenantId: string;
+    name: string;
+    description: string | null;
+}
+
+export interface Courier {
+    id: string;
+    tenantId: string;
+    area: string | null;
+    name: string;
+    url: string | null;
+}
+
+export interface UserPreference {
+    employeeId: string;
+    scheduleVisibleColumns: string[] | null;
+    updatedAt: string;
+}
+
+export interface Driver {
+    id: string;
+    name: string;
+    lat: number;
+    lng: number;
+    status: 'driving' | 'stopped' | 'offline';
+    speed: number;
+    lastUpdated: string;
+    stopDuration?: number;
+}
+
+// ============================================================
+// 点検区分 (inspection_type) の型定義
+// ============================================================
+
 // 点検区分 (inspection_type) の型定義
 export type InspectionType =
     | 'vehicle_inspection'

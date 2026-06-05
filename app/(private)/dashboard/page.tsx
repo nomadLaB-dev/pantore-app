@@ -1,13 +1,87 @@
 'use client';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Users, Car, Building2, ChevronRight, UserCheck } from 'lucide-react';
+import { AlertTriangle, Users, Car, Building2, ChevronRight, UserCheck, PlayCircle, Coffee, RefreshCw, CheckSquare } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FIXED_TERM_CATEGORIES } from '@/types';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/store';
+import { createClient } from '@/lib/supabase/client';
+import type { AttendanceStatus } from '@/types';
+
+function DriverDashboard() {
+    const supabase = createClient();
+    const [status, setStatus] = useState<AttendanceStatus>('not_started');
+    const [updating, setUpdating] = useState(false);
+
+    const statusConfig: Record<AttendanceStatus, { label: string; next: AttendanceStatus; nextLabel: string; color: string; icon: React.ElementType }> = {
+        not_started: { label: '未出勤', next: 'working', nextLabel: '出勤する', color: 'bg-slate-100 text-slate-700', icon: PlayCircle },
+        working: { label: '勤務中', next: 'on_break', nextLabel: '休憩する', color: 'bg-green-100 text-green-700', icon: Coffee },
+        on_break: { label: '休憩中', next: 'working', nextLabel: '業務再開', color: 'bg-amber-100 text-amber-700', icon: RefreshCw },
+        finished: { label: '退勤済', next: 'finished', nextLabel: '退勤完了', color: 'bg-blue-100 text-blue-700', icon: CheckSquare },
+    };
+
+    const current = statusConfig[status];
+
+    const handleStatusChange = async (nextStatus: AttendanceStatus) => {
+        setUpdating(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const { data: emp } = await supabase.from('employees').select('id, tenant_id').eq('user_id', user.id).single();
+            if (!emp) return;
+            await supabase.from('attendance_records').upsert({
+                employee_id: emp.id,
+                tenant_id: emp.tenant_id,
+                status: nextStatus,
+                time: new Date().toISOString(),
+                last_updated: new Date().toISOString(),
+            }, { onConflict: 'employee_id' });
+            setStatus(nextStatus);
+        } finally { setUpdating(false); }
+    };
+
+    return (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base font-semibold">出勤タイムカード</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col items-center gap-6 py-8">
+                    <div className={`px-6 py-3 rounded-full text-lg font-bold ${current.color}`}>
+                        {current.label}
+                    </div>
+                    <div className="flex gap-3 flex-wrap justify-center">
+                        {status !== 'finished' && (
+                            <button
+                                onClick={() => handleStatusChange(current.next)}
+                                disabled={updating}
+                                className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-xl font-semibold text-base hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-md"
+                            >
+                                <current.icon size={18} />
+                                {current.nextLabel}
+                            </button>
+                        )}
+                        {status === 'working' && (
+                            <button
+                                onClick={() => handleStatusChange('finished')}
+                                disabled={updating}
+                                className="flex items-center gap-2 px-8 py-3 bg-slate-700 text-white rounded-xl font-semibold text-base hover:bg-slate-800 disabled:opacity-50 transition-colors shadow-md"
+                            >
+                                <CheckSquare size={18} />
+                                退勤する
+                            </button>
+                        )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</p>
+                </CardContent>
+            </Card>
+        </motion.div>
+    );
+}
 
 function DaysLeftBadge({ days }: { days: number }) {
     if (days <= 30) return <span className="text-xs font-bold text-red-600 dark:text-red-400">残り{days}日</span>;
@@ -44,6 +118,7 @@ function isCurrentEmployee(employee: any) {
 }
 
 export default function DashboardPage() {
+    const { specimenRole } = useAppStore();
     const [selectedAreaId, setSelectedAreaId] = useState<string>('10');
     const [selectedVehicleAreaId, setSelectedVehicleAreaId] = useState<string>('10');
 
@@ -360,6 +435,31 @@ export default function DashboardPage() {
                     </CardContent>
                 </Card>
             </motion.div>
+
+            {/* 検体システム: ドライバー打刻カード */}
+            {specimenRole === 'driver' && <DriverDashboard />}
+
+            {/* 検体システム: スタッフ・拠点 クイックリンク */}
+            {(specimenRole === 'staff' || specimenRole === 'base') && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mt-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base font-semibold">検体管理 クイックリンク</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex flex-wrap gap-3">
+                            <Link href="/schedules" className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl font-semibold text-sm hover:bg-blue-100 transition-colors">
+                                スケジュール一覧
+                            </Link>
+                            <Link href="/data-entry" className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-semibold text-sm hover:bg-slate-100 transition-colors">
+                                データ入力
+                            </Link>
+                            <Link href="/attendance" className="flex items-center gap-2 px-4 py-2.5 bg-green-50 text-green-700 border border-green-200 rounded-xl font-semibold text-sm hover:bg-green-100 transition-colors">
+                                出勤管理
+                            </Link>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
         </div>
     );
 }

@@ -4,12 +4,14 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
     Layers, LayoutDashboard, Users, Car, Building2, ShieldCheck,
     Building, CreditCard, Settings2, LogOut, UserCircle,
-    Handshake, BookUser,
+    Handshake, BookUser, CalendarDays, FlaskConical, TableIcon,
+    Clock, MapPin, UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
+import type { SpecimenRole } from '@/types';
 
-const navItems = [
+const erpNavItems = [
     { name: 'ダッシュボード', href: '/dashboard', icon: LayoutDashboard },
     { name: '社員管理', href: '/employees', icon: Users },
     { name: '車両管理', href: '/vehicles', icon: Car },
@@ -21,6 +23,15 @@ const navItems = [
 const dealNavItems = [
     { name: '取引管理', href: '/deals', icon: Handshake },
     { name: '取引先', href: '/clients', icon: BookUser },
+];
+
+const specimenNavItems = [
+    { name: 'スケジュール', href: '/schedules', icon: CalendarDays },
+    { name: '検体一覧', href: '/specimens', icon: FlaskConical },
+    { name: 'データ入力', href: '/data-entry', icon: TableIcon },
+    { name: '出勤管理', href: '/attendance', icon: Clock },
+    { name: 'CIAM', href: '/ciam', icon: MapPin },
+    { name: 'ユーザー管理', href: '/users', icon: UserCog },
 ];
 
 const MOCK_SESSION = {
@@ -123,7 +134,15 @@ function UserMenu() {
     );
 }
 
-export default function Sidebar({ tenantName, branchName }: { tenantName?: string; branchName?: string }) {
+export default function Sidebar({
+    tenantName,
+    branchName,
+    specimenRole,
+}: {
+    tenantName?: string;
+    branchName?: string;
+    specimenRole?: SpecimenRole;
+}) {
     const pathname = usePathname();
     const isAdmin = MOCK_SESSION.role === 'admin';
 
@@ -132,14 +151,11 @@ export default function Sidebar({ tenantName, branchName }: { tenantName?: strin
 
             {/* ── Logo / hero banner ───────────────────────────────── */}
             <div className="relative h-24 shrink-0 overflow-hidden">
-                {/* Bakery image */}
                 <div
                     className="absolute inset-0 bg-cover bg-center"
                     style={{ backgroundImage: 'url(/hero-bakery.png)', backgroundPosition: 'center 35%' }}
                 />
-                {/* Amber gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-b from-amber-950/30 via-amber-950/60 to-amber-950" />
-                {/* Logo */}
                 <Link
                     href="/dashboard"
                     className="absolute bottom-3 left-4 flex items-center gap-2.5 group"
@@ -169,7 +185,10 @@ export default function Sidebar({ tenantName, branchName }: { tenantName?: strin
 
             {/* ── Nav ──────────────────────────────────────────────── */}
             <nav className="flex-1 py-2 px-3 space-y-0.5 overflow-y-auto">
-                {navItems.map((item) => (
+
+                {/* ERP管理 */}
+                <SectionLabel label="ERP管理" />
+                {erpNavItems.map((item) => (
                     <NavLink key={item.href} item={item} pathname={pathname} />
                 ))}
 
@@ -182,6 +201,16 @@ export default function Sidebar({ tenantName, branchName }: { tenantName?: strin
                     <>
                         <SectionLabel label="管理者専用" />
                         <NavLink item={{ name: '設定', href: '/settings', icon: Settings2 }} pathname={pathname} />
+                    </>
+                )}
+
+                {/* 検体管理（specimen_role があるユーザーのみ） */}
+                {specimenRole && (
+                    <>
+                        <SectionLabel label="検体管理" />
+                        {specimenNavItems.map((item) => (
+                            <NavLink key={item.href} item={item} pathname={pathname} />
+                        ))}
                     </>
                 )}
             </nav>
