@@ -40,7 +40,7 @@ CREATE POLICY "schedules_tenant_isolation" ON schedules
 CREATE TABLE IF NOT EXISTS attendance_records (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  employee_id uuid NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  employee_id text NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
   status text NOT NULL CHECK (status IN ('not_started', 'working', 'on_break', 'finished')),
   time timestamptz,
   last_updated timestamptz NOT NULL DEFAULT now(),
@@ -101,7 +101,7 @@ CREATE POLICY "settings_couriers_tenant_isolation" ON settings_couriers
 
 -- ユーザー設定（スケジュール列表示設定など）
 CREATE TABLE IF NOT EXISTS user_preferences (
-  employee_id uuid PRIMARY KEY REFERENCES employees(id) ON DELETE CASCADE,
+  employee_id text PRIMARY KEY REFERENCES employees(id) ON DELETE CASCADE,
   schedule_visible_columns jsonb,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
