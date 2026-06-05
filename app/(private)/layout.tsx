@@ -18,7 +18,7 @@ export default async function PrivateLayout({ children }: { children: React.Reac
 
     const { data: employee } = await supabase
         .from('employees')
-        .select('tenant_id, branch_id, specimen_role')
+        .select('tenant_id, branch_id, specimen_role, name, email')
         .eq('user_id', user.id)
         .single();
 
@@ -44,9 +44,13 @@ export default async function PrivateLayout({ children }: { children: React.Reac
         }
     }
 
+    const currentUser = employee
+        ? { name: employee.name, email: employee.email }
+        : { name: user.email ?? '', email: user.email ?? '' };
+
     return (
         <div className="min-h-screen bg-background flex">
-            <Sidebar tenantName={tenantName} branchName={branchName} specimenRole={specimenRole} />
+            <Sidebar tenantName={tenantName} branchName={branchName} specimenRole={specimenRole} currentUser={currentUser} />
             <div className="flex-1 flex flex-col min-w-0">
                 <Header />
                 <main className="flex-1 overflow-auto p-5 md:p-7">{children}</main>

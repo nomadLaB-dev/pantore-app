@@ -18,6 +18,14 @@ const erpNavItems = [
     { name: '不動産管理', href: '/real-estates', icon: Building2 },
     { name: 'サブスク管理', href: '/subscriptions', icon: CreditCard },
     { name: '契約管理', href: '/contracts', icon: ShieldCheck },
+    { name: '検体一覧', href: '/specimens', icon: FlaskConical },
+    { name: '出勤管理', href: '/attendance', icon: Clock },
+];
+
+const specimenNavItems = [
+    { name: 'スケジュール', href: '/schedules', icon: CalendarDays },
+    { name: 'データ入力', href: '/data-entry', icon: TableIcon },
+
 ];
 
 const dealNavItems = [
@@ -25,23 +33,8 @@ const dealNavItems = [
     { name: '取引先', href: '/clients', icon: BookUser },
 ];
 
-const specimenNavItems = [
-    { name: 'スケジュール', href: '/schedules', icon: CalendarDays },
-    { name: '検体一覧', href: '/specimens', icon: FlaskConical },
-    { name: 'データ入力', href: '/data-entry', icon: TableIcon },
-    { name: '出勤管理', href: '/attendance', icon: Clock },
-    { name: 'CIAM', href: '/ciam', icon: MapPin },
-    { name: 'ユーザー管理', href: '/users', icon: UserCog },
-];
 
-const MOCK_SESSION = {
-    name: '山田 太郎',
-    email: 'taro.yamada@pantore.test',
-    tenant: 'Pantore 株式会社',
-    role: 'admin' as 'admin' | 'member',
-    roleLabel: '管理者',
-    avatarInitial: '山',
-};
+
 
 function NavLink({ item, pathname }: { item: { name: string; href: string; icon: React.ElementType }; pathname: string }) {
     const isActive = pathname.startsWith(item.href);
@@ -70,7 +63,7 @@ function SectionLabel({ label }: { label: string }) {
     );
 }
 
-function UserMenu() {
+function UserMenu({ name, email }: { name: string; email: string }) {
     const router = useRouter();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
@@ -93,8 +86,8 @@ function UserMenu() {
             {open && (
                 <div className="absolute bottom-full left-3 right-3 mb-1 bg-amber-950 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
                     <div className="px-4 py-3 border-b border-white/10">
-                        <p className="text-sm font-semibold text-amber-100 truncate">{MOCK_SESSION.name}</p>
-                        <p className="text-xs text-amber-300/60 truncate">{MOCK_SESSION.email}</p>
+                        <p className="text-sm font-semibold text-amber-100 truncate">{name}</p>
+                        <p className="text-xs text-amber-300/60 truncate">{email}</p>
                     </div>
                     <div className="py-1">
                         <Link
@@ -122,11 +115,11 @@ function UserMenu() {
                 )}
             >
                 <div className="w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center text-amber-950 text-sm font-bold shrink-0">
-                    {MOCK_SESSION.avatarInitial}
+                    {name.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0 text-left">
-                    <p className="text-sm font-medium text-amber-100 truncate">{MOCK_SESSION.name}</p>
-                    <p className="text-[11px] text-amber-300/60 truncate">{MOCK_SESSION.roleLabel}</p>
+                    <p className="text-sm font-medium text-amber-100 truncate">{name}</p>
+                    <p className="text-[11px] text-amber-300/60 truncate">{email}</p>
                 </div>
                 <Settings2 className="w-3.5 h-3.5 text-amber-300/40 shrink-0" />
             </button>
@@ -138,13 +131,16 @@ export default function Sidebar({
     tenantName,
     branchName,
     specimenRole,
+    currentUser,
+    isAdmin = true,
 }: {
     tenantName?: string;
     branchName?: string;
     specimenRole?: SpecimenRole;
+    currentUser?: { name: string; email: string };
+    isAdmin?: boolean;
 }) {
     const pathname = usePathname();
-    const isAdmin = MOCK_SESSION.role === 'admin';
 
     return (
         <aside className="w-64 shrink-0 h-screen flex flex-col sticky top-0 z-20 hidden lg:flex bg-amber-950">
@@ -177,7 +173,7 @@ export default function Sidebar({
                         <Building className="w-3.5 h-3.5 text-amber-300" />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-amber-100 truncate">{tenantName || MOCK_SESSION.tenant}</p>
+                        <p className="text-xs font-semibold text-amber-100 truncate">{tenantName}</p>
                         <p className="text-[10px] text-amber-300/50 truncate">{branchName || 'テナント'}</p>
                     </div>
                 </div>
@@ -185,6 +181,16 @@ export default function Sidebar({
 
             {/* ── Nav ──────────────────────────────────────────────── */}
             <nav className="flex-1 py-2 px-3 space-y-0.5 overflow-y-auto">
+
+                {/* 検体管理（specimen_role があるユーザーのみ） */}
+                {specimenRole && (
+                    <>
+                        <SectionLabel label="検体管理" />
+                        {specimenNavItems.map((item) => (
+                            <NavLink key={item.href} item={item} pathname={pathname} />
+                        ))}
+                    </>
+                )}
 
                 {/* ERP管理 */}
                 <SectionLabel label="ERP管理" />
@@ -201,22 +207,13 @@ export default function Sidebar({
                     <>
                         <SectionLabel label="管理者専用" />
                         <NavLink item={{ name: '設定', href: '/settings', icon: Settings2 }} pathname={pathname} />
-                    </>
-                )}
-
-                {/* 検体管理（specimen_role があるユーザーのみ） */}
-                {specimenRole && (
-                    <>
-                        <SectionLabel label="検体管理" />
-                        {specimenNavItems.map((item) => (
-                            <NavLink key={item.href} item={item} pathname={pathname} />
-                        ))}
+                        <NavLink item={{ name: 'ユーザー管理', href: '/users', icon: UserCog }} pathname={pathname} />
                     </>
                 )}
             </nav>
 
             {/* ── User menu ────────────────────────────────────────── */}
-            <UserMenu />
+            <UserMenu name={currentUser?.name ?? ''} email={currentUser?.email ?? ''} />
         </aside>
     );
 }
