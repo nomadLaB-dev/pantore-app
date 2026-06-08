@@ -248,3 +248,22 @@ body {
 }
 .region-tab:hover { background: rgba(255, 255, 255, 0.05); color: #f8fafc; }
 .region-tab.active { background: #3b82f6; color: #fff; border-color: #2563eb; box-shadow: 0 0 12px rgba(59, 130, 246, 0.5); }
+
+/* Sidebar scrollbar */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(251, 191, 36, 0.2) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 3px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(251, 191, 36, 0.2);
+  border-radius: 9999px;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(251, 191, 36, 0.4);
+}

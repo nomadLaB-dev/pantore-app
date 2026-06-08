@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Sidebar from '@/components/sidebar';
 import { createClient } from '@/lib/supabase/client';
+import { useAppStore } from '@/store';
 import type { SpecimenRole } from '@/types';
 import type { ReactNode } from 'react';
 
@@ -16,6 +17,7 @@ type LayoutData = {
 
 export default function PrivateLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const setSpecimenRole = useAppStore((s) => s.setSpecimenRole);
   const [loading, setLoading] = useState(true);
   const [layoutData, setLayoutData] = useState<LayoutData | null>(null);
 
@@ -65,6 +67,7 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
         ? { name: employee.name, email: employee.email }
         : { name: user.email ?? '', email: user.email ?? '' };
 
+      setSpecimenRole(specimenRole ?? null);
       setLayoutData({ tenantName, branchName, specimenRole, currentUser });
       setLoading(false);
     };
