@@ -5,7 +5,7 @@ import {
     Layers, LayoutDashboard, Users, Car, Building2, ShieldCheck,
     Building, CreditCard, Settings2, LogOut, UserCircle,
     Handshake, BookUser, CalendarDays, FlaskConical, TableIcon,
-    Clock, MapPin, UserCog, Bell, Sun, Moon,
+    Clock, MapPin, Bell, Sun, Moon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
@@ -15,7 +15,7 @@ import type { SpecimenRole } from '@/types';
 
 const erpNavItems = [
     { name: 'ダッシュボード', href: '/dashboard', icon: LayoutDashboard },
-    { name: '社員管理', href: '/employees', icon: Users },
+    { name: 'ユーザー管理', href: '/users', icon: Users },
     { name: '車両管理', href: '/vehicles', icon: Car },
     { name: '不動産管理', href: '/real-estates', icon: Building2 },
     { name: 'サブスク管理', href: '/subscriptions', icon: CreditCard },
@@ -202,7 +202,7 @@ export default function Sidebar({
                 {/* 検体管理（specimen_role があるユーザーのみ） */}
                 {specimenRole && (
                     <>
-                        <SectionLabel label="検体管理" />
+                        <SectionLabel label="予定管理" />
                         {specimenNavItems.map((item) => (
                             <NavLink key={item.href} item={item} pathname={pathname} />
                         ))}
@@ -224,7 +224,6 @@ export default function Sidebar({
                     <>
                         <SectionLabel label="管理者専用" />
                         <NavLink item={{ name: '設定', href: '/settings', icon: Settings2 }} pathname={pathname} />
-                        <NavLink item={{ name: 'ユーザー管理', href: '/users', icon: UserCog }} pathname={pathname} />
                     </>
                 )}
             </nav>

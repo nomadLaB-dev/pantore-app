@@ -100,7 +100,7 @@ function DriverActivityOverview() {
         queryKey: ['driver-activity'],
         queryFn: async () => {
             const [driverRes, attendanceRes] = await Promise.all([
-                supabase.from('employees').select('id, name').eq('specimen_role', 'driver').order('name'),
+                supabase.from('users').select('id, name').eq('specimen_role', 'driver').order('name'),
                 supabase.from('attendance_records').select('employee_id, status, last_updated'),
             ]);
             return { drivers: driverRes.data ?? [], attendance: attendanceRes.data ?? [] };
@@ -197,7 +197,7 @@ function DriverDashboard() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
-            const { data: emp } = await supabase.from('employees').select('id, tenant_id').eq('user_id', user.id).single();
+            const { data: emp } = await supabase.from('users').select('id, tenant_id').eq('user_id', user.id).single();
             if (!emp) return;
             await supabase.from('attendance_records').upsert({
                 employee_id: emp.id,
@@ -290,8 +290,8 @@ export default function DashboardPage() {
     const [selectedVehicleAreaId, setSelectedVehicleAreaId] = useState<string>('10');
 
     const { data: employees = [] } = useQuery<any[]>({
-        queryKey: ['employees', { includeArchived: true }],
-        queryFn: async () => (await fetch('/api/employees?includeArchived=true')).json(),
+        queryKey: ['users', { includeArchived: true }],
+        queryFn: async () => (await fetch('/api/users?includeArchived=true')).json(),
     });
     const { data: vehicles = [] } = useQuery<any[]>({
         queryKey: ['vehicles'],
@@ -415,14 +415,14 @@ export default function DashboardPage() {
                                             {expiringEmployees.length}件
                                         </span>
                                     </CardTitle>
-                                    <Link href="/employees" className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-0.5">
+                                    <Link href="/users" className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-0.5">
                                         社員一覧 <ChevronRight className="w-3 h-3" />
                                     </Link>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="divide-y divide-border">
                                         {expiringEmployees.map((e: any) => (
-                                            <Link key={e.id} href={`/employees/${e.id}`} className="flex items-center justify-between py-3 gap-3 hover:bg-muted/40 -mx-2 px-2 rounded-lg transition-colors">
+                                            <Link key={e.id} href={`/users/${e.id}`} className="flex items-center justify-between py-3 gap-3 hover:bg-muted/40 -mx-2 px-2 rounded-lg transition-colors">
                                                 <div className="flex items-center gap-3 min-w-0">
                                                     <div className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white text-xs font-bold', e.daysLeft <= 30 ? 'bg-red-500' : 'bg-amber-500')}>
                                                         {e.name[0]}

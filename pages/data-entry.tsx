@@ -207,7 +207,7 @@ export default function DataEntry() {
             try {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
-                    const { data: emp } = await supabase.from('employees').select('tenant_id').eq('user_id', user.id).single();
+                    const { data: emp } = await supabase.from('users').select('tenant_id').eq('user_id', user.id).single();
                     if (emp?.tenant_id) tenantIdRef.current = emp.tenant_id;
                 }
                 const { data: draftData } = await supabase.from('data_entry_drafts').select('state_json').eq('id', 'global').single();

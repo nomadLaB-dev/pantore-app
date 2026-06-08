@@ -82,7 +82,7 @@ export function QualificationModal({ employeeId, record, open, onClose }: Props)
     const saveMutation = useMutation({
         mutationFn: async () => {
             setErrorMsg(null);
-            const url = `/api/employees/${employeeId}/qualifications`;
+            const url = `/api/users/${employeeId}/qualifications`;
             const method = isEdit ? 'PUT' : 'POST';
             const res = await fetch(url, {
                 method,

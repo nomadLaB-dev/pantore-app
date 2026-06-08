@@ -62,7 +62,7 @@ export default function AttendancePage() {
 
         const fetchEmployees = async () => {
             const { data } = await supabase
-                .from('employees')
+                .from('users')
                 .select('id, name, specimen_role, user_code')
                 .in('specimen_role', ['driver', 'base']);
             setEmployees((data || []).map((d: any) => ({

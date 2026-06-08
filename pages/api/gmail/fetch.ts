@@ -117,7 +117,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
                 const { data: employee } = await supabase
-                    .from('employees')
+                    .from('users')
                     .select('tenant_id')
                     .eq('user_id', user.id)
                     .single()

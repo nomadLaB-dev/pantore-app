@@ -8,7 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         try {
             const includeArchived = req.query.includeArchived === 'true'
 
-            let query = supabase.from('employees').select(`*, branch:branches(*)`)
+            let query = supabase.from('users').select(`*, branch:branches(*)`)
             if (!includeArchived) query = query.is('leave_date', null)
 
             const { data: employees, error } = await query.order('created_at', { ascending: false })
@@ -33,6 +33,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 currentPrimaryBranch: e.branch,
                 currentAssignmentNote: null,
                 proficiencyRate: e.proficiency_rate,
+                specimenRole: e.specimen_role,
+                userCode: e.user_code,
+                qrToken: e.qr_token,
             }))
 
             return res.status(200).json(result)
@@ -53,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
 
             const { data, error } = await supabase
-                .from('employees')
+                .from('users')
                 .insert({
                     name: body.name,
                     last_name: lastName,
@@ -76,6 +79,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     certification_num: body.certificationNum || null,
                     line_id: body.lineId || null,
                     proficiency_rate: body.proficiencyRate ? Number(body.proficiencyRate) : null,
+                    specimen_role: body.specimenRole || null,
+                    user_code: body.userCode || null,
                 })
                 .select()
                 .single()

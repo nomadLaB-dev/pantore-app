@@ -146,7 +146,7 @@ export default function SubscriptionDetailPage() {
                             {
                                 label: '担当',
                                 value: sub.assignee ? (
-                                    <Link href={`/employees/${sub.assignee.id}`} className="text-brand-500 hover:underline flex items-center gap-1">
+                                    <Link href={`/users/${sub.assignee.id}`} className="text-brand-500 hover:underline flex items-center gap-1">
                                         <User className="w-3 h-3" /> {sub.assignee.name}
                                     </Link>
                                 ) : '未設定',

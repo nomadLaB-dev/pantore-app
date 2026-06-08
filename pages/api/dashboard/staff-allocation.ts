@@ -48,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             const todayStr = new Date(Date.now() + jstOffset).toISOString().split('T')[0]
 
             const { data, error: countError } = await supabase
-                .from('employees')
+                .from('users')
                 .select('branch_id, contracted_hours_per_week_max, proficiency_rate')
                 .in('branch_id', branchIds)
                 .or(`leave_date.is.null,leave_date.gte.${todayStr}`)

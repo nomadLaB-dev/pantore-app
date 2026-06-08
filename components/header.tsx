@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 // Map route → Japanese page title
 const pageTitles: Record<string, string> = {
     '/dashboard': 'ダッシュボード',
-    '/employees': '社員管理',
+    '/users': 'ユーザー管理',
     '/vehicles': '車両管理',
     '/real-estates': '不動産管理',
     '/subscriptions': 'サブスク管理',

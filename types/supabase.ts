@@ -66,7 +66,7 @@ export type Database = {
           },
         ]
       }
-      employees: {
+      users: {
         Row: {
           account_status: string
           branch_id: string | null

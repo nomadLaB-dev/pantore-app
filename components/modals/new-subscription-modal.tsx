@@ -20,8 +20,8 @@ export function NewSubscriptionModal({ open, onClose }: Props) {
     const qc = useQueryClient();
 
     const { data: employees = [] } = useQuery<any[]>({
-        queryKey: ['employees'],
-        queryFn: async () => (await fetch('/api/employees')).json(),
+        queryKey: ['users'],
+        queryFn: async () => (await fetch('/api/users')).json(),
         enabled: open,
     });
 

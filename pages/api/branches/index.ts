@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             if (authError || !user) return res.status(401).json({ error: 'Unauthorized' })
 
             const { data: employee, error: empError } = await supabase
-                .from('employees')
+                .from('users')
                 .select('tenant_id')
                 .eq('user_id', user.id)
                 .single()

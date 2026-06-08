@@ -252,7 +252,7 @@ export default function SchedulesPage() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
             const { data: emp } = await supabase
-                .from('employees').select('id').eq('user_id', user.id).single();
+                .from('users').select('id').eq('user_id', user.id).single();
             if (!emp) return;
             const { data } = await supabase
                 .from('user_preferences')
@@ -274,7 +274,7 @@ export default function SchedulesPage() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
             const { data: emp } = await supabase
-                .from('employees').select('id').eq('user_id', user.id).single();
+                .from('users').select('id').eq('user_id', user.id).single();
             if (!emp) return;
             await supabase.from('user_preferences').upsert({
                 employee_id: emp.id,

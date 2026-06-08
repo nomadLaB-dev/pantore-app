@@ -40,7 +40,7 @@ export default function AssetExport() {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
 
-    const { data: employees = [] } = useQuery<any[]>({ queryKey: ['employees'], queryFn: async () => fetch('/api/employees').then(res => res.json()).then(data => Array.isArray(data) ? data : []) });
+    const { data: employees = [] } = useQuery<any[]>({ queryKey: ['users'], queryFn: async () => fetch('/api/users').then(res => res.json()).then(data => Array.isArray(data) ? data : []) });
     const { data: vehicles = [] } = useQuery<any[]>({ queryKey: ['vehicles'], queryFn: async () => fetch('/api/vehicles').then(res => res.json()).then(data => Array.isArray(data) ? data : []) });
     const { data: realEstates = [] } = useQuery<any[]>({ queryKey: ['real-estates'], queryFn: async () => fetch('/api/real-estates').then(res => res.json()).then(data => Array.isArray(data) ? data : []) });
     const { data: subscriptions = [] } = useQuery<any[]>({ queryKey: ['subscriptions'], queryFn: async () => fetch('/api/subscriptions').then(res => res.json()).then(data => Array.isArray(data) ? data : []) });

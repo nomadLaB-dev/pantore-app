@@ -77,7 +77,7 @@ export function EmploymentHistoryModal({ employeeId, record, open, onClose }: Pr
                 primaryBranchId: form.primaryBranchId || null,
                 assignmentNote: form.assignmentNote || null,
             };
-            const url = `/api/employees/${employeeId}/employment-history` + (isEdit ? `/${record.id}` : '');
+            const url = `/api/users/${employeeId}/employment-history` + (isEdit ? `/${record.id}` : '');
             const method = isEdit ? 'PUT' : 'POST';
             await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         },
@@ -90,7 +90,7 @@ export function EmploymentHistoryModal({ employeeId, record, open, onClose }: Pr
 
     const deleteMutation = useMutation({
         mutationFn: async () => {
-            await fetch(`/api/employees/${employeeId}/employment-history/${record.id}`, { method: 'DELETE' });
+            await fetch(`/api/users/${employeeId}/employment-history/${record.id}`, { method: 'DELETE' });
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['employee_employment_history', employeeId] });

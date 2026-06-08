@@ -49,7 +49,7 @@ function NewDealModal({ open, onClose }: { open: boolean; onClose: () => void })
     const [errors, setErrors] = useState<string[]>([]);
 
     const { data: clients = [] } = useQuery<any[]>({ queryKey: ['clients'], queryFn: async () => (await fetch('/api/clients')).json() });
-    const { data: employees = [] } = useQuery<any[]>({ queryKey: ['employees'], queryFn: async () => (await fetch('/api/employees')).json() });
+    const { data: employees = [] } = useQuery<any[]>({ queryKey: ['users'], queryFn: async () => (await fetch('/api/users')).json() });
 
     const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
         setForm((f) => ({ ...f, [k]: e.target.value }));

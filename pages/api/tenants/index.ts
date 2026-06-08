@@ -20,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
 
             const { data: employee, error: empError } = await supabase
-                .from('employees')
+                .from('users')
                 .select('tenant_id')
                 .eq('user_id', user.id)
                 .single()
@@ -39,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         if (req.method === 'PUT') {
             const { data: employee, error: empError } = await supabase
-                .from('employees')
+                .from('users')
                 .select('tenant_id')
                 .eq('user_id', user.id)
                 .single()

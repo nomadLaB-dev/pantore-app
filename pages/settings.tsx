@@ -92,7 +92,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
   let branches: any[] = []
 
   const { data: employee } = await supabase
-    .from('employees')
+    .from('users')
     .select('tenant_id')
     .eq('user_id', user.id)
     .maybeSingle()

@@ -23,7 +23,7 @@ export default function QRLoginPage() {
 
     const findEmployeeByUserCode = async (userCode: string) => {
         const { data, error } = await supabase
-            .from('employees')
+            .from('users')
             .select('id, email, qr_token')
             .eq('user_code', userCode)
             .single();

@@ -36,7 +36,7 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
       let specimenRole: SpecimenRole | undefined;
 
       const { data: employee } = await supabase
-        .from('employees')
+        .from('users')
         .select('tenant_id, branch_id, specimen_role, name, email')
         .eq('user_id', user.id)
         .maybeSingle();

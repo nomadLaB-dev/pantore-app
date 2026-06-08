@@ -5,11 +5,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { EmploymentCategoryLabel } from '@/types';
+import { EmploymentCategoryLabel, type SpecimenRole } from '@/types';
 
 interface Props { open: boolean; onClose: () => void; employee?: any; showLeaveDate?: boolean; }
 
-const empty = { name: '', name_kana: '', birthDate: '', companyId: '', branchId: '', lineId: '', email: '', tel: '', address: '', emergencyContact: '', hireDate: '', leaveDate: '', category: 'full_time', hourlyRate: '1085', certificationNum: '', invoiceNum: '', weeklyHoursMin: '', weeklyHoursMax: '', proficiencyRate: '' };
+const ROLE_LABEL: Record<SpecimenRole, string> = {
+    admin: '管理者',
+    staff: 'スタッフ',
+    base: '拠点',
+    driver: 'ドライバー',
+};
+
+const empty = { name: '', name_kana: '', birthDate: '', companyId: '', branchId: '', lineId: '', email: '', tel: '', address: '', emergencyContact: '', hireDate: '', leaveDate: '', category: 'full_time', hourlyRate: '1085', certificationNum: '', invoiceNum: '', weeklyHoursMin: '', weeklyHoursMax: '', proficiencyRate: '', specimenRole: '', userCode: '', initialPassword: '' };
 
 export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Props) {
     const qc = useQueryClient();
@@ -68,6 +75,9 @@ export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Pro
                     weeklyHoursMin: employee.weeklyHoursMin ? String(employee.weeklyHoursMin) : '',
                     weeklyHoursMax: employee.weeklyHoursMax ? String(employee.weeklyHoursMax) : '',
                     proficiencyRate: employee.proficiencyRate !== undefined && employee.proficiencyRate !== null ? Number(employee.proficiencyRate).toFixed(1) : '',
+                    specimenRole: employee.specimenRole || '',
+                    userCode: employee.userCode || '',
+                    initialPassword: '',
                 });
             } else {
                 setForm(empty);
@@ -82,9 +92,10 @@ export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Pro
 
     const mutation = useMutation({
         mutationFn: async () => {
-            const url = isEdit ? `/api/employees/${employee.id}` : '/api/employees';
+            const url = isEdit ? `/api/users/${employee.id}` : '/api/users';
             const method = isEdit ? 'PUT' : 'POST';
-            const body = isEdit ? { ...form } : { ...form, leaveDate: null, accountStatus: 'none' };
+            const { initialPassword, ...formForSave } = form;
+            const body = isEdit ? { ...formForSave } : { ...formForSave, leaveDate: null, accountStatus: 'none' };
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
@@ -99,9 +110,17 @@ export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Pro
             if (!isEdit) {
                 const newEmployee = await res.json();
                 if (newEmployee && newEmployee.id) {
+                    if (initialPassword) {
+                        const pwRes = await fetch(`/api/users/${newEmployee.id}/password`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ password: initialPassword }),
+                        });
+                        if (!pwRes.ok) console.error('Failed to set initial password');
+                    }
                     const qualifications = ['ipd', 'inter', 'fedex', 'q_dome', 'mediford'];
                     const promises = qualifications.map(async (q) => {
-                        const qRes = await fetch(`/api/employees/${newEmployee.id}/qualifications`, {
+                        const qRes = await fetch(`/api/users/${newEmployee.id}/qualifications`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -127,7 +146,7 @@ export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Pro
         },
         onSuccess: () => {
             if (isEdit) qc.invalidateQueries({ queryKey: ['employee', employee.id] });
-            qc.invalidateQueries({ queryKey: ['employees'] });
+            qc.invalidateQueries({ queryKey: ['users'] });
             onClose();
             setForm(empty);
         },
@@ -302,6 +321,30 @@ export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Pro
                             </SelectContent>
                         </Select>
                     </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">権限ロール</label>
+                            <Select value={form.specimenRole} onValueChange={set('specimenRole')}>
+                                <SelectTrigger><SelectValue placeholder="なし（ERP専用）">{form.specimenRole ? ROLE_LABEL[form.specimenRole as SpecimenRole] : 'なし（ERP専用）'}</SelectValue></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">なし（ERP専用）</SelectItem>
+                                    {(Object.keys(ROLE_LABEL) as SpecimenRole[]).map((r) => (
+                                        <SelectItem key={r} value={r}>{ROLE_LABEL[r]} ({r})</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">ユーザーコード (例: A0001)</label>
+                            <Input placeholder="A0001" value={form.userCode} onChange={(e) => setForm({ ...form, userCode: e.target.value })} />
+                        </div>
+                    </div>
+                    {!isEdit && (
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">初期パスワード（任意）</label>
+                            <Input type="password" placeholder="設定するとAuthアカウントを同時作成します（8文字以上）" value={form.initialPassword} onChange={(e) => setForm({ ...form, initialPassword: e.target.value })} />
+                        </div>
+                    )}
                 </div>
                 <DialogFooter className="mt-2">
                     <Button variant="outline" onClick={onClose}>キャンセル</Button>

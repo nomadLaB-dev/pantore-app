@@ -6,19 +6,139 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     ArrowLeft, User, Activity, CalendarDays, Edit3,
     UserCheck, UserX, Briefcase, BadgeJapaneseYen, AlertTriangle,
-    CheckCircle2, Clock, Pencil, MapPin, History, Award, Phone, Mail, AtSign
+    CheckCircle2, Clock, Pencil, MapPin, History, Award, Phone, Mail, AtSign,
+    QrCode, KeyRound, ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { EmploymentCategoryLabel, SalaryTypeLabel, AccountStatus, FIXED_TERM_CATEGORIES } from '@/types';
+import { EmploymentCategoryLabel, SalaryTypeLabel, AccountStatus, FIXED_TERM_CATEGORIES, type SpecimenRole } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { EmploymentHistoryModal } from '@/components/modals/employment-history-modal';
 import { WorkloadModal } from '@/components/modals/workload-modal';
 import { QualificationModal } from '@/components/modals/qualification-modal';
 import { NewEmployeeModal } from '@/components/modals/new-employee-modal';
+import { QRModal } from '@/components/modals/qr-modal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/store';
+
+const ROLE_LABEL: Record<SpecimenRole, string> = {
+    admin: '管理者',
+    staff: 'スタッフ',
+    base: '拠点',
+    driver: 'ドライバー',
+};
+
+function AccountRoleCard({ employee, onSaved }: { employee: any; onSaved: () => void }) {
+    const [specimenRole, setSpecimenRole] = useState<string>(employee.specimenRole ?? '');
+    const [userCode, setUserCode] = useState(employee.userCode ?? '');
+    const [savingRole, setSavingRole] = useState(false);
+    const [showQr, setShowQr] = useState(false);
+    const [showPasswordForm, setShowPasswordForm] = useState(false);
+    const [password, setPassword] = useState('');
+    const [savingPassword, setSavingPassword] = useState(false);
+
+    const saveRole = async () => {
+        setSavingRole(true);
+        try {
+            const res = await fetch(`/api/users/${employee.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ specimenRole: specimenRole || null, userCode: userCode || null }),
+            });
+            if (!res.ok) throw new Error('保存に失敗しました');
+            onSaved();
+        } catch (e: any) {
+            alert(e.message);
+        } finally { setSavingRole(false); }
+    };
+
+    const savePassword = async () => {
+        if (password.length < 8) { alert('パスワードは8文字以上で入力してください。'); return; }
+        setSavingPassword(true);
+        try {
+            const res = await fetch(`/api/users/${employee.id}/password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'パスワードの設定に失敗しました');
+            setPassword('');
+            setShowPasswordForm(false);
+            onSaved();
+            alert('パスワードを設定しました。');
+        } catch (e: any) {
+            alert(e.message);
+        } finally { setSavingPassword(false); }
+    };
+
+    return (
+        <Card>
+            {showQr && (
+                <QRModal
+                    user={{ id: employee.id, name: employee.name, user_code: userCode || null, qr_token: employee.qrToken ?? null }}
+                    onClose={() => setShowQr(false)}
+                    onRegenerate={() => { onSaved(); setShowQr(false); }}
+                />
+            )}
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> アカウント・権限</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-sm font-medium mb-1.5 block">権限ロール</label>
+                        <select
+                            value={specimenRole}
+                            onChange={(e) => setSpecimenRole(e.target.value)}
+                            className="w-full h-9 px-3 border border-input rounded-md text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                            <option value="">なし（ERP専用）</option>
+                            {(Object.keys(ROLE_LABEL) as SpecimenRole[]).map((r) => (
+                                <option key={r} value={r}>{ROLE_LABEL[r]} ({r})</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium mb-1.5 block">ユーザーコード (例: A0001)</label>
+                        <input
+                            type="text"
+                            value={userCode}
+                            onChange={(e) => setUserCode(e.target.value)}
+                            placeholder="A0001"
+                            className="w-full h-9 px-3 border border-input rounded-md text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                    </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" onClick={saveRole} disabled={savingRole}>{savingRole ? '保存中...' : '権限を保存する'}</Button>
+                    {userCode && employee.qrToken && (
+                        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowQr(true)}>
+                            <QrCode className="w-4 h-4" /> QRコード
+                        </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowPasswordForm((v) => !v)}>
+                        <KeyRound className="w-4 h-4" /> パスワードを設定/再設定
+                    </Button>
+                </div>
+                {showPasswordForm && (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 pt-2 border-t border-border">
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="新しいパスワード（8文字以上）"
+                            className="flex-1 h-9 px-3 border border-input rounded-md text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                        <Button size="sm" onClick={savePassword} disabled={savingPassword}>{savingPassword ? '設定中...' : '設定する'}</Button>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
 
 const categoryColors: Record<string, string> = {
     full_time: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
@@ -75,6 +195,9 @@ function formatSalary(amount: number | null, type: string | null) {
 
 export default function EmployeeDetailPage() {
     const { id } = useRouter().query;
+    const specimenRole = useAppStore((s) => s.specimenRole);
+    const canView = specimenRole === 'admin' || specimenRole === 'staff';
+    const canEdit = specimenRole === 'admin';
     const [activeTab, setActiveTab] = useState<TabId>('workload');
     const queryClient = useQueryClient();
 
@@ -87,7 +210,7 @@ export default function EmployeeDetailPage() {
     const { data: employee, isLoading } = useQuery<any>({
         queryKey: ['employee', id],
         queryFn: async () => {
-            const res = await fetch(`/api/employees/${id}`);
+            const res = await fetch(`/api/users/${id}`);
             if (!res.ok) {
                 if (res.status === 404) return null;
                 throw new Error('社員データの取得に失敗しました');
@@ -98,22 +221,22 @@ export default function EmployeeDetailPage() {
 
     const { data: workloads = [] } = useQuery<any[]>({
         queryKey: ['employee_workloads', id],
-        queryFn: async () => (await fetch(`/api/employees/${id}/workloads`)).json(),
+        queryFn: async () => (await fetch(`/api/users/${id}/workloads`)).json(),
     });
 
     const { data: employmentHistory = [] } = useQuery<any[]>({
         queryKey: ['employee_employment_history', id],
-        queryFn: async () => (await fetch(`/api/employees/${id}/employment-history`)).json(),
+        queryFn: async () => (await fetch(`/api/users/${id}/employment-history`)).json(),
     });
 
     const { data: qualifications = [] } = useQuery<any[]>({
         queryKey: ['employee_qualifications', id],
-        queryFn: async () => (await fetch(`/api/employees/${id}/qualifications`)).json(),
+        queryFn: async () => (await fetch(`/api/users/${id}/qualifications`)).json(),
     });
 
     const statusMutation = useMutation({
         mutationFn: async (status: AccountStatus) => {
-            await fetch(`/api/employees/${id}`, {
+            await fetch(`/api/users/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ accountStatus: status }),
@@ -122,6 +245,7 @@ export default function EmployeeDetailPage() {
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['employee', id] }),
     });
 
+    if (!canView) return <div className="p-8 text-center text-muted-foreground">このページを表示する権限がありません。</div>;
     if (isLoading) return <div className="p-8 text-center text-muted-foreground">読み込み中...</div>;
     if (!employee) return <div className="p-8 text-center text-muted-foreground">社員が見つかりません。</div>;
 
@@ -137,7 +261,7 @@ export default function EmployeeDetailPage() {
 
     return (
         <div className="max-w-5xl mx-auto space-y-6">
-            <Link href="/employees" className="inline-flex items-center text-sm text-muted-foreground hover:text-brand-500 transition-colors">
+            <Link href="/users" className="inline-flex items-center text-sm text-muted-foreground hover:text-brand-500 transition-colors">
                 <ArrowLeft className="w-4 h-4 mr-1.5" /> 社員一覧へ戻る
             </Link>
 
@@ -165,12 +289,14 @@ export default function EmployeeDetailPage() {
             {/* Profile header */}
             <Card>
                 <CardContent className="pt-6 flex flex-col sm:flex-row items-start gap-6 relative">
-                    <button
-                        onClick={() => setEditModalOpen(true)}
-                        className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-brand-500 hover:bg-muted rounded-xl transition-colors hidden sm:block"
-                    >
-                        <Edit3 className="w-4 h-4" />
-                    </button>
+                    {canEdit && (
+                        <button
+                            onClick={() => setEditModalOpen(true)}
+                            className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-brand-500 hover:bg-muted rounded-xl transition-colors hidden sm:block"
+                        >
+                            <Edit3 className="w-4 h-4" />
+                        </button>
+                    )}
 
                     <div className="w-16 h-16 rounded-full bg-muted border-4 border-background shadow-md flex items-center justify-center shrink-0">
                         <User className="w-8 h-8 text-muted-foreground" />
@@ -246,7 +372,7 @@ export default function EmployeeDetailPage() {
                             </div>
                         </div>
 
-                        {!employee.leaveDate && (
+                        {canEdit && !employee.leaveDate && (
                             <div className="flex gap-2 mt-4">
                                 {employee.accountStatus !== 'active' ? (
                                     <Button size="sm" className="gap-2 bg-green-500 hover:bg-green-600 text-white" onClick={() => statusMutation.mutate('active')} disabled={statusMutation.isPending}>
@@ -262,6 +388,10 @@ export default function EmployeeDetailPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            {canEdit && (
+                <AccountRoleCard employee={employee} onSaved={() => queryClient.invalidateQueries({ queryKey: ['employee', id] })} />
+            )}
 
             {/* Tabs */}
             <Card>
@@ -289,7 +419,7 @@ export default function EmployeeDetailPage() {
                         <div className="space-y-3">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-semibold">稼働履歴（人月）</h3>
-                                <Button size="sm" variant="outline" onClick={() => setWorkloadModal({ open: true })}>＋ 追加</Button>
+                                {canEdit && <Button size="sm" variant="outline" onClick={() => setWorkloadModal({ open: true })}>＋ 追加</Button>}
                             </div>
                             {workloads.length === 0 ? (
                                 <p className="text-muted-foreground text-center py-8">稼働履歴がありません</p>
@@ -297,8 +427,11 @@ export default function EmployeeDetailPage() {
                                 workloads.map((wl: any) => (
                                     <button
                                         key={wl.id}
-                                        onClick={() => setWorkloadModal({ open: true, record: wl })}
-                                        className="w-full flex items-center justify-between p-4 border border-border rounded-xl hover:border-brand-400 hover:bg-muted/40 transition-colors text-left group"
+                                        onClick={canEdit ? () => setWorkloadModal({ open: true, record: wl }) : undefined}
+                                        className={cn(
+                                            'w-full flex items-center justify-between p-4 border border-border rounded-xl text-left group',
+                                            canEdit ? 'hover:border-brand-400 hover:bg-muted/40 transition-colors cursor-pointer' : 'cursor-default',
+                                        )}
                                     >
                                         <div>
                                             <div className="flex items-center gap-2">
@@ -309,7 +442,7 @@ export default function EmployeeDetailPage() {
                                                 {new Date(wl.startDate).toLocaleDateString('ja-JP')} 〜 {wl.endDate ? new Date(wl.endDate).toLocaleDateString('ja-JP') : '現在'}
                                             </p>
                                         </div>
-                                        <Pencil className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                        {canEdit && <Pencil className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />}
                                     </button>
                                 ))
                             )}
@@ -321,7 +454,7 @@ export default function EmployeeDetailPage() {
                         <div className="space-y-3">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-semibold">雇用・配置の変遷</h3>
-                                <Button size="sm" variant="outline" onClick={() => setEmpHistModal({ open: true })}>＋ 追加</Button>
+                                {canEdit && <Button size="sm" variant="outline" onClick={() => setEmpHistModal({ open: true })}>＋ 追加</Button>}
                             </div>
                             {employmentHistory.length === 0 ? (
                                 <p className="text-muted-foreground text-center py-8">履歴がありません</p>
@@ -341,9 +474,10 @@ export default function EmployeeDetailPage() {
                                                         i === 0 ? 'bg-brand-500' : 'bg-muted-foreground',
                                                     )} />
                                                     <button
-                                                        onClick={() => setEmpHistModal({ open: true, record: h })}
+                                                        onClick={canEdit ? () => setEmpHistModal({ open: true, record: h }) : undefined}
                                                         className={cn(
-                                                            'w-full text-left p-4 rounded-xl border group hover:border-brand-400 hover:bg-muted/30 transition-colors',
+                                                            'w-full text-left p-4 rounded-xl border group',
+                                                            canEdit ? 'hover:border-brand-400 hover:bg-muted/30 transition-colors cursor-pointer' : 'cursor-default',
                                                             expiring
                                                                 ? (endDays! <= 30 ? 'border-red-300 dark:border-red-700' : 'border-amber-300 dark:border-amber-700')
                                                                 : 'border-border',
@@ -410,7 +544,7 @@ export default function EmployeeDetailPage() {
                                                                 </p>
                                                             </div>
                                                         )}
-                                                        <Pencil className="absolute top-3 right-3 w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        {canEdit && <Pencil className="absolute top-3 right-3 w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}
                                                     </button>
                                                 </div>
                                             );
@@ -432,7 +566,7 @@ export default function EmployeeDetailPage() {
                         <div className="space-y-3">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-semibold">資格情報</h3>
-                                <Button size="sm" variant="outline" onClick={() => setQualificationModal({ open: true })}>＋ 追加</Button>
+                                {canEdit && <Button size="sm" variant="outline" onClick={() => setQualificationModal({ open: true })}>＋ 追加</Button>}
                             </div>
                             {qualifications.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground border border-dashed rounded-xl">
@@ -483,16 +617,18 @@ export default function EmployeeDetailPage() {
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div className="flex justify-end items-center">
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="text-muted-foreground hover:text-brand-500 hover:bg-muted gap-1.5"
-                                                    onClick={() => setQualificationModal({ open: true, record: q })}
-                                                >
-                                                    <Pencil className="w-3.5 h-3.5" /> 編集
-                                                </Button>
-                                            </div>
+                                            {canEdit && (
+                                                <div className="flex justify-end items-center">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-muted-foreground hover:text-brand-500 hover:bg-muted gap-1.5"
+                                                        onClick={() => setQualificationModal({ open: true, record: q })}
+                                                    >
+                                                        <Pencil className="w-3.5 h-3.5" /> 編集
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>

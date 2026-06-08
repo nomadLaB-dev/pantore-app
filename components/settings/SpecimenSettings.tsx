@@ -515,7 +515,7 @@ export default function SpecimenSettings() {
         supabase.auth.getUser().then(({ data: { user } }) => {
             if (!user) return;
             supabase
-                .from('employees')
+                .from('users')
                 .select('tenant_id')
                 .eq('user_id', user.id)
                 .maybeSingle()

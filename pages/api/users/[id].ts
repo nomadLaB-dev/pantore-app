@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { createClient } from '@/lib/supabase/server-pages'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 function mapEmployee(employee: any) {
     return {
@@ -33,6 +34,10 @@ function mapEmployee(employee: any) {
         currentPrimaryBranch: employee.branch,
         currentAssignmentNote: null,
         proficiencyRate: employee.proficiency_rate,
+        specimenRole: employee.specimen_role,
+        userCode: employee.user_code,
+        qrToken: employee.qr_token,
+        userId: employee.user_id,
     }
 }
 
@@ -43,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'GET') {
         try {
             const { data: employee, error } = await supabase
-                .from('employees')
+                .from('users')
                 .select(`*, branch:branches(*), tenant:tenants(*)`)
                 .eq('id', id)
                 .single()
@@ -88,9 +93,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             if (body.certificationNum !== undefined) updateData.certification_num = body.certificationNum || null
             if (body.lineId !== undefined) updateData.line_id = body.lineId || null
             if (body.proficiencyRate !== undefined) updateData.proficiency_rate = body.proficiencyRate ? Number(body.proficiencyRate) : null
+            if (body.specimenRole !== undefined) updateData.specimen_role = body.specimenRole || null
+            if (body.userCode !== undefined) updateData.user_code = body.userCode || null
+
+            // メールアドレス変更時は、Authアカウントが紐づいていれば auth.users 側も同期する
+            if (body.email !== undefined) {
+                const { data: current } = await supabase.from('users').select('user_id, email').eq('id', id).single()
+                if (current?.user_id && current.email !== body.email) {
+                    const admin = createAdminClient()
+                    const { error: authError } = await admin.auth.admin.updateUserById(current.user_id, { email: body.email })
+                    if (authError) return res.status(500).json({ error: authError.message })
+                }
+            }
 
             const { data: employee, error } = await supabase
-                .from('employees')
+                .from('users')
                 .update(updateData)
                 .eq('id', id)
                 .select(`*, branch:branches(*), tenant:tenants(*)`)
