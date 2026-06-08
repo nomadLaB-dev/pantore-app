@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LicensePlateColorLabel } from '@/types';
 import { VehicleBodyTypeLabel } from '@/lib/depreciation';
-import { createVehicle } from '@/app/actions/vehicle.actions';
+import { createVehicle } from '@/lib/actions/vehicle.actions';
 
 interface Branch {
     id: string;

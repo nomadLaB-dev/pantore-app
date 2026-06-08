@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 
 import { Trash2 } from 'lucide-react';
 import { useEffect } from 'react';
-import { createMileage, updateMileage, deleteMileage } from '@/app/actions/mileage.actions';
+import { createMileage, updateMileage, deleteMileage } from '@/lib/actions/mileage.actions';
 
 interface Props {
     vehicleId: string;

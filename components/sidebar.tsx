@@ -1,14 +1,16 @@
 'use client';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/router';
 import {
     Layers, LayoutDashboard, Users, Car, Building2, ShieldCheck,
     Building, CreditCard, Settings2, LogOut, UserCircle,
     Handshake, BookUser, CalendarDays, FlaskConical, TableIcon,
-    Clock, MapPin, UserCog,
+    Clock, MapPin, UserCog, Bell, Sun, Moon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
+import { useTheme } from 'next-themes';
+import { Button } from '@/components/ui/button';
 import type { SpecimenRole } from '@/types';
 
 const erpNavItems = [
@@ -63,8 +65,9 @@ function SectionLabel({ label }: { label: string }) {
     );
 }
 
-function UserMenu({ name, email }: { name: string; email: string }) {
+function UserMenu({ name, email, tenantName, branchName }: { name: string; email: string; tenantName?: string; branchName?: string }) {
     const router = useRouter();
+    const { theme, setTheme } = useTheme();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -83,6 +86,16 @@ function UserMenu({ name, email }: { name: string; email: string }) {
 
     return (
         <div className="p-3 border-t border-white/10 relative" ref={ref}>
+            <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-xl bg-white/5 border border-white/10">
+                <div className="w-6 h-6 rounded-md bg-amber-400/20 flex items-center justify-center shrink-0">
+                    <Building className="w-3.5 h-3.5 text-amber-300" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-amber-100 truncate">{tenantName}</p>
+                    <p className="text-[10px] text-amber-300/50 truncate">{branchName || 'テナント'}</p>
+                </div>
+            </div>
+
             {open && (
                 <div className="absolute bottom-full left-3 right-3 mb-1 bg-amber-950 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
                     <div className="px-4 py-3 border-b border-white/10">
@@ -106,6 +119,23 @@ function UserMenu({ name, email }: { name: string; email: string }) {
                     </div>
                 </div>
             )}
+
+            <div className="flex items-center gap-1 mb-2">
+                <Button variant="ghost" size="icon" className="text-white/80 hover:text-white hover:bg-white/10 relative">
+                    <Bell className="h-4 w-4" />
+                    <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-yellow-400 rounded-full" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white/80 hover:text-white hover:bg-white/10"
+                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                >
+                    <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                    <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    <span className="sr-only">Toggle theme</span>
+                </Button>
+            </div>
 
             <button
                 onClick={() => setOpen(!open)}
@@ -140,7 +170,7 @@ export default function Sidebar({
     currentUser?: { name: string; email: string };
     isAdmin?: boolean;
 }) {
-    const pathname = usePathname();
+    const { pathname } = useRouter();
 
     return (
         <aside className="w-64 shrink-0 h-screen flex flex-col sticky top-0 z-20 hidden lg:flex bg-amber-950">
@@ -164,19 +194,6 @@ export default function Sidebar({
                         <p className="text-[10px] text-amber-300/70 leading-none mt-0.5">ERP</p>
                     </div>
                 </Link>
-            </div>
-
-            {/* ── Tenant badge ─────────────────────────────────────── */}
-            <div className="px-3 pt-3 pb-1">
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
-                    <div className="w-6 h-6 rounded-md bg-amber-400/20 flex items-center justify-center shrink-0">
-                        <Building className="w-3.5 h-3.5 text-amber-300" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-amber-100 truncate">{tenantName}</p>
-                        <p className="text-[10px] text-amber-300/50 truncate">{branchName || 'テナント'}</p>
-                    </div>
-                </div>
             </div>
 
             {/* ── Nav ──────────────────────────────────────────────── */}
@@ -213,7 +230,7 @@ export default function Sidebar({
             </nav>
 
             {/* ── User menu ────────────────────────────────────────── */}
-            <UserMenu name={currentUser?.name ?? ''} email={currentUser?.email ?? ''} />
+            <UserMenu name={currentUser?.name ?? ''} email={currentUser?.email ?? ''} tenantName={tenantName} branchName={branchName} />
         </aside>
     );
 }

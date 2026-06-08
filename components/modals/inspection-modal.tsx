@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2, CalendarDays } from 'lucide-react';
-import { createInspection, updateInspection, deleteInspection } from '@/app/actions/inspection.actions';
+import { createInspection, updateInspection, deleteInspection } from '@/lib/actions/inspection.actions';
 import { InspectionType, InspectionTypeLabel } from '@/types';
 
 interface Props {

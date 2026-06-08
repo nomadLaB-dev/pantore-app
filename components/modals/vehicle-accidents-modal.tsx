@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { createVehicleAccident, updateVehicleAccident, deleteAccidents } from '@/app/actions/vehicle.actions';
-import { createInspection } from '@/app/actions/inspection.actions';
+import { createVehicleAccident, updateVehicleAccident, deleteAccidents } from '@/lib/actions/vehicle.actions';
+import { createInspection } from '@/lib/actions/inspection.actions';
 import { InspectionTypeLabel } from '@/types';
 
 interface Props {

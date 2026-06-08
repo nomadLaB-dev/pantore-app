@@ -9,7 +9,7 @@ import { InsuranceTypeLabel } from '@/types';
 
 import { Trash2 } from 'lucide-react';
 import { useEffect } from 'react';
-import { createInsurance, updateInsurance, deleteInsurance } from '@/app/actions/insurance.actions';
+import { createInsurance, updateInsurance, deleteInsurance } from '@/lib/actions/insurance.actions';
 
 interface Props {
     vehicleId: string;

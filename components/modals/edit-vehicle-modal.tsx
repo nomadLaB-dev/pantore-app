@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LicensePlateColorLabel } from '@/types';
 import { VehicleBodyTypeLabel } from '@/lib/depreciation';
-import { updateVehicle } from '@/app/actions/vehicle.actions';
+import { updateVehicle } from '@/lib/actions/vehicle.actions';
 import { X } from 'lucide-react';
 
 interface Branch {

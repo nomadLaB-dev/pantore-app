@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { updateRealEstate, deleteRealEstate } from '@/app/actions/real-estate.actions';
+import { updateRealEstate, deleteRealEstate } from '@/lib/actions/real-estate.actions';
 
 interface Props {
     open: boolean;
