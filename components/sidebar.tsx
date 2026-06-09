@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import type { SpecimenRole } from '@/types';
 
 const erpNavItems = [
-    { name: 'ダッシュボード', href: '/dashboard', icon: LayoutDashboard },
     { name: 'ユーザー管理', href: '/users', icon: Users },
     { name: '車両管理', href: '/vehicles', icon: Car },
     { name: '不動産管理', href: '/real-estates', icon: Building2 },
@@ -26,8 +25,8 @@ const erpNavItems = [
 
 const specimenNavItems = [
     { name: 'スケジュール', href: '/schedules', icon: CalendarDays },
+    { name: '拠点スケジュール', href: '/base-schedule', icon: MapPin },
     { name: 'データ入力', href: '/data-entry', icon: TableIcon },
-
 ];
 
 const dealNavItems = [
@@ -198,6 +197,8 @@ export default function Sidebar({
 
             {/* ── Nav ──────────────────────────────────────────────── */}
             <nav className="flex-1 py-2 px-3 space-y-0.5 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:rgba(251,191,36,0.2)_transparent] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-400/20 [&::-webkit-scrollbar-thumb:hover]:bg-amber-400/40">
+
+                <NavLink item={{ name: 'ダッシュボード', href: '/dashboard', icon: LayoutDashboard }} pathname={pathname} />
 
                 {/* 検体管理（specimen_role があるユーザーのみ） */}
                 {specimenRole && (
