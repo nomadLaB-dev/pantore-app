@@ -1,10 +1,10 @@
 'use client';
-import type { ReactElement } from 'react'
-import PrivateLayout from '@/components/private-layout'
+import type { ReactElement } from 'react';
+import PrivateLayout from '@/components/private-layout';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { Calendar, Search, Settings2, ArrowLeft, GripVertical, Merge, Filter, X as XIcon, ArchiveRestore } from 'lucide-react';
+import { Calendar, Search, Settings2, ArrowLeft, GripVertical, Merge, Filter, X as XIcon, Save } from 'lucide-react';
 import type { ScheduleRow } from '@/lib/formatSchedule';
 import { createClient } from '@/lib/supabase/client';
 
@@ -56,6 +56,9 @@ export default function SchedulesArchivePage() {
     const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
     const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
     const filterDropdownRef = useRef<HTMLDivElement | null>(null);
+    const [editingRow, setEditingRow] = useState<ScheduleRow | null>(null);
+    const [editDraft, setEditDraft] = useState<ScheduleRow | null>(null);
+    const [saving, setSaving] = useState(false);
 
     const toggleMerge = (key: string) => {
         setMergedColumns(prev => {
@@ -63,14 +66,6 @@ export default function SchedulesArchivePage() {
             if (next.has(key)) next.delete(key); else next.add(key);
             return next;
         });
-    };
-
-    const handleUnarchive = async (id: string | undefined) => {
-        if (!id || id.length < 10) return;
-        if (!confirm('このデータを予定リストに戻しますか？')) return;
-        const { error } = await supabase.from('schedules').update({ is_archived: false }).eq('id', id);
-        if (error) { alert('データの復元に失敗しました。'); return; }
-        setRows(prev => prev.filter(r => r.id !== id));
     };
 
     const toggleColumnFilter = (colKey: string, value: string) => {
@@ -113,6 +108,60 @@ export default function SchedulesArchivePage() {
         .map(k => COLUMNS.find(c => c.key === k))
         .filter((c): c is typeof COLUMNS[0] => !!c && visibleColumns.includes(c.key));
 
+    const openEdit = useCallback((row: ScheduleRow) => {
+        setEditingRow(row);
+        setEditDraft({ ...row });
+    }, []);
+
+    const closeEdit = useCallback(() => {
+        setEditingRow(null);
+        setEditDraft(null);
+    }, []);
+
+    const parseDbDate = (s: string | null | undefined): string | null => {
+        if (!s) return null;
+        const m = s.match(/(\d{4})[/\-](\d{2})[/\-](\d{2})/);
+        return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editDraft || !editDraft.id) return;
+        setSaving(true);
+        try {
+            const { error } = await supabase.from('schedules').update({
+                collect_date: parseDbDate(editDraft.collectDate),
+                area: editDraft.area || '',
+                collect_time: editDraft.collectTime || '',
+                system_type: editDraft.systemType || '',
+                uid: editDraft.uid || '',
+                facility_name: editDraft.facilityName || '',
+                delivery_type: editDraft.deliveryType || '',
+                base: editDraft.base || '',
+                facility_code: editDraft.facilityCode || '',
+                visit_place: editDraft.visitPlace || '',
+                trial_name: editDraft.trialName || '',
+                request_date: parseDbDate(editDraft.requestDate),
+                request_time: editDraft.requestTime || '',
+                service: editDraft.service || '',
+                con_no: editDraft.conNo || '',
+                box_count: editDraft.boxCount ? Number(editDraft.boxCount) : null,
+                request: editDraft.request || '',
+                courier_code: editDraft.courierCode || '',
+                courier_name: editDraft.courierName || '',
+                reference: editDraft.reference || '',
+                rev: editDraft.rev || '',
+                note: editDraft.note || '',
+            }).eq('id', editDraft.id);
+
+            if (error) { alert(`保存に失敗しました。\n${error.message}`); return; }
+
+            setRows(prev => prev.map(r => r.id === editDraft.id ? editDraft : r));
+            closeEdit();
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const load = async () => {
         try {
             const { data } = await supabase.from('schedules').select('*').eq('is_archived', true);
@@ -148,13 +197,12 @@ export default function SchedulesArchivePage() {
     });
 
     return (
+        <>
         <div className="space-y-6 animate-fade-in">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-                        アーカイブ
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-1">過去の集配済みデータの一覧です。</p>
+                    <h1 className="text-xl font-bold text-foreground">集配送実績リスト</h1>
+                    <p className="text-sm text-muted-foreground mt-1">過去の集配済みデータの一覧です。行をダブルクリックで編集できます。</p>
                 </div>
                 <Link href="/schedules" className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-semibold shadow-sm">
                     <ArrowLeft size={15} /> 予定リストへ戻る
@@ -199,16 +247,15 @@ export default function SchedulesArchivePage() {
                 {filtered.length === 0 ? (
                     <div className="py-20 text-center text-slate-400">
                         <Calendar size={40} className="mx-auto mb-3 opacity-30" />
-                        <p className="font-medium">アーカイブデータがありません</p>
+                        <p className="font-medium">実績データがありません</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
                         <table className="w-full text-xs text-left border-collapse">
                             <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 sticky top-0 z-10">
                                 <tr>
-                                    <th className="px-3 py-2 whitespace-nowrap border-r border-slate-100">操作</th>
                                     {displayCols.map(col => (
-                                        <th key={col.key} draggable onDragStart={() => handleDragStart(col.key)} onDragOver={e => handleDragOver(e, col.key)} onDrop={() => handleDrop(col.key)} onDragEnd={handleDragEnd} className={`px-2 py-2 whitespace-nowrap border-r border-slate-100 last:border-r-0 select-none cursor-grab ${col.key === 'systemType' ? 'sticky left-0 bg-slate-50 z-20' : ''} ${dragOverKey === col.key ? 'bg-blue-50' : ''}`}>
+                                        <th key={col.key} draggable onDragStart={() => handleDragStart(col.key)} onDragOver={e => handleDragOver(e, col.key)} onDrop={() => handleDrop(col.key)} onDragEnd={handleDragEnd} className={`px-2 py-2 whitespace-nowrap border-r border-slate-100 last:border-r-0 select-none cursor-grab relative ${col.key === 'systemType' ? 'sticky left-0 bg-slate-50 z-20' : ''} ${dragOverKey === col.key ? 'bg-blue-50' : ''}`}>
                                             <div className="flex items-center gap-1">
                                                 <GripVertical size={12} className="text-slate-400 flex-shrink-0" />
                                                 <span className="flex-1">{col.label}</span>
@@ -242,12 +289,7 @@ export default function SchedulesArchivePage() {
                                 {filtered.map((row, rowIndex) => {
                                     const meta = SYSTEM_META[row.systemType] ?? { label: row.systemType, color: 'bg-slate-100 text-slate-600' };
                                     return (
-                                        <tr key={row.id} className="hover:bg-slate-50 transition-colors">
-                                            <td className="px-3 py-2.5 border-r border-slate-100">
-                                                <button onClick={() => handleUnarchive(row.id)} className="flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[11px] font-semibold hover:bg-emerald-100 transition-colors whitespace-nowrap">
-                                                    <ArchiveRestore size={11} /> 復元
-                                                </button>
-                                            </td>
+                                        <tr key={row.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onDoubleClick={() => openEdit(row)}>
                                             {displayCols.map(col => {
                                                 const val = row[col.key] as string;
                                                 const isSystemType = col.key === 'systemType';
@@ -280,9 +322,158 @@ export default function SchedulesArchivePage() {
                 )}
             </div>
         </div>
+
+        {/* Edit modal */}
+        {editDraft && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={e => { if (e.target === e.currentTarget) closeEdit(); }}>
+                <div className="bg-white text-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                        <div>
+                            <h2 className="text-base font-bold text-slate-800">実績編集</h2>
+                            <p className="text-xs text-slate-400 mt-0.5">UID: {editDraft.uid || '—'}</p>
+                        </div>
+                        <button onClick={closeEdit} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                            <XIcon size={18} />
+                        </button>
+                    </div>
+
+                    <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+                        <section>
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">基本情報</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {([
+                                    { key: 'collectDate', label: '集配日', placeholder: 'YYYY/MM/DD' },
+                                    { key: 'collectTime', label: '集配時間', placeholder: 'HH:MM - HH:MM' },
+                                    { key: 'area', label: '集配エリア' },
+                                    { key: 'uid', label: 'UID' },
+                                    { key: 'deliveryType', label: '配送種別' },
+                                ] as { key: keyof ScheduleRow; label: string; placeholder?: string }[]).map(({ key, label, placeholder }) => (
+                                    <label key={key} className="flex flex-col gap-1">
+                                        <span className="text-[11px] font-semibold text-slate-500">{label}</span>
+                                        <input
+                                            type="text"
+                                            value={(editDraft[key] as string) || ''}
+                                            onChange={e => setEditDraft(d => d ? { ...d, [key]: e.target.value } : d)}
+                                            placeholder={placeholder}
+                                            className="px-2.5 py-1.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                                        />
+                                    </label>
+                                ))}
+                                <label className="flex flex-col gap-1">
+                                    <span className="text-[11px] font-semibold text-slate-500">システム種別</span>
+                                    <select
+                                        value={editDraft.systemType}
+                                        onChange={e => setEditDraft(d => d ? ({ ...d, systemType: e.target.value } as ScheduleRow) : d)}
+                                        className="px-2.5 py-1.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"
+                                    >
+                                        {Object.entries(SYSTEM_META).map(([v, m]) => (
+                                            <option key={v} value={v}>{m.label}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                            </div>
+                        </section>
+
+                        <section>
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">施設情報</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {([
+                                    { key: 'facilityName', label: '集配施設名' },
+                                    { key: 'facilityCode', label: '施設コード' },
+                                    { key: 'base', label: '搬入拠点' },
+                                    { key: 'visitPlace', label: '訪問場所' },
+                                    { key: 'trialName', label: '治験名' },
+                                ] as { key: keyof ScheduleRow; label: string }[]).map(({ key, label }) => (
+                                    <label key={key} className="flex flex-col gap-1">
+                                        <span className="text-[11px] font-semibold text-slate-500">{label}</span>
+                                        <input
+                                            type="text"
+                                            value={(editDraft[key] as string) || ''}
+                                            onChange={e => setEditDraft(d => d ? { ...d, [key]: e.target.value } : d)}
+                                            className="px-2.5 py-1.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                                        />
+                                    </label>
+                                ))}
+                            </div>
+                        </section>
+
+                        <section>
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">依頼情報</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {([
+                                    { key: 'requestDate', label: '依頼受付日', placeholder: 'YYYY/MM/DD' },
+                                    { key: 'requestTime', label: '依頼受付時間' },
+                                    { key: 'service', label: 'サービス' },
+                                    { key: 'conNo', label: 'Con No.' },
+                                    { key: 'boxCount', label: '箱数' },
+                                    { key: 'request', label: '依頼' },
+                                ] as { key: keyof ScheduleRow; label: string; placeholder?: string }[]).map(({ key, label, placeholder }) => (
+                                    <label key={key} className="flex flex-col gap-1">
+                                        <span className="text-[11px] font-semibold text-slate-500">{label}</span>
+                                        <input
+                                            type="text"
+                                            value={(editDraft[key] as string) || ''}
+                                            onChange={e => setEditDraft(d => d ? { ...d, [key]: e.target.value } : d)}
+                                            placeholder={placeholder}
+                                            className="px-2.5 py-1.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                                        />
+                                    </label>
+                                ))}
+                            </div>
+                        </section>
+
+                        <section>
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">業者情報</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {([
+                                    { key: 'courierCode', label: '集材員コード' },
+                                    { key: 'courierName', label: '集材員名' },
+                                    { key: 'reference', label: 'リファレンス' },
+                                    { key: 'rev', label: 'REV' },
+                                ] as { key: keyof ScheduleRow; label: string }[]).map(({ key, label }) => (
+                                    <label key={key} className="flex flex-col gap-1">
+                                        <span className="text-[11px] font-semibold text-slate-500">{label}</span>
+                                        <input
+                                            type="text"
+                                            value={(editDraft[key] as string) || ''}
+                                            onChange={e => setEditDraft(d => d ? { ...d, [key]: e.target.value } : d)}
+                                            className="px-2.5 py-1.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                                        />
+                                    </label>
+                                ))}
+                                <label className="flex flex-col gap-1 col-span-2 sm:col-span-3">
+                                    <span className="text-[11px] font-semibold text-slate-500">備考</span>
+                                    <textarea
+                                        rows={2}
+                                        value={editDraft.note || ''}
+                                        onChange={e => setEditDraft(d => d ? { ...d, note: e.target.value } : d)}
+                                        className="px-2.5 py-1.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 resize-none"
+                                    />
+                                </label>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
+                        <button onClick={closeEdit} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-200 rounded-lg transition-colors">
+                            キャンセル
+                        </button>
+                        <button
+                            onClick={handleSaveEdit}
+                            disabled={saving}
+                            className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors"
+                        >
+                            <Save size={14} />
+                            {saving ? '保存中…' : '保存する'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 }
 
 SchedulesArchivePage.getLayout = function getLayout(page: ReactElement) {
-  return <PrivateLayout>{page}</PrivateLayout>
-}
+    return <PrivateLayout>{page}</PrivateLayout>;
+};

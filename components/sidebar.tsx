@@ -25,7 +25,7 @@ const erpNavItems = [
 
 const specimenNavItems = [
     { name: 'スケジュール', href: '/schedules', icon: CalendarDays },
-    { name: '拠点スケジュール', href: '/base-schedule', icon: MapPin },
+    { name: 'エリアスケジュール', href: '/area-schedule', icon: MapPin },
     { name: 'データ入力', href: '/data-entry', icon: TableIcon },
 ];
 

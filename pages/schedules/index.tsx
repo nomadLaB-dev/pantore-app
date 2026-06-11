@@ -212,7 +212,6 @@ export default function SchedulesPage() {
                 reference: editDraft.reference || '',
                 rev: editDraft.rev || '',
                 note: editDraft.note || '',
-                updated_at: new Date().toISOString(),
             }).eq('id', editDraft.id);
 
             if (error) { alert(`保存に失敗しました。\n${error.message}`); return; }
@@ -308,7 +307,7 @@ export default function SchedulesPage() {
         const toKeep = rows.filter(r => !r.collectDate || getDateNum(r.collectDate) > todayNum);
 
         if (toArchive.length === 0) {
-            alert('アーカイブする本日以前のデータがありません。');
+            alert('実績に移動する本日以前のデータがありません。');
             return;
         }
 
@@ -316,12 +315,12 @@ export default function SchedulesPage() {
         const mm = String(today.getMonth() + 1).padStart(2, '0');
         const dd = String(today.getDate()).padStart(2, '0');
 
-        if (!confirm(`本日（${yyyy}/${mm}/${dd}）以前のデータ ${toArchive.length} 件をアーカイブしますか？`)) return;
+        if (!confirm(`本日（${yyyy}/${mm}/${dd}）以前のデータ ${toArchive.length} 件を実績に移動しますか？`)) return;
 
         const ids = toArchive.map(r => r.id).filter(id => id && id.length > 10);
         if (ids.length > 0) {
             const { error } = await supabase.from('schedules').update({ is_archived: true }).in('id', ids);
-            if (error) { alert('アーカイブ処理に失敗しました。'); return; }
+            if (error) { alert('実績への移動に失敗しました。'); return; }
         }
         setRows(toKeep);
     };
@@ -368,7 +367,7 @@ export default function SchedulesPage() {
                         <Database size={15} /> データ入力へ
                     </Link>
                     <Link href="/schedules/archive" className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
-                        <Archive size={15} /> アーカイブ
+                        <Archive size={15} /> 実績
                     </Link>
                     <button onClick={load} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
                         <RefreshCw size={15} /> 最新を表示

@@ -407,13 +407,18 @@ function CouriersMaster({ tenantId }: { tenantId: string }) {
         if (!form?.name?.trim()) return;
         setSaving(true);
         try {
-            const payload = { tenant_id: tenantId, name: form.name?.trim() ?? '', area: form.area?.trim() ?? '', url: form.url?.trim() ?? '' };
             if (form.id) {
+                const payload = { tenant_id: tenantId, name: form.name?.trim() ?? '', area: form.area?.trim() ?? '', url: form.url ?? '' };
                 const { data } = await supabase.from('settings_couriers').update(payload).eq('id', form.id).select().maybeSingle();
                 if (data) setCouriers(prev => prev.map(c => c.id === data.id ? data : c));
             } else {
+                const payload = { tenant_id: tenantId, name: form.name?.trim() ?? '', area: form.area?.trim() ?? '' };
                 const { data } = await supabase.from('settings_couriers').insert(payload).select().maybeSingle();
-                if (data) setCouriers(prev => [...prev, data]);
+                if (data) {
+                    const url = `${window.location.origin}/schedules/courier/${data.id}`;
+                    await supabase.from('settings_couriers').update({ url }).eq('id', data.id);
+                    setCouriers(prev => [...prev, { ...data, url }]);
+                }
             }
             setForm(null);
         } finally { setSaving(false); }
@@ -434,13 +439,17 @@ function CouriersMaster({ tenantId }: { tenantId: string }) {
         try {
             const text = await file.text();
             const records = parseCsv(text)
-                .map(cols => ({ tenant_id: tenantId, name: cols[0] ?? '', area: cols[1] ?? '', url: cols[2] ?? '' }))
+                .map(cols => ({ tenant_id: tenantId, name: cols[0] ?? '', area: cols[1] ?? '' }))
                 .filter(r => r.name.trim());
-            if (!records.length) { show({ type: 'error', message: '有効なデータが見つかりませんでした。ヘッダー行: name,area,url' }); return; }
+            if (!records.length) { show({ type: 'error', message: '有効なデータが見つかりませんでした。ヘッダー行: name,area' }); return; }
             const { data, error } = await supabase.from('settings_couriers').insert(records).select();
             if (error) { show({ type: 'error', message: `インポートエラー: ${error.message}` }); return; }
-            setCouriers(prev => [...prev, ...(data ?? [])]);
-            show({ type: 'success', message: `${data?.length ?? 0}件をインポートしました。` });
+            const origin = window.location.origin;
+            const withUrls = (data ?? []).map(c => ({ ...c, url: `${origin}/schedules/courier/${c.id}` }));
+            const urlUpdates = withUrls.map(c => supabase.from('settings_couriers').update({ url: c.url }).eq('id', c.id));
+            await Promise.all(urlUpdates);
+            setCouriers(prev => [...prev, ...withUrls]);
+            show({ type: 'success', message: `${withUrls.length}件をインポートしました。` });
         } catch { show({ type: 'error', message: 'CSVの読み込みに失敗しました。' }); }
         finally { setImporting(false); }
     };
@@ -459,7 +468,6 @@ function CouriersMaster({ tenantId }: { tenantId: string }) {
                                 <div className="flex-1 flex flex-col sm:flex-row gap-2">
                                     <Field value={form.name ?? ''} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder="業者名" required />
                                     <Field value={form.area ?? ''} onChange={v => setForm(f => ({ ...f, area: v }))} placeholder="エリア" />
-                                    <Field value={form.url ?? ''} onChange={v => setForm(f => ({ ...f, url: v }))} placeholder="URL" />
                                     <SaveCancel onSave={save} onCancel={() => setForm(null)} saving={saving} disabled={!form.name?.trim()} />
                                 </div>
                             ) : (
@@ -486,7 +494,6 @@ function CouriersMaster({ tenantId }: { tenantId: string }) {
                             <div className="flex-1 flex flex-col sm:flex-row gap-2">
                                 <Field value={form.name ?? ''} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder="業者名" required />
                                 <Field value={form.area ?? ''} onChange={v => setForm(f => ({ ...f, area: v }))} placeholder="エリア" />
-                                <Field value={form.url ?? ''} onChange={v => setForm(f => ({ ...f, url: v }))} placeholder="URL" />
                             </div>
                             <SaveCancel onSave={save} onCancel={() => setForm(null)} saving={saving} disabled={!form.name?.trim()} />
                         </div>
