@@ -3,8 +3,9 @@ import type { ReactElement } from 'react'
 import PrivateLayout from '@/components/private-layout'
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { Calendar, Search, RefreshCw, Database, Settings2, Archive, GripVertical, Merge, Filter, X as XIcon, Save } from 'lucide-react';
+import { Calendar, Search, RefreshCw, Database, Settings2, Archive, GripVertical, Merge, Filter, X as XIcon, Save, FileText, Upload, Trash2, ExternalLink } from 'lucide-react';
 import type { ScheduleRow } from '@/lib/formatSchedule';
 import { createClient } from '@/lib/supabase/client';
 
@@ -91,6 +92,8 @@ function normalizeScheduleRow(d: any, facilityAreaMap: Record<string, string>): 
         reference: d.reference || '',
         rev: d.rev || '',
         note: d.note || '',
+        attachmentPath: d.attachment_path || '',
+        attachmentName: d.attachment_name || '',
     };
 }
 
@@ -110,9 +113,53 @@ export default function SchedulesPage() {
     const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
     const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
     const filterDropdownRef = useRef<HTMLDivElement | null>(null);
+    const [filterDropdownPos, setFilterDropdownPos] = useState<{ top: number; left: number } | null>(null);
     const [editingRow, setEditingRow] = useState<ScheduleRow | null>(null);
     const [editDraft, setEditDraft] = useState<ScheduleRow | null>(null);
     const [saving, setSaving] = useState(false);
+    const [uploadingPdf, setUploadingPdf] = useState(false);
+
+    const handlePdfUpload = async (file: File) => {
+        if (!editDraft?.id) return;
+        setUploadingPdf(true);
+        try {
+            const path = `${editDraft.id}/attachment.pdf`;
+            const { error } = await supabase.storage
+                .from('schedule-attachments')
+                .upload(path, file, { upsert: true, contentType: 'application/pdf' });
+            if (error) throw error;
+            const draft = { ...editDraft, attachmentPath: path, attachmentName: file.name };
+            setEditDraft(draft);
+            await supabase.from('schedules').update({
+                attachment_path: path,
+                attachment_name: file.name,
+            }).eq('id', editDraft.id);
+        } catch (e: any) {
+            alert(`アップロードに失敗しました。\n${e.message}`);
+        } finally {
+            setUploadingPdf(false);
+        }
+    };
+
+    const handlePdfPreview = async () => {
+        if (!editDraft?.attachmentPath) return;
+        const { data } = await supabase.storage
+            .from('schedule-attachments')
+            .createSignedUrl(editDraft.attachmentPath, 60);
+        if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+    };
+
+    const handlePdfDelete = async () => {
+        if (!editDraft?.attachmentPath || !editDraft?.id) return;
+        if (!confirm('添付ファイルを削除しますか？')) return;
+        await supabase.storage.from('schedule-attachments').remove([editDraft.attachmentPath]);
+        await supabase.from('schedules').update({
+            attachment_path: null,
+            attachment_name: null,
+        }).eq('id', editDraft.id);
+        setEditDraft(d => d ? { ...d, attachmentPath: '', attachmentName: '' } : d);
+        setRows(prev => prev.map(r => r.id === editDraft.id ? { ...r, attachmentPath: '', attachmentName: '' } : r));
+    };
 
     const toggleMerge = (key: string) => {
         setMergedColumns(prev => {
@@ -140,6 +187,7 @@ export default function SchedulesPage() {
         const handler = (e: MouseEvent) => {
             if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) {
                 setOpenFilterKey(null);
+                setFilterDropdownPos(null);
             }
         };
         document.addEventListener('mousedown', handler);
@@ -212,6 +260,8 @@ export default function SchedulesPage() {
                 reference: editDraft.reference || '',
                 rev: editDraft.rev || '',
                 note: editDraft.note || '',
+                attachment_path: editDraft.attachmentPath || null,
+                attachment_name: editDraft.attachmentName || null,
             }).eq('id', editDraft.id);
 
             if (error) { alert(`保存に失敗しました。\n${error.message}`); return; }
@@ -504,46 +554,18 @@ export default function SchedulesPage() {
                                                         <Merge size={11} />
                                                     </button>
                                                     <button
-                                                        onClick={e => { e.stopPropagation(); setOpenFilterKey(openFilterKey === col.key ? null : col.key); }}
+                                                        onClick={e => {
+                                                            e.stopPropagation();
+                                                            if (openFilterKey === col.key) { setOpenFilterKey(null); setFilterDropdownPos(null); return; }
+                                                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                                            setFilterDropdownPos({ top: rect.bottom + 4, left: rect.left });
+                                                            setOpenFilterKey(col.key);
+                                                        }}
                                                         className={`flex-shrink-0 p-0.5 rounded transition-colors ${hasFilter(col.key) ? 'text-amber-500 bg-amber-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200'}`}
                                                     >
                                                         <Filter size={11} />
                                                     </button>
                                                 </div>
-                                                {openFilterKey === col.key && (
-                                                    <div ref={filterDropdownRef} className="absolute top-full left-0 z-50 mt-1 min-w-[180px] max-w-[260px] bg-white border border-slate-200 rounded-lg shadow-xl py-1 text-[11px]" onMouseDown={e => e.stopPropagation()}>
-                                                        <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100">
-                                                            <span className="font-bold text-slate-600">{col.label}</span>
-                                                            <div className="flex gap-1">
-                                                                {hasFilter(col.key) && <button onClick={() => clearColumnFilter(col.key)} className="text-amber-500 text-[10px] font-medium">クリア</button>}
-                                                                <button onClick={() => setOpenFilterKey(null)} className="text-slate-400"><XIcon size={12} /></button>
-                                                            </div>
-                                                        </div>
-                                                        <div className="max-h-52 overflow-y-auto py-1">
-                                                            {uniqueVals.map(val => (
-                                                                <label key={val || '__empty__'} className="flex items-center gap-2 px-3 py-1 hover:bg-slate-50 cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={!!activeFilter ? activeFilter.has(val) : true}
-                                                                        onChange={() => {
-                                                                            if (!activeFilter) {
-                                                                                setColumnFilters(prev => ({ ...prev, [col.key]: new Set(uniqueVals.filter(v => v !== val)) }));
-                                                                            } else {
-                                                                                toggleColumnFilter(col.key, val);
-                                                                            }
-                                                                        }}
-                                                                        className="accent-blue-600"
-                                                                    />
-                                                                    <span className="text-slate-700 truncate">{val || '(空白)'}</span>
-                                                                </label>
-                                                            ))}
-                                                        </div>
-                                                        <div className="border-t border-slate-100 px-3 py-1.5 flex gap-2">
-                                                            <button onClick={() => clearColumnFilter(col.key)} className="text-[10px] text-blue-600 hover:underline">すべて選択</button>
-                                                            <button onClick={() => setColumnFilters(prev => ({ ...prev, [col.key]: new Set() }))} className="text-[10px] text-slate-400 hover:underline">すべて解除</button>
-                                                        </div>
-                                                    </div>
-                                                )}
                                             </th>
                                         );
                                     })}
@@ -737,6 +759,40 @@ export default function SchedulesPage() {
                                 </label>
                             </div>
                         </section>
+
+                        {/* 添付ファイル */}
+                        <section>
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">添付ファイル</p>
+                            <div className="space-y-2">
+                                {editDraft.attachmentName ? (
+                                    <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                                        <FileText size={15} className="text-red-500 flex-shrink-0" />
+                                        <span className="text-xs text-slate-700 flex-1 truncate">{editDraft.attachmentName}</span>
+                                        <button onClick={handlePdfPreview} className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-blue-600 border border-blue-200 rounded hover:bg-blue-50 transition-colors whitespace-nowrap">
+                                            <ExternalLink size={11} /> プレビュー
+                                        </button>
+                                        <button onClick={handlePdfDelete} className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-red-500 border border-red-200 rounded hover:bg-red-50 transition-colors">
+                                            <Trash2 size={11} /> 削除
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-slate-400">添付ファイルなし</p>
+                                )}
+                                <label className={`inline-flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors ${uploadingPdf ? 'opacity-50 pointer-events-none' : ''}`}>
+                                    <Upload size={13} className="text-slate-500" />
+                                    <span className="text-xs font-medium text-slate-600">
+                                        {uploadingPdf ? 'アップロード中…' : editDraft.attachmentName ? 'PDFを差し替え' : 'PDFをアップロード'}
+                                    </span>
+                                    <input
+                                        type="file"
+                                        accept=".pdf,application/pdf"
+                                        className="hidden"
+                                        disabled={uploadingPdf}
+                                        onChange={e => { const f = e.target.files?.[0]; if (f) handlePdfUpload(f); e.target.value = ''; }}
+                                    />
+                                </label>
+                            </div>
+                        </section>
                     </div>
 
                     {/* Footer */}
@@ -756,6 +812,54 @@ export default function SchedulesPage() {
                 </div>
             </div>
         )}
+
+        {/* Filter dropdown portal */}
+        {mounted && openFilterKey && filterDropdownPos && (() => {
+            const col = COLUMNS.find(c => c.key === openFilterKey);
+            if (!col) return null;
+            const uniqueVals = Array.from(new Set(rows.map(r => (r[col.key] as string) || ''))).sort((a, b) => a.localeCompare(b, 'ja'));
+            const activeFilter = columnFilters[col.key];
+            return createPortal(
+                <div
+                    ref={filterDropdownRef}
+                    style={{ position: 'fixed', top: filterDropdownPos.top, left: filterDropdownPos.left, zIndex: 9999 }}
+                    className="min-w-[180px] max-w-[260px] bg-white border border-slate-200 rounded-lg shadow-xl py-1 text-[11px]"
+                    onMouseDown={e => e.stopPropagation()}
+                >
+                    <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100">
+                        <span className="font-bold text-slate-600">{col.label}</span>
+                        <div className="flex gap-1">
+                            {hasFilter(col.key) && <button onClick={() => clearColumnFilter(col.key)} className="text-amber-500 text-[10px] font-medium">クリア</button>}
+                            <button onClick={() => { setOpenFilterKey(null); setFilterDropdownPos(null); }} className="text-slate-400"><XIcon size={12} /></button>
+                        </div>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto py-1">
+                        {uniqueVals.map(val => (
+                            <label key={val || '__empty__'} className="flex items-center gap-2 px-3 py-1 hover:bg-slate-50 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={!!activeFilter ? activeFilter.has(val) : true}
+                                    onChange={() => {
+                                        if (!activeFilter) {
+                                            setColumnFilters(prev => ({ ...prev, [col.key]: new Set(uniqueVals.filter(v => v !== val)) }));
+                                        } else {
+                                            toggleColumnFilter(col.key, val);
+                                        }
+                                    }}
+                                    className="accent-blue-600"
+                                />
+                                <span className="text-slate-700 truncate">{val || '(空白)'}</span>
+                            </label>
+                        ))}
+                    </div>
+                    <div className="border-t border-slate-100 px-3 py-1.5 flex gap-2">
+                        <button onClick={() => clearColumnFilter(col.key)} className="text-[10px] text-blue-600 hover:underline">すべて選択</button>
+                        <button onClick={() => setColumnFilters(prev => ({ ...prev, [col.key]: new Set() }))} className="text-[10px] text-slate-400 hover:underline">すべて解除</button>
+                    </div>
+                </div>,
+                document.body
+            );
+        })()}
         </>
     );
 }

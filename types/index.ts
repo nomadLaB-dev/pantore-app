@@ -327,6 +327,8 @@ export interface ScheduleRow {
     reference: string;
     rev: string;
     note: string;
+    attachmentPath?: string;
+    attachmentName?: string;
 }
 
 export interface AttendanceRecord {

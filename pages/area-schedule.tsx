@@ -2,6 +2,7 @@
 import type { ReactElement } from 'react';
 import PrivateLayout from '@/components/private-layout';
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { MapPin, RefreshCw, Calendar, Search, Settings2, GripVertical, Merge, Filter, X as XIcon, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { ScheduleRow } from '@/lib/formatSchedule';
@@ -108,6 +109,7 @@ export default function AreaSchedulePage() {
     const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
     const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
     const filterDropdownRef = useRef<HTMLDivElement | null>(null);
+    const [filterDropdownPos, setFilterDropdownPos] = useState<{ top: number; left: number } | null>(null);
     const [sortKey, setSortKey] = useState<keyof ScheduleRow | null>(null);
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -138,6 +140,7 @@ export default function AreaSchedulePage() {
         const handler = (e: MouseEvent) => {
             if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) {
                 setOpenFilterKey(null);
+                setFilterDropdownPos(null);
             }
         };
         document.addEventListener('mousedown', handler);
@@ -230,6 +233,7 @@ export default function AreaSchedulePage() {
         });
 
     return (
+        <>
         <div className="space-y-4 animate-fade-in">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -376,7 +380,6 @@ export default function AreaSchedulePage() {
                             <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 sticky top-0 z-10">
                                 <tr>
                                     {displayCols.map(col => {
-                                        const uniqueVals = Array.from(new Set(areaFiltered.map(r => (r[col.key] as string) || ''))).sort((a, b) => a.localeCompare(b, 'ja'));
                                         const isSorted = sortKey === col.key;
                                         return (
                                             <th
@@ -412,46 +415,18 @@ export default function AreaSchedulePage() {
                                                         <Merge size={11} />
                                                     </button>
                                                     <button
-                                                        onClick={e => { e.stopPropagation(); setOpenFilterKey(openFilterKey === col.key ? null : col.key); }}
+                                                        onClick={e => {
+                                                            e.stopPropagation();
+                                                            if (openFilterKey === col.key) { setOpenFilterKey(null); setFilterDropdownPos(null); return; }
+                                                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                                            setFilterDropdownPos({ top: rect.bottom + 4, left: rect.left });
+                                                            setOpenFilterKey(col.key);
+                                                        }}
                                                         className={`flex-shrink-0 p-0.5 rounded transition-colors ${hasFilter(col.key) ? 'text-amber-500 bg-amber-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200'}`}
                                                     >
                                                         <Filter size={11} />
                                                     </button>
                                                 </div>
-                                                {openFilterKey === col.key && (
-                                                    <div ref={filterDropdownRef} className="absolute top-full left-0 z-50 mt-1 min-w-[180px] max-w-[260px] bg-white border border-slate-200 rounded-lg shadow-xl py-1 text-[11px]" onMouseDown={e => e.stopPropagation()}>
-                                                        <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100">
-                                                            <span className="font-bold text-slate-600">{col.label}</span>
-                                                            <div className="flex gap-1">
-                                                                {hasFilter(col.key) && <button onClick={() => clearColumnFilter(col.key)} className="text-amber-500 text-[10px] font-medium">クリア</button>}
-                                                                <button onClick={() => setOpenFilterKey(null)} className="text-slate-400"><XIcon size={12} /></button>
-                                                            </div>
-                                                        </div>
-                                                        <div className="max-h-52 overflow-y-auto py-1">
-                                                            {uniqueVals.map(val => (
-                                                                <label key={val || '__empty__'} className="flex items-center gap-2 px-3 py-1 hover:bg-slate-50 cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={!columnFilters[col.key] || columnFilters[col.key].has(val)}
-                                                                        onChange={() => {
-                                                                            if (!columnFilters[col.key]) {
-                                                                                setColumnFilters(prev => ({ ...prev, [col.key]: new Set(uniqueVals.filter(v => v !== val)) }));
-                                                                            } else {
-                                                                                toggleColumnFilter(col.key, val);
-                                                                            }
-                                                                        }}
-                                                                        className="accent-blue-600"
-                                                                    />
-                                                                    <span className="text-slate-700 truncate">{val || '(空白)'}</span>
-                                                                </label>
-                                                            ))}
-                                                        </div>
-                                                        <div className="border-t border-slate-100 px-3 py-1.5 flex gap-2">
-                                                            <button onClick={() => clearColumnFilter(col.key)} className="text-[10px] text-blue-600 hover:underline">すべて選択</button>
-                                                            <button onClick={() => setColumnFilters(prev => ({ ...prev, [col.key]: new Set() }))} className="text-[10px] text-slate-400 hover:underline">すべて解除</button>
-                                                        </div>
-                                                    </div>
-                                                )}
                                             </th>
                                         );
                                     })}
@@ -507,6 +482,54 @@ export default function AreaSchedulePage() {
                 )}
             </div>
         </div>
+
+        {/* Filter dropdown portal */}
+        {openFilterKey && filterDropdownPos && (() => {
+            const col = COLUMNS.find(c => c.key === openFilterKey);
+            if (!col) return null;
+            const uniqueVals = Array.from(new Set(areaFiltered.map(r => (r[col.key] as string) || ''))).sort((a, b) => a.localeCompare(b, 'ja'));
+            return createPortal(
+                <div
+                    ref={filterDropdownRef}
+                    style={{ position: 'fixed', top: filterDropdownPos.top, left: filterDropdownPos.left, zIndex: 9999 }}
+                    className="min-w-[180px] max-w-[260px] bg-white border border-slate-200 rounded-lg shadow-xl py-1 text-[11px]"
+                    onMouseDown={e => e.stopPropagation()}
+                >
+                    <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100">
+                        <span className="font-bold text-slate-600">{col.label}</span>
+                        <div className="flex gap-1">
+                            {hasFilter(col.key) && <button onClick={() => clearColumnFilter(col.key)} className="text-amber-500 text-[10px] font-medium">クリア</button>}
+                            <button onClick={() => { setOpenFilterKey(null); setFilterDropdownPos(null); }} className="text-slate-400"><XIcon size={12} /></button>
+                        </div>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto py-1">
+                        {uniqueVals.map(val => (
+                            <label key={val || '__empty__'} className="flex items-center gap-2 px-3 py-1 hover:bg-slate-50 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={!columnFilters[col.key] || columnFilters[col.key].has(val)}
+                                    onChange={() => {
+                                        if (!columnFilters[col.key]) {
+                                            setColumnFilters(prev => ({ ...prev, [col.key]: new Set(uniqueVals.filter(v => v !== val)) }));
+                                        } else {
+                                            toggleColumnFilter(col.key, val);
+                                        }
+                                    }}
+                                    className="accent-blue-600"
+                                />
+                                <span className="text-slate-700 truncate">{val || '(空白)'}</span>
+                            </label>
+                        ))}
+                    </div>
+                    <div className="border-t border-slate-100 px-3 py-1.5 flex gap-2">
+                        <button onClick={() => clearColumnFilter(col.key)} className="text-[10px] text-blue-600 hover:underline">すべて選択</button>
+                        <button onClick={() => setColumnFilters(prev => ({ ...prev, [col.key]: new Set() }))} className="text-[10px] text-slate-400 hover:underline">すべて解除</button>
+                    </div>
+                </div>,
+                document.body
+            );
+        })()}
+    </>
     );
 }
 
