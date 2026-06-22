@@ -640,19 +640,19 @@ export default function EmployeeDetailPage() {
 
             {/* Modals */}
             <EmploymentHistoryModal
-                employeeId={id}
+                employeeId={String(id)}
                 record={empHistModal.record}
                 open={empHistModal.open}
                 onClose={() => setEmpHistModal({ open: false })}
             />
             <WorkloadModal
-                employeeId={id}
+                employeeId={String(id)}
                 record={workloadModal.record}
                 open={workloadModal.open}
                 onClose={() => setWorkloadModal({ open: false })}
             />
             <QualificationModal
-                employeeId={id}
+                employeeId={String(id)}
                 record={qualificationModal.record}
                 open={qualificationModal.open}
                 onClose={() => setQualificationModal({ open: false })}

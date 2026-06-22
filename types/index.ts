@@ -327,6 +327,10 @@ export interface ScheduleRow {
     reference: string;
     rev: string;
     note: string;
+    pickupDone: string;
+    vehicleLoaded: string;
+    unloaded: string;
+    delivered: string;
     attachmentPath?: string;
     attachmentName?: string;
 }

@@ -14,8 +14,9 @@ const COLUMNS_DEFAULT = [
     '県名', '施設名', '集配業者\n搬入拠点', 'コード\n集材員名', 'リファレンス', 'SEQ', 'REV', 'チェック',
 ];
 const COLUMNS_IPD = [
-    '配送種別', '確認状況', 'ステータス', 'ID', 'サービス', 'Con No.', '箱数',
-    '依頼日', '集荷日時', '集荷先', '集荷エリア', '配達日時', '配達先', '配達エリア',
+    'ID', '配送種別', '確認状況', 'ステータス', 'FedEx伝票番号', 'Box総数', '集荷日時', '集荷',
+    '集荷先', '集荷エリア', '配達先', '配達エリア', '配達日時', '車載', '荷降', '配達',
+    '引き取り伝票番号', '治験名', '依頼日',
 ];
 const COLUMNS_MAIL = [
     'お問い合わせ番号', '登録区分', '集荷先施設担当者', '集荷先電話番号',
@@ -38,6 +39,9 @@ const getInitialCols = (tabId: string) => {
     if (tabId === 'i' || tabId === 'f') return COLUMNS_MAIL.length;
     return COLUMNS_DEFAULT.length;
 };
+
+const CHECKBOX_COLUMNS: Record<string, number[]> = { m: [13], q: [13], ip: [7, 13, 14, 15] };
+const isCheckboxCell = (tabId: string, cIdx: number) => (CHECKBOX_COLUMNS[tabId] ?? []).includes(cIdx);
 
 const createEmptyData = (colCount: number) =>
     Array(INITIAL_ROWS).fill(null).map(() => Array(colCount).fill(''));
@@ -125,6 +129,8 @@ export default function DataEntry() {
                 request_time: row.requestTime || '', service: row.service || '', con_no: row.conNo || '',
                 box_count: row.boxCount ? Number(row.boxCount) : null, request: row.request || '', courier_code: row.courierCode || '',
                 courier_name: row.courierName || '', reference: row.reference || '', rev: row.rev || '', note: row.note || '',
+                pickup_done: row.pickupDone === 'true', vehicle_loaded: row.vehicleLoaded === 'true',
+                unloaded: row.unloaded === 'true', delivered: row.delivered === 'true',
             };
             if (match) { toUpdate.push({ id: (match as any).id, ...dbRow }); }
             else { toInsert.push(dbRow); }
@@ -214,9 +220,13 @@ export default function DataEntry() {
                 if (draftData?.state_json) {
                     const loaded = draftData.state_json as Record<string, string[][]>;
                     for (const tab of TABS) {
-                        if (!loaded[tab.id]) loaded[tab.id] = createEmptyData(getInitialCols(tab.id));
-                        else if (loaded[tab.id].length < INITIAL_ROWS) {
-                            const extra = createEmptyData(getInitialCols(tab.id)).slice(loaded[tab.id].length);
+                        const cols = getInitialCols(tab.id);
+                        if (!loaded[tab.id]) { loaded[tab.id] = createEmptyData(cols); continue; }
+                        loaded[tab.id] = loaded[tab.id].map(row =>
+                            row.length === cols ? row : Array.from({ length: cols }, (_, i) => row[i] ?? '')
+                        );
+                        if (loaded[tab.id].length < INITIAL_ROWS) {
+                            const extra = createEmptyData(cols).slice(loaded[tab.id].length);
                             loaded[tab.id] = [...loaded[tab.id], ...extra];
                         }
                     }
@@ -327,7 +337,7 @@ export default function DataEntry() {
     };
 
     const startEditing = (r: number, c: number, initialValue: string = data[r][c]) => {
-        if (c === 13 && ['manual', 'm', 'q'].includes(activeTab)) return;
+        if (isCheckboxCell(activeTab, c)) return;
         setEditingCell([r, c]); editingValueRef.current = initialValue; setEditingValueTarget(initialValue);
     };
 
@@ -427,7 +437,7 @@ export default function DataEntry() {
             const minRow = Math.min(selectionStart![0], selectionEnd![0]); const maxRow = Math.max(selectionStart![0], selectionEnd![0]);
             const minCol = Math.min(selectionStart![1], selectionEnd![1]); const maxCol = Math.max(selectionStart![1], selectionEnd![1]);
             const newData = data.map(row => [...row]);
-            for (let i = minRow; i <= maxRow; i++) for (let j = minCol; j <= maxCol; j++) { if (j < currentColumns.length && !(j === 13 && ['manual', 'm', 'q'].includes(activeTab))) newData[i][j] = ''; }
+            for (let i = minRow; i <= maxRow; i++) for (let j = minCol; j <= maxCol; j++) { if (j < currentColumns.length && !isCheckboxCell(activeTab, j)) newData[i][j] = ''; }
             updateHistory({ ...tabData, [activeTab]: newData });
         }
     };
@@ -446,7 +456,7 @@ export default function DataEntry() {
             if (i === parsedRows.length - 1 && parsedRows[i].length === 1 && parsedRows[i][0] === '') break;
             for (let j = 0; j < parsedRows[i].length; j++) {
                 const cIndex = minCol + j; if (cIndex >= currentColumns.length) break;
-                if (cIndex === 13 && ['manual', 'm', 'q'].includes(activeTab)) {
+                if (isCheckboxCell(activeTab, cIndex)) {
                     const truthy = ['true', '1', 'yes', 'ok', '〇', 'x'];
                     newData[rIndex][cIndex] = truthy.includes(parsedRows[i][j].toLowerCase()) ? 'true' : 'false';
                 } else { newData[rIndex][cIndex] = parsedRows[i][j]; }
@@ -475,7 +485,7 @@ export default function DataEntry() {
             const minRow = Math.min(selectionStart[0], selectionEnd[0]); const maxRow = Math.max(selectionStart[0], selectionEnd[0]);
             const minCol = Math.min(selectionStart[1], selectionEnd[1]); const maxCol = Math.max(selectionStart[1], selectionEnd[1]);
             const newData = data.map(row => [...row]);
-            for (let i = minRow; i <= maxRow; i++) for (let j = minCol; j <= maxCol; j++) { if (j < currentColumns.length && !(j === 13 && ['manual', 'm', 'q'].includes(activeTab))) newData[i][j] = ''; }
+            for (let i = minRow; i <= maxRow; i++) for (let j = minCol; j <= maxCol; j++) { if (j < currentColumns.length && !isCheckboxCell(activeTab, j)) newData[i][j] = ''; }
             updateHistory({ ...tabData, [activeTab]: newData });
         } else if (e.key === 'Tab') { e.preventDefault(); moveSelection(0, e.shiftKey ? -1 : 1); }
         else if (e.key === 'Enter') {
@@ -484,7 +494,7 @@ export default function DataEntry() {
             if (lastEnterData.current && (now - lastEnterData.current.time < 350)) {
                 const prev = lastEnterData.current;
                 setSelectionStart([prev.r, prev.c]); setSelectionEnd([prev.r, prev.c]);
-                if (prev.c !== 13 || !['manual', 'm', 'q'].includes(activeTab)) startEditing(prev.r, prev.c);
+                if (!isCheckboxCell(activeTab, prev.c)) startEditing(prev.r, prev.c);
                 lastEnterData.current = null;
             } else { lastEnterData.current = { time: now, r: selectionStart[0], c: selectionStart[1] }; moveSelection(e.shiftKey ? -1 : 1, 0); }
         } else if (e.key === 'F2') { e.preventDefault(); startEditing(Math.min(selectionStart[0], selectionEnd[0]), Math.min(selectionStart[1], selectionEnd[1])); }
@@ -506,7 +516,7 @@ export default function DataEntry() {
         else if (e.key === 'End') { e.preventDefault(); if (e.ctrlKey) { setSelectionStart([INITIAL_ROWS - 1, currentColumns.length - 1]); setSelectionEnd([INITIAL_ROWS - 1, currentColumns.length - 1]); scrollToRow(INITIAL_ROWS - 1); } else moveSelection(0, currentColumns.length - 1 - selectionStart[1]); }
         else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
             const r = Math.min(selectionStart[0], selectionEnd[0]); const c = Math.min(selectionStart[1], selectionEnd[1]);
-            if (c !== 13 || !['manual', 'm', 'q'].includes(activeTab)) startEditing(r, c, e.key);
+            if (!isCheckboxCell(activeTab, c)) startEditing(r, c, e.key);
         }
     };
 
@@ -514,7 +524,7 @@ export default function DataEntry() {
         const newData = data.map(row => {
             if (!row.some(cell => cell.trim() !== '')) return row;
             return row.map((cell, cIdx) => {
-                if (cIdx === 13 && ['manual', 'm', 'q'].includes(activeTab)) return cell;
+                if (isCheckboxCell(activeTab, cIdx)) return cell;
                 return cell.trim() === '' ? '-' : cell;
             });
         });
@@ -527,7 +537,7 @@ export default function DataEntry() {
     };
 
     const getColumnWidthClass = (idx: number, tabId: string) => {
-        if (tabId === 'ip') { const w: Record<number, string> = { 3: 'w-[5%]', 5: 'w-[9%]', 6: 'w-[4%]', 9: 'w-[12%]', 12: 'w-[12%]' }; return w[idx] ?? 'w-[7%]'; }
+        if (tabId === 'ip') { const w: Record<number, string> = { 0: 'w-[3%]', 4: 'w-[9%]', 6: 'w-[8%]', 7: 'w-[3%]', 8: 'w-[9%]', 10: 'w-[9%]', 12: 'w-[8%]', 13: 'w-[3%]', 14: 'w-[3%]', 15: 'w-[3%]', 16: 'w-[9%]' }; return w[idx] ?? 'w-[4%]'; }
         if (tabId === 'i' || tabId === 'f') { const w: Record<number, string> = { 0: 'w-[10%]', 1: 'w-[8%]', 2: 'w-[14%]', 3: 'w-[10%]', 4: 'w-[14%]', 5: 'w-[12%]', 6: 'w-[8%]', 7: 'w-[8%]', 8: 'w-[8%]', 9: 'w-[8%]' }; return w[idx] ?? ''; }
         const w: Record<number, string> = { 0: 'w-[8%]', 2: 'w-[8%]', 6: 'w-[5%]', 7: 'w-[12%]', 8: 'w-[12%]', 9: 'w-[12%]', 13: 'w-[5%]' };
         return w[idx] ?? 'w-[6%]';
@@ -642,7 +652,7 @@ export default function DataEntry() {
                                     <td className={`border-b border-r border-[#cbd5e1] py-1 text-center font-medium ${selectionStart !== null && rIdx >= Math.min(selectionStart[0], selectionEnd![0]) && rIdx <= Math.max(selectionStart[0], selectionEnd![0]) ? 'bg-blue-200 text-blue-900' : 'bg-[#f3f4f6] text-slate-400'}`}>
                                         {rIdx + 1}
                                     </td>
-                                    {row.slice(0, currentColumns.length).map((cellValue, cIdx) => {
+                                    {Array.from({ length: currentColumns.length }, (_, i) => row[i] ?? '').map((cellValue, cIdx) => {
                                         const selected = isSelected(rIdx, cIdx);
                                         const editing = editingCell?.[0] === rIdx && editingCell?.[1] === cIdx;
                                         let baseClass = 'p-0 border-b border-r border-[#e2e8f0] relative h-[42px] cursor-cell';
@@ -650,7 +660,7 @@ export default function DataEntry() {
                                         else if (!selected && !editing) baseClass += ' hover:bg-slate-50/50';
                                         return (
                                             <td key={cIdx} onMouseDown={e => handleMouseDown(e, rIdx, cIdx)} onMouseEnter={() => { if (isSelectingRef.current) setSelectionEnd([rIdx, cIdx]); }} onDoubleClick={() => startEditing(rIdx, cIdx)} className={baseClass}>
-                                                {cIdx === 13 && ['manual', 'm', 'q'].includes(activeTab) ? (
+                                                {isCheckboxCell(activeTab, cIdx) ? (
                                                     <div className="flex items-center justify-center w-full h-full">
                                                         <input type="checkbox" checked={cellValue === 'true'} onChange={e => { const newData = data.map(r => [...r]); newData[rIdx][cIdx] = e.target.checked ? 'true' : 'false'; updateHistory({ ...tabData, [activeTab]: newData }); }} className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 cursor-pointer" />
                                                     </div>

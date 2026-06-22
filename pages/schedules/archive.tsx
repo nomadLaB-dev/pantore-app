@@ -244,6 +244,10 @@ export default function SchedulesArchivePage() {
                     reference: d.reference || '',
                     rev: d.rev || '',
                     note: d.note || '',
+                    pickupDone: d.pickup_done ? 'true' : '',
+                    vehicleLoaded: d.vehicle_loaded ? 'true' : '',
+                    unloaded: d.unloaded ? 'true' : '',
+                    delivered: d.delivered ? 'true' : '',
                     attachmentPath: d.attachment_path || '',
                     attachmentName: d.attachment_name || '',
                 };

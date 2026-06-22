@@ -86,6 +86,10 @@ export function formatMDFRows(rows: string[][], systemType: 'M' | 'Q'): Schedule
       reference: row[10]?.trim() ?? '',
       rev: row[12]?.trim() ?? '',
       note,
+      pickupDone: '',
+      vehicleLoaded: '',
+      unloaded: '',
+      delivered: '',
     });
   }
   return result;
@@ -95,15 +99,16 @@ export function formatMDFRows(rows: string[][], systemType: 'M' | 'Q'): Schedule
 // IPD 成形
 // =============================================
 // 入力カラム順 (COLUMNS_IPD):
-//  0:配送種別  1:確認状況  2:ステータス  3:ID  4:サービス  5:Con No.  6:箱数
-//  7:依頼日  8:集荷日時  9:集荷先  10:集荷エリア  11:配達日時  12:配達先  13:配達エリア
+//  0:ID  1:配送種別  2:確認状況  3:ステータス  4:FedEx伝票番号  5:Box総数  6:集荷日時  7:集荷
+//  8:集荷先  9:集荷エリア  10:配達先  11:配達エリア  12:配達日時  13:車載  14:荷降  15:配達
+//  16:引き取り伝票番号  17:治験名  18:依頼日
 export function formatIPDRows(rows: string[][]): ScheduleRow[] {
   const result: ScheduleRow[] = [];
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     if (!row || isEmpty(row)) continue;
 
-    const deliveryType = row[0]?.trim() ?? '';
+    const deliveryType = row[1]?.trim() ?? '';
 
     let collectDate = '';
     let collectTime = '';
@@ -113,29 +118,29 @@ export function formatIPDRows(rows: string[][]): ScheduleRow[] {
 
     if (deliveryType === '転送集荷') {
       // 集荷日時 → 集配日・集配時間
-      [collectDate, collectTime] = splitDatetime(row[8] ?? '');
-      facilityName = row[9]?.trim() ?? '';   // 集荷先 → 集配施設名
-      area = row[10]?.trim() ?? '';           // 集荷エリア → 集配エリア
+      [collectDate, collectTime] = splitDatetime(row[6] ?? '');
+      facilityName = row[8]?.trim() ?? '';   // 集荷先 → 集配施設名
+      area = row[9]?.trim() ?? '';            // 集荷エリア → 集配エリア
     } else if (deliveryType === '転送配達') {
       // 配達日時 → 集配日・集配時間
-      [collectDate, collectTime] = splitDatetime(row[11] ?? '');
-      facilityName = row[12]?.trim() ?? '';  // 配達先 → 集配施設名
-      area = row[13]?.trim() ?? '';          // 配達エリア → 集配エリア
+      [collectDate, collectTime] = splitDatetime(row[12] ?? '');
+      facilityName = row[10]?.trim() ?? '';  // 配達先 → 集配施設名
+      area = row[11]?.trim() ?? '';          // 配達エリア → 集配エリア
     } else {
       // 不明な種別はデフォルトで集荷側を使用
-      [collectDate, collectTime] = splitDatetime(row[8] ?? '');
-      facilityName = row[9]?.trim() ?? '';
-      area = row[10]?.trim() ?? '';
+      [collectDate, collectTime] = splitDatetime(row[6] ?? '');
+      facilityName = row[8]?.trim() ?? '';
+      area = row[9]?.trim() ?? '';
     }
 
     // 依頼日
-    const [requestDate, requestTime] = splitDatetime(row[7] ?? '');
+    const [requestDate, requestTime] = splitDatetime(row[18] ?? '');
 
     result.push({
       id: `IP-${i}-${Date.now()}`,
       systemType: 'IP',
       deliveryType,                           // 配送種別はそのまま保持
-      uid: row[3]?.trim() ?? '',              // ID
+      uid: row[0]?.trim() ?? '',              // ID
       collectDate,
       collectTime,
       area,
@@ -143,18 +148,22 @@ export function formatIPDRows(rows: string[][]): ScheduleRow[] {
       facilityCode: '',
       facilityName,
       visitPlace: '',
-      trialName: '',
+      trialName: row[17]?.trim() ?? '',
       requestDate,
       requestTime,
-      service: row[4]?.trim() ?? '',
-      conNo: row[5]?.trim() ?? '',
-      boxCount: row[6]?.trim() ?? '',
+      service: '',
+      conNo: row[4]?.trim() ?? '',            // FedEx伝票番号
+      boxCount: row[5]?.trim() ?? '',         // Box総数
       request: '',
       courierCode: '',
       courierName: '',
-      reference: '',
+      reference: row[16]?.trim() ?? '',       // 引き取り伝票番号
       rev: '',
-      note: `${row[1]?.trim() ?? ''} ${row[2]?.trim() ?? ''}`.trim(),
+      note: `${row[2]?.trim() ?? ''} ${row[3]?.trim() ?? ''}`.trim(),
+      pickupDone: row[7]?.trim() === 'true' ? 'true' : '',     // 集荷
+      vehicleLoaded: row[13]?.trim() === 'true' ? 'true' : '', // 車載
+      unloaded: row[14]?.trim() === 'true' ? 'true' : '',      // 荷降
+      delivered: row[15]?.trim() === 'true' ? 'true' : '',     // 配達
     });
   }
   return result;
@@ -196,6 +205,10 @@ export function formatMailRows(rows: string[][], systemType: 'I' | 'F'): Schedul
       reference: '',
       rev: '',
       note: row[9]?.trim() ?? '',            // 備考
+      pickupDone: '',
+      vehicleLoaded: '',
+      unloaded: '',
+      delivered: '',
     });
   }
   return result;

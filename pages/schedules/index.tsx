@@ -5,7 +5,7 @@ import PrivateLayout from '@/components/private-layout'
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { Calendar, Search, RefreshCw, Database, Settings2, Archive, GripVertical, Merge, Filter, X as XIcon, Save, FileText, Upload, Trash2, ExternalLink } from 'lucide-react';
+import { Calendar, Search, RefreshCw, Database, Settings2, Archive, GripVertical, Merge, Filter, X as XIcon, Save, FileText, Upload, Trash2, ExternalLink, Check } from 'lucide-react';
 import type { ScheduleRow } from '@/lib/formatSchedule';
 import { createClient } from '@/lib/supabase/client';
 
@@ -23,16 +23,21 @@ const COLUMNS: { key: keyof ScheduleRow; label: string }[] = [
     { key: 'trialName',    label: '治験名' },
     { key: 'requestDate',  label: '依頼受付日' },
     { key: 'requestTime',  label: '依頼受付時間' },
-    { key: 'service',      label: 'サービス' },
-    { key: 'conNo',        label: 'Con No.' },
-    { key: 'boxCount',     label: '箱数' },
+    { key: 'conNo',        label: 'FedEx伝票番号' },
+    { key: 'boxCount',     label: 'Box総数' },
     { key: 'request',      label: '依頼' },
+    { key: 'pickupDone',    label: '集荷' },
+    { key: 'vehicleLoaded', label: '車載' },
+    { key: 'unloaded',      label: '荷降' },
+    { key: 'delivered',     label: '配達' },
     { key: 'courierCode',  label: '集材員コード' },
     { key: 'courierName',  label: '集材員名' },
     { key: 'reference',    label: 'リファレンス' },
     { key: 'rev',          label: 'REV' },
     { key: 'note',         label: '備考' },
 ];
+
+const PROGRESS_COLUMNS = new Set<keyof ScheduleRow>(['pickupDone', 'vehicleLoaded', 'unloaded', 'delivered']);
 
 const SYSTEM_META: Record<string, { label: string; color: string }> = {
     M:  { label: 'MDF',    color: 'bg-orange-100 text-orange-700 border-orange-200' },
@@ -92,6 +97,10 @@ function normalizeScheduleRow(d: any, facilityAreaMap: Record<string, string>): 
         reference: d.reference || '',
         rev: d.rev || '',
         note: d.note || '',
+        pickupDone: d.pickup_done ? 'true' : '',
+        vehicleLoaded: d.vehicle_loaded ? 'true' : '',
+        unloaded: d.unloaded ? 'true' : '',
+        delivered: d.delivered ? 'true' : '',
         attachmentPath: d.attachment_path || '',
         attachmentName: d.attachment_name || '',
     };
@@ -260,6 +269,10 @@ export default function SchedulesPage() {
                 reference: editDraft.reference || '',
                 rev: editDraft.rev || '',
                 note: editDraft.note || '',
+                pickup_done: editDraft.pickupDone === 'true',
+                vehicle_loaded: editDraft.vehicleLoaded === 'true',
+                unloaded: editDraft.unloaded === 'true',
+                delivered: editDraft.delivered === 'true',
                 attachment_path: editDraft.attachmentPath || null,
                 attachment_name: editDraft.attachmentName || null,
             }).eq('id', editDraft.id);
@@ -608,6 +621,8 @@ export default function SchedulesPage() {
                                                     <td key={col.key} className={`px-3 py-2.5 border-r border-slate-100 last:border-r-0 align-top ${isSystemType ? 'sticky left-0 bg-white/95 z-10' : ''}`}>
                                                         {isSystemType ? (
                                                             <span className={`px-2 py-1 rounded-md border text-[11px] font-bold ${meta.color}`}>{meta.label}</span>
+                                                        ) : PROGRESS_COLUMNS.has(col.key) ? (
+                                                            val === 'true' ? <Check size={14} className="text-emerald-600" /> : null
                                                         ) : (
                                                             <span className="text-slate-700 whitespace-pre-wrap">{val || ''}</span>
                                                         )}
@@ -709,9 +724,8 @@ export default function SchedulesPage() {
                                 {([
                                     { key: 'requestDate', label: '依頼受付日', placeholder: 'YYYY/MM/DD' },
                                     { key: 'requestTime', label: '依頼受付時間' },
-                                    { key: 'service', label: 'サービス' },
-                                    { key: 'conNo', label: 'Con No.' },
-                                    { key: 'boxCount', label: '箱数' },
+                                    { key: 'conNo', label: 'FedEx伝票番号' },
+                                    { key: 'boxCount', label: 'Box総数' },
                                     { key: 'request', label: '依頼' },
                                 ] as { key: keyof ScheduleRow; label: string; placeholder?: string }[]).map(({ key, label, placeholder }) => (
                                     <label key={key} className="flex flex-col gap-1">
@@ -723,6 +737,29 @@ export default function SchedulesPage() {
                                             placeholder={placeholder}
                                             className="px-2.5 py-1.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
                                         />
+                                    </label>
+                                ))}
+                            </div>
+                        </section>
+
+                        {/* 進捗 */}
+                        <section>
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">進捗</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                {([
+                                    { key: 'pickupDone', label: '集荷' },
+                                    { key: 'vehicleLoaded', label: '車載' },
+                                    { key: 'unloaded', label: '荷降' },
+                                    { key: 'delivered', label: '配達' },
+                                ] as { key: keyof ScheduleRow; label: string }[]).map(({ key, label }) => (
+                                    <label key={key} className="flex items-center gap-2 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={editDraft[key] === 'true'}
+                                            onChange={e => setEditDraft(d => d ? { ...d, [key]: e.target.checked ? 'true' : '' } : d)}
+                                            className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 cursor-pointer"
+                                        />
+                                        <span className="text-xs font-medium text-slate-700">{label}</span>
                                     </label>
                                 ))}
                             </div>

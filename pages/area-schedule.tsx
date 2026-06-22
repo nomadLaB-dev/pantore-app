@@ -90,6 +90,10 @@ function normalizeScheduleRow(d: any, facilityAreaMap: Record<string, string>): 
         reference: d.reference || '',
         rev: d.rev || '',
         note: d.note || '',
+        pickupDone: d.pickup_done ? 'true' : '',
+        vehicleLoaded: d.vehicle_loaded ? 'true' : '',
+        unloaded: d.unloaded ? 'true' : '',
+        delivered: d.delivered ? 'true' : '',
     };
 }
 

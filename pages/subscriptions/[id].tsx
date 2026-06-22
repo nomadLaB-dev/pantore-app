@@ -233,7 +233,7 @@ export default function SubscriptionDetailPage() {
                 </CardContent>
             </Card>
 
-            {showAddPrice && <AddPriceDialog subscriptionId={id} onClose={() => setShowAddPrice(false)} />}
+            {showAddPrice && <AddPriceDialog subscriptionId={String(id)} onClose={() => setShowAddPrice(false)} />}
         </div>
     );
 }
