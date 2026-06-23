@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LicensePlateColorLabel } from '@/types';
 import { VehicleBodyTypeLabel } from '@/lib/depreciation';
-import { createVehicle } from '@/app/actions/vehicle.actions';
+import { createVehicle } from '@/lib/actions/vehicle.actions';
 
 interface Branch {
     id: string;
@@ -36,8 +36,9 @@ export function NewVehicleModal({ open, onClose, branches }: Props) {
         licensePlate: '',
         licensePlateColor: 'white',
         ownershipType: 'owned',
-        // @ts-ignore
-        branchId: branches[0]?.id || '',
+        branchId: '',
+        companyId: '',
+        isTransportBureauApplied: false,
         lease: {
             leaseCompany: '',
             contractStartDate: '',
@@ -54,12 +55,31 @@ export function NewVehicleModal({ open, onClose, branches }: Props) {
         }
     });
 
-    // 初期表示時に最初の支社を選択状態にする
-    useEffect(() => {
-        if (open && !form.branchId && branches.length > 0) {
-            setForm((f) => ({ ...f, branchId: branches[0]?.id || '' }));
-        }
-    }, [open, branches, form.branchId]);
+    const { data: dbCompanies = [] } = useQuery<any[]>({
+        queryKey: ['tenants', 'all'],
+        queryFn: async () => {
+            const res = await fetch('/api/tenants?all=true');
+            if (!res.ok) throw new Error('Failed to fetch tenants');
+            return res.json();
+        },
+        enabled: open,
+    });
+
+    const { data: dbBranches = [] } = useQuery<any[]>({
+        queryKey: ['branches'],
+        queryFn: async () => {
+            const res = await fetch('/api/branches');
+            if (!res.ok) throw new Error('Failed to fetch branches');
+            return res.json();
+        },
+        enabled: open,
+    });
+
+    const filteredBranches = dbBranches.filter((b: any) => b.tenant_id === form.companyId);
+
+    const handleCompanyChange = (companyId: string | null) => {
+        setForm((f) => ({ ...f, companyId: companyId || '', branchId: '' }));
+    };
 
     const mutation = useMutation({
         mutationFn: async () => {
@@ -75,8 +95,9 @@ export function NewVehicleModal({ open, onClose, branches }: Props) {
                 licensePlate: '',
                 licensePlateColor: 'white',
                 ownershipType: 'owned',
-                // @ts-ignore
-                branchId: branches[0]?.id || '',
+                branchId: '',
+                companyId: '',
+                isTransportBureauApplied: false,
                 lease: {
                     leaseCompany: '',
                     contractStartDate: '',
@@ -99,7 +120,7 @@ export function NewVehicleModal({ open, onClose, branches }: Props) {
 
     return (
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>車両を新規登録</DialogTitle>
                 </DialogHeader>
@@ -154,14 +175,50 @@ export function NewVehicleModal({ open, onClose, branches }: Props) {
                         </div>
                     </div>
 
-                    <div>
-                        <label className="text-sm font-medium mb-1.5 block">配属支社</label>
-                        <Select value={form.branchId} onValueChange={set('branchId')}>
-                            <SelectTrigger><SelectValue placeholder="支社を選択">{branches.find((b: Branch) => b.id === form.branchId)?.name}</SelectValue></SelectTrigger>
-                            <SelectContent>
-                                {branches.map((b: Branch) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">配属会社 <span className="text-red-500">*</span></label>
+                            <Select value={form.companyId} onValueChange={handleCompanyChange}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="会社を選択">
+                                        {dbCompanies.find((c: any) => c.id === form.companyId)?.name || ''}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {dbCompanies.map((c: any) => (
+                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">配属支社</label>
+                            <Select value={form.branchId} onValueChange={set('branchId')} disabled={!form.companyId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder={form.companyId ? "支社を選択" : "先に会社を選択してください"}>
+                                        {filteredBranches.find((b: any) => b.id === form.branchId)?.name || ''}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {filteredBranches.map((b: any) => (
+                                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                        <input
+                            type="checkbox"
+                            id="isTransportBureauApplied"
+                            checked={form.isTransportBureauApplied}
+                            onChange={(e) => setForm({ ...form, isTransportBureauApplied: e.target.checked })}
+                            className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                        />
+                        <label htmlFor="isTransportBureauApplied" className="text-sm font-medium cursor-pointer select-none">
+                            運輸支局申請済み
+                        </label>
                     </div>
 
                     {form.ownershipType === 'leased' && (
@@ -237,7 +294,7 @@ export function NewVehicleModal({ open, onClose, branches }: Props) {
                     <Button variant="outline" onClick={onClose}>キャンセル</Button>
                     <Button
                         className="bg-brand-500 hover:bg-brand-600 text-white"
-                        disabled={!form.manufacturer || !form.model || mutation.isPending}
+                        disabled={!form.manufacturer || !form.model || !form.companyId || mutation.isPending}
                         onClick={() => mutation.mutate()}
                     >
                         {mutation.isPending ? '保存中…' : '登録する'}

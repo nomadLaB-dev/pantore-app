@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LicensePlateColorLabel } from '@/types';
 import { VehicleBodyTypeLabel } from '@/lib/depreciation';
-import { updateVehicle } from '@/app/actions/vehicle.actions';
+import { updateVehicle } from '@/lib/actions/vehicle.actions';
+import { X } from 'lucide-react';
 
 interface Branch {
     id: string;
@@ -31,6 +32,18 @@ export function EditVehicleModal({ open, onClose, vehicle, branches }: Props) {
 
     // ... inside the component
     const qc = useQueryClient();
+    const [showTooltip, setShowTooltip] = useState(false);
+
+    const handleBranchChange = (newBranchId: string | null) => {
+        if (!newBranchId) return;
+        const isChanged = vehicle && vehicle.branchId !== newBranchId;
+        setForm((prev) => ({
+            ...prev,
+            branchId: newBranchId,
+            isTransportBureauApplied: isChanged ? false : (vehicle?.isTransportBureauApplied || false),
+        }));
+        setShowTooltip(isChanged);
+    };
 
     const [form, setForm] = useState({
         manufacturer: '',
@@ -39,6 +52,8 @@ export function EditVehicleModal({ open, onClose, vehicle, branches }: Props) {
         licensePlateColor: 'white',
         ownershipType: 'owned',
         branchId: '',
+        tireType: 'normal',
+        isTransportBureauApplied: false,
         lease: {
             leaseCompany: '',
             contractStartDate: '',
@@ -64,6 +79,8 @@ export function EditVehicleModal({ open, onClose, vehicle, branches }: Props) {
                 licensePlateColor: vehicle.licensePlateColor || 'white',
                 ownershipType: vehicle.ownershipType || 'owned',
                 branchId: vehicle.branchId || '',
+                tireType: vehicle.tireType || 'normal',
+                isTransportBureauApplied: vehicle.isTransportBureauApplied || false,
                 lease: vehicle.lease ? {
                     leaseCompany: vehicle.lease.leaseCompany || '',
                     contractStartDate: vehicle.lease.contractStartDate || '',
@@ -91,6 +108,7 @@ export function EditVehicleModal({ open, onClose, vehicle, branches }: Props) {
                     method: 'straight',
                 }
             });
+            setShowTooltip(false);
         }
     }, [vehicle]);
 
@@ -163,14 +181,55 @@ export function EditVehicleModal({ open, onClose, vehicle, branches }: Props) {
                         </div>
                     </div>
 
-                    <div>
-                        <label className="text-sm font-medium mb-1.5 block">配属支社</label>
-                        <Select value={form.branchId} onValueChange={set('branchId')}>
-                            <SelectTrigger><SelectValue placeholder="支社を選択">{branches.find((b: Branch) => b.id === form.branchId)?.name}</SelectValue></SelectTrigger>
-                            <SelectContent>
-                                {branches.map((b: Branch) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">配属支社</label>
+                            <Select value={form.branchId} onValueChange={handleBranchChange}>
+                                <SelectTrigger><SelectValue placeholder="支社を選択">{branches.find((b: Branch) => b.id === form.branchId)?.name}</SelectValue></SelectTrigger>
+                                <SelectContent>
+                                    {branches.map((b: Branch) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1.5 block">タイヤの種類</label>
+                            <div className="flex bg-muted p-1 rounded-md">
+                                <Button type="button" variant="ghost" size="sm" className={`flex-1 h-8 ${form.tireType === 'normal' ? 'bg-background shadow-sm' : ''}`} onClick={() => setForm({ ...form, tireType: 'normal' })}>ノーマル</Button>
+                                <Button type="button" variant="ghost" size="sm" className={`flex-1 h-8 ${form.tireType === 'studless' ? 'bg-background shadow-sm' : ''}`} onClick={() => setForm({ ...form, tireType: 'studless' })}>スタッドレス</Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="relative flex items-center gap-2 pt-1">
+                        {showTooltip && (
+                            <div className="absolute bottom-full left-0 mb-2 z-10 w-64 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded p-2.5 shadow-md pr-7">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowTooltip(false)}
+                                    className="absolute top-1.5 right-1.5 p-0.5 rounded-full hover:bg-amber-100 text-amber-600 transition-colors cursor-pointer"
+                                    aria-label="閉じる"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                                <p className="font-medium">支店が移動になった場合は運輸支局への再申請が必要です。</p>
+                                <div className="absolute top-full left-4 w-2 h-2 bg-amber-50 border-r border-b border-amber-200 transform rotate-45 -translate-y-1"></div>
+                            </div>
+                        )}
+                        <input
+                            type="checkbox"
+                            id="isTransportBureauApplied"
+                            checked={form.isTransportBureauApplied}
+                            onChange={(e) => {
+                                setForm({ ...form, isTransportBureauApplied: e.target.checked });
+                                if (e.target.checked) {
+                                    setShowTooltip(false);
+                                }
+                            }}
+                            className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                        />
+                        <label htmlFor="isTransportBureauApplied" className="text-sm font-medium cursor-pointer select-none">
+                            運輸支局申請済み
+                        </label>
                     </div>
 
                     {form.ownershipType === 'leased' && (

@@ -14,13 +14,16 @@ async function test() {
     }
     console.log("Logged in:", authData.user.id);
 
-    const { data: emp, error: empErr } = await supabase.from('employees').select('*').eq('user_id', authData.user.id).single();
-    console.log("Employee query:", { emp, empErr });
+    const { data: rest, error: restErr } = await supabase.from('real_estates_rest_facilities').select('*');
+    console.log("Rest Facilities query:", { rest, restErr });
 
-    const { data: ten, error: tenErr } = await supabase.from('tenants').select('*');
-    console.log("Tenants query:", { ten, tenErr });
+    const { data: garage, error: garageErr } = await supabase.from('real_estates_garages').select('*');
+    console.log("Garages query:", { garage, garageErr });
 
-    const { data: bra, error: brErr } = await supabase.from('branches').select('*');
-    console.log("Branches query:", { bra, brErr });
+    const { data: usageTypes, error: usageTypesErr } = await supabase.from('usage_type_values').select('*');
+    console.log("Usage Types View query:", { usageTypes, usageTypesErr });
+
+    const { data: regStatuses, error: regStatusesErr } = await supabase.from('office_registration_status_values').select('*');
+    console.log("Registration Statuses View query:", { regStatuses, regStatusesErr });
 }
 test();

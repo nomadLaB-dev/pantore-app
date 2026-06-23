@@ -41,7 +41,7 @@ export function WorkloadModal({ employeeId, record, open, onClose }: Props) {
                 startDate: form.startDate,
                 endDate: form.endDate || null,
             };
-            const url = `/api/employees/${employeeId}/workloads` + (isEdit ? `/${record.id}` : '');
+            const url = `/api/users/${employeeId}/workloads` + (isEdit ? `/${record.id}` : '');
             const method = isEdit ? 'PUT' : 'POST';
             await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         },
@@ -53,7 +53,7 @@ export function WorkloadModal({ employeeId, record, open, onClose }: Props) {
 
     const deleteMutation = useMutation({
         mutationFn: async () => {
-            await fetch(`/api/employees/${employeeId}/workloads/${record.id}`, { method: 'DELETE' });
+            await fetch(`/api/users/${employeeId}/workloads/${record.id}`, { method: 'DELETE' });
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['employee_workloads', employeeId] });

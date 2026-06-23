@@ -1,13 +1,10 @@
 'use client';
-import { Moon, Sun, Bell, Menu } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { usePathname } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/router';
 
 // Map route → Japanese page title
 const pageTitles: Record<string, string> = {
     '/dashboard': 'ダッシュボード',
-    '/employees': '社員管理',
+    '/users': 'ユーザー管理',
     '/vehicles': '車両管理',
     '/real-estates': '不動産管理',
     '/subscriptions': 'サブスク管理',
@@ -26,8 +23,7 @@ function getPageTitle(pathname: string) {
 }
 
 export default function Header() {
-    const { theme, setTheme } = useTheme();
-    const pathname = usePathname();
+    const { pathname } = useRouter();
     const title = getPageTitle(pathname);
 
     return (
@@ -45,28 +41,8 @@ export default function Header() {
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-yellow-300/0 via-yellow-400/50 to-yellow-300/0" />
 
             {/* Content */}
-            <div className="relative z-10 flex items-center justify-between w-full px-5 md:px-7 pb-3">
+            <div className="relative z-10 w-full px-5 md:px-7 pb-3">
                 <h2 className="text-lg font-bold text-white drop-shadow-md tracking-tight">{title}</h2>
-
-                <div className="flex items-center gap-1">
-                    {/* Notification */}
-                    <Button variant="ghost" size="icon" className="text-white/80 hover:text-white hover:bg-white/10 relative">
-                        <Bell className="h-4 w-4" />
-                        <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-yellow-400 rounded-full" />
-                    </Button>
-
-                    {/* Theme toggle */}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-white/80 hover:text-white hover:bg-white/10"
-                        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                    >
-                        <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                        <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                        <span className="sr-only">Toggle theme</span>
-                    </Button>
-                </div>
             </div>
         </header>
     );

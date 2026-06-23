@@ -1,21 +1,32 @@
 'use client';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/router';
 import {
     Layers, LayoutDashboard, Users, Car, Building2, ShieldCheck,
     Building, CreditCard, Settings2, LogOut, UserCircle,
-    Handshake, BookUser,
+    Handshake, BookUser, CalendarDays, FlaskConical, TableIcon,
+    Clock, MapPin, Bell, Sun, Moon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
+import { useTheme } from 'next-themes';
+import { Button } from '@/components/ui/button';
+import type { SpecimenRole } from '@/types';
 
-const navItems = [
-    { name: 'ダッシュボード', href: '/dashboard', icon: LayoutDashboard },
-    { name: '社員管理', href: '/employees', icon: Users },
+const erpNavItems = [
+    { name: 'ユーザー管理', href: '/users', icon: Users },
     { name: '車両管理', href: '/vehicles', icon: Car },
     { name: '不動産管理', href: '/real-estates', icon: Building2 },
     { name: 'サブスク管理', href: '/subscriptions', icon: CreditCard },
     { name: '契約管理', href: '/contracts', icon: ShieldCheck },
+    { name: '検体一覧', href: '/specimens', icon: FlaskConical },
+    { name: '出勤管理', href: '/attendance', icon: Clock },
+];
+
+const specimenNavItems = [
+    { name: 'スケジュール', href: '/schedules', icon: CalendarDays },
+    { name: 'エリアスケジュール', href: '/area-schedule', icon: MapPin },
+    { name: 'データ入力', href: '/data-entry', icon: TableIcon },
 ];
 
 const dealNavItems = [
@@ -23,14 +34,8 @@ const dealNavItems = [
     { name: '取引先', href: '/clients', icon: BookUser },
 ];
 
-const MOCK_SESSION = {
-    name: '山田 太郎',
-    email: 'taro.yamada@pantore.test',
-    tenant: 'Pantore 株式会社',
-    role: 'admin' as 'admin' | 'member',
-    roleLabel: '管理者',
-    avatarInitial: '山',
-};
+
+
 
 function NavLink({ item, pathname }: { item: { name: string; href: string; icon: React.ElementType }; pathname: string }) {
     const isActive = pathname.startsWith(item.href);
@@ -59,8 +64,9 @@ function SectionLabel({ label }: { label: string }) {
     );
 }
 
-function UserMenu() {
+function UserMenu({ name, email, tenantName, branchName }: { name: string; email: string; tenantName?: string; branchName?: string }) {
     const router = useRouter();
+    const { theme, setTheme } = useTheme();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -79,11 +85,21 @@ function UserMenu() {
 
     return (
         <div className="p-3 border-t border-white/10 relative" ref={ref}>
+            <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-xl bg-white/5 border border-white/10">
+                <div className="w-6 h-6 rounded-md bg-amber-400/20 flex items-center justify-center shrink-0">
+                    <Building className="w-3.5 h-3.5 text-amber-300" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-amber-100 truncate">{tenantName}</p>
+                    <p className="text-[10px] text-amber-300/50 truncate">{branchName || 'テナント'}</p>
+                </div>
+            </div>
+
             {open && (
                 <div className="absolute bottom-full left-3 right-3 mb-1 bg-amber-950 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
                     <div className="px-4 py-3 border-b border-white/10">
-                        <p className="text-sm font-semibold text-amber-100 truncate">{MOCK_SESSION.name}</p>
-                        <p className="text-xs text-amber-300/60 truncate">{MOCK_SESSION.email}</p>
+                        <p className="text-sm font-semibold text-amber-100 truncate">{name}</p>
+                        <p className="text-xs text-amber-300/60 truncate">{email}</p>
                     </div>
                     <div className="py-1">
                         <Link
@@ -103,6 +119,23 @@ function UserMenu() {
                 </div>
             )}
 
+            <div className="flex items-center gap-1 mb-2">
+                <Button variant="ghost" size="icon" className="text-white/80 hover:text-white hover:bg-white/10 relative">
+                    <Bell className="h-4 w-4" />
+                    <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-yellow-400 rounded-full" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white/80 hover:text-white hover:bg-white/10"
+                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                >
+                    <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                    <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    <span className="sr-only">Toggle theme</span>
+                </Button>
+            </div>
+
             <button
                 onClick={() => setOpen(!open)}
                 className={cn(
@@ -111,11 +144,11 @@ function UserMenu() {
                 )}
             >
                 <div className="w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center text-amber-950 text-sm font-bold shrink-0">
-                    {MOCK_SESSION.avatarInitial}
+                    {name.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0 text-left">
-                    <p className="text-sm font-medium text-amber-100 truncate">{MOCK_SESSION.name}</p>
-                    <p className="text-[11px] text-amber-300/60 truncate">{MOCK_SESSION.roleLabel}</p>
+                    <p className="text-sm font-medium text-amber-100 truncate">{name}</p>
+                    <p className="text-[11px] text-amber-300/60 truncate">{email}</p>
                 </div>
                 <Settings2 className="w-3.5 h-3.5 text-amber-300/40 shrink-0" />
             </button>
@@ -123,23 +156,31 @@ function UserMenu() {
     );
 }
 
-export default function Sidebar({ tenantName, branchName }: { tenantName?: string; branchName?: string }) {
-    const pathname = usePathname();
-    const isAdmin = MOCK_SESSION.role === 'admin';
+export default function Sidebar({
+    tenantName,
+    branchName,
+    specimenRole,
+    currentUser,
+    isAdmin = true,
+}: {
+    tenantName?: string;
+    branchName?: string;
+    specimenRole?: SpecimenRole;
+    currentUser?: { name: string; email: string };
+    isAdmin?: boolean;
+}) {
+    const { pathname } = useRouter();
 
     return (
         <aside className="w-64 shrink-0 h-screen flex flex-col sticky top-0 z-20 hidden lg:flex bg-amber-950">
 
             {/* ── Logo / hero banner ───────────────────────────────── */}
             <div className="relative h-24 shrink-0 overflow-hidden">
-                {/* Bakery image */}
                 <div
                     className="absolute inset-0 bg-cover bg-center"
                     style={{ backgroundImage: 'url(/hero-bakery.png)', backgroundPosition: 'center 35%' }}
                 />
-                {/* Amber gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-b from-amber-950/30 via-amber-950/60 to-amber-950" />
-                {/* Logo */}
                 <Link
                     href="/dashboard"
                     className="absolute bottom-3 left-4 flex items-center gap-2.5 group"
@@ -154,22 +195,24 @@ export default function Sidebar({ tenantName, branchName }: { tenantName?: strin
                 </Link>
             </div>
 
-            {/* ── Tenant badge ─────────────────────────────────────── */}
-            <div className="px-3 pt-3 pb-1">
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
-                    <div className="w-6 h-6 rounded-md bg-amber-400/20 flex items-center justify-center shrink-0">
-                        <Building className="w-3.5 h-3.5 text-amber-300" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-amber-100 truncate">{tenantName || MOCK_SESSION.tenant}</p>
-                        <p className="text-[10px] text-amber-300/50 truncate">{branchName || 'テナント'}</p>
-                    </div>
-                </div>
-            </div>
-
             {/* ── Nav ──────────────────────────────────────────────── */}
-            <nav className="flex-1 py-2 px-3 space-y-0.5 overflow-y-auto">
-                {navItems.map((item) => (
+            <nav className="flex-1 py-2 px-3 space-y-0.5 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:rgba(251,191,36,0.2)_transparent] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-400/20 [&::-webkit-scrollbar-thumb:hover]:bg-amber-400/40">
+
+                <NavLink item={{ name: 'ダッシュボード', href: '/dashboard', icon: LayoutDashboard }} pathname={pathname} />
+
+                {/* 検体管理（specimen_role があるユーザーのみ） */}
+                {specimenRole && (
+                    <>
+                        <SectionLabel label="予定管理" />
+                        {specimenNavItems.map((item) => (
+                            <NavLink key={item.href} item={item} pathname={pathname} />
+                        ))}
+                    </>
+                )}
+
+                {/* ERP管理 */}
+                <SectionLabel label="ERP管理" />
+                {erpNavItems.map((item) => (
                     <NavLink key={item.href} item={item} pathname={pathname} />
                 ))}
 
@@ -187,7 +230,7 @@ export default function Sidebar({ tenantName, branchName }: { tenantName?: strin
             </nav>
 
             {/* ── User menu ────────────────────────────────────────── */}
-            <UserMenu />
+            <UserMenu name={currentUser?.name ?? ''} email={currentUser?.email ?? ''} tenantName={tenantName} branchName={branchName} />
         </aside>
     );
 }

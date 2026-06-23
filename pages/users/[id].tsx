@@ -1,0 +1,672 @@
+'use client';
+import type { ReactElement } from 'react'
+import PrivateLayout from '@/components/private-layout'
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+    ArrowLeft, User, Activity, CalendarDays, Edit3,
+    UserCheck, UserX, Briefcase, BadgeJapaneseYen, AlertTriangle,
+    CheckCircle2, Clock, Pencil, MapPin, History, Award, Phone, Mail, AtSign,
+    QrCode, KeyRound, ShieldCheck,
+} from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { EmploymentCategoryLabel, SalaryTypeLabel, AccountStatus, FIXED_TERM_CATEGORIES, type SpecimenRole } from '@/types';
+import { Badge } from '@/components/ui/badge';
+import { EmploymentHistoryModal } from '@/components/modals/employment-history-modal';
+import { WorkloadModal } from '@/components/modals/workload-modal';
+import { QualificationModal } from '@/components/modals/qualification-modal';
+import { NewEmployeeModal } from '@/components/modals/new-employee-modal';
+import { QRModal } from '@/components/modals/qr-modal';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { useAppStore } from '@/store';
+
+const ROLE_LABEL: Record<SpecimenRole, string> = {
+    admin: '管理者',
+    staff: 'スタッフ',
+    base: '拠点',
+    driver: 'ドライバー',
+};
+
+function AccountRoleCard({ employee, onSaved }: { employee: any; onSaved: () => void }) {
+    const [specimenRole, setSpecimenRole] = useState<string>(employee.specimenRole ?? '');
+    const [userCode, setUserCode] = useState(employee.userCode ?? '');
+    const [savingRole, setSavingRole] = useState(false);
+    const [showQr, setShowQr] = useState(false);
+    const [showPasswordForm, setShowPasswordForm] = useState(false);
+    const [password, setPassword] = useState('');
+    const [savingPassword, setSavingPassword] = useState(false);
+
+    const saveRole = async () => {
+        setSavingRole(true);
+        try {
+            const res = await fetch(`/api/users/${employee.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ specimenRole: specimenRole || null, userCode: userCode || null }),
+            });
+            if (!res.ok) throw new Error('保存に失敗しました');
+            onSaved();
+        } catch (e: any) {
+            alert(e.message);
+        } finally { setSavingRole(false); }
+    };
+
+    const savePassword = async () => {
+        if (password.length < 8) { alert('パスワードは8文字以上で入力してください。'); return; }
+        setSavingPassword(true);
+        try {
+            const res = await fetch(`/api/users/${employee.id}/password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'パスワードの設定に失敗しました');
+            setPassword('');
+            setShowPasswordForm(false);
+            onSaved();
+            alert('パスワードを設定しました。');
+        } catch (e: any) {
+            alert(e.message);
+        } finally { setSavingPassword(false); }
+    };
+
+    return (
+        <Card>
+            {showQr && (
+                <QRModal
+                    user={{ id: employee.id, name: employee.name, user_code: userCode || null, qr_token: employee.qrToken ?? null }}
+                    onClose={() => setShowQr(false)}
+                    onRegenerate={() => { onSaved(); setShowQr(false); }}
+                />
+            )}
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> アカウント・権限</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-sm font-medium mb-1.5 block">権限ロール</label>
+                        <select
+                            value={specimenRole}
+                            onChange={(e) => setSpecimenRole(e.target.value)}
+                            className="w-full h-9 px-3 border border-input rounded-md text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                            <option value="">なし（ERP専用）</option>
+                            {(Object.keys(ROLE_LABEL) as SpecimenRole[]).map((r) => (
+                                <option key={r} value={r}>{ROLE_LABEL[r]} ({r})</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium mb-1.5 block">ユーザーコード (例: A0001)</label>
+                        <input
+                            type="text"
+                            value={userCode}
+                            onChange={(e) => setUserCode(e.target.value)}
+                            placeholder="A0001"
+                            className="w-full h-9 px-3 border border-input rounded-md text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                    </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" onClick={saveRole} disabled={savingRole}>{savingRole ? '保存中...' : '権限を保存する'}</Button>
+                    {userCode && employee.qrToken && (
+                        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowQr(true)}>
+                            <QrCode className="w-4 h-4" /> QRコード
+                        </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowPasswordForm((v) => !v)}>
+                        <KeyRound className="w-4 h-4" /> パスワードを設定/再設定
+                    </Button>
+                </div>
+                {showPasswordForm && (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 pt-2 border-t border-border">
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="新しいパスワード（8文字以上）"
+                            className="flex-1 h-9 px-3 border border-input rounded-md text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                        <Button size="sm" onClick={savePassword} disabled={savingPassword}>{savingPassword ? '設定中...' : '設定する'}</Button>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+const categoryColors: Record<string, string> = {
+    full_time: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
+    part_time: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+    contract: 'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300',
+    dispatch: 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300',
+};
+
+const accountStatusConfig: Record<AccountStatus, { label: string; className: string }> = {
+    active: { label: 'アカウント有', className: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' },
+    disabled: { label: 'アカウント無', className: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' },
+    none: { label: 'アカウント無', className: 'bg-transparent border border-border text-muted-foreground' },
+};
+
+const QUAL_LABELS: Record<string, string> = {
+    ipd: 'IPD',
+    inter: 'Inter',
+    fedex: 'FedEx',
+    q_dome: 'Q-DOME',
+    mediford: 'MEDIFORD',
+};
+
+const QUAL_STATUS_LABELS: Record<string, string> = {
+    none: '無資格',
+    training: '研修中',
+    qualified: '有資格',
+};
+
+const TABS = [
+    { id: 'workload', name: '人月・稼働履歴', icon: Activity },
+    { id: 'employment', name: '雇用・配置履歴', icon: Briefcase },
+    { id: 'shifts', name: 'シフト', icon: CalendarDays },
+    { id: 'qualification', name: '資格', icon: Award },
+] as const;
+type TabId = typeof TABS[number]['id'];
+
+function daysUntil(dateStr: string) {
+    const d = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.ceil((d.getTime() - today.getTime()) / 86400000);
+}
+
+function formatSalary(amount: number | null, type: string | null) {
+    if (!amount || !type) return '—';
+    const fmt = `¥${amount.toLocaleString()}`;
+    switch (type) {
+        case 'monthly': return `${fmt} / 月`;
+        case 'hourly': return `${fmt} / 時`;
+        case 'annual': return `${fmt} / 年`;
+        default: return fmt;
+    }
+}
+
+export default function EmployeeDetailPage() {
+    const { id } = useRouter().query;
+    const specimenRole = useAppStore((s) => s.specimenRole);
+    const canView = specimenRole === 'admin' || specimenRole === 'staff';
+    const canEdit = specimenRole === 'admin';
+    const [activeTab, setActiveTab] = useState<TabId>('workload');
+    const queryClient = useQueryClient();
+
+    // Modal state
+    const [empHistModal, setEmpHistModal] = useState<{ open: boolean; record?: any }>({ open: false });
+    const [workloadModal, setWorkloadModal] = useState<{ open: boolean; record?: any }>({ open: false });
+    const [qualificationModal, setQualificationModal] = useState<{ open: boolean; record?: any }>({ open: false });
+    const [editModalOpen, setEditModalOpen] = useState(false);
+
+    const { data: employee, isLoading } = useQuery<any>({
+        queryKey: ['employee', id],
+        queryFn: async () => {
+            const res = await fetch(`/api/users/${id}`);
+            if (!res.ok) {
+                if (res.status === 404) return null;
+                throw new Error('社員データの取得に失敗しました');
+            }
+            return res.json();
+        },
+    });
+
+    const { data: workloads = [] } = useQuery<any[]>({
+        queryKey: ['employee_workloads', id],
+        queryFn: async () => (await fetch(`/api/users/${id}/workloads`)).json(),
+    });
+
+    const { data: employmentHistory = [] } = useQuery<any[]>({
+        queryKey: ['employee_employment_history', id],
+        queryFn: async () => (await fetch(`/api/users/${id}/employment-history`)).json(),
+    });
+
+    const { data: qualifications = [] } = useQuery<any[]>({
+        queryKey: ['employee_qualifications', id],
+        queryFn: async () => (await fetch(`/api/users/${id}/qualifications`)).json(),
+    });
+
+    const statusMutation = useMutation({
+        mutationFn: async (status: AccountStatus) => {
+            await fetch(`/api/users/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accountStatus: status }),
+            });
+        },
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['employee', id] }),
+    });
+
+    if (!canView) return <div className="p-8 text-center text-muted-foreground">このページを表示する権限がありません。</div>;
+    if (isLoading) return <div className="p-8 text-center text-muted-foreground">読み込み中...</div>;
+    if (!employee) return <div className="p-8 text-center text-muted-foreground">社員が見つかりません。</div>;
+
+    const acct = accountStatusConfig[employee.accountStatus as AccountStatus] || accountStatusConfig.none;
+
+    // Contract expiry alert for the current history record
+    const currentHistory = employmentHistory[0] as any;
+    const isFixedTerm = currentHistory && FIXED_TERM_CATEGORIES.includes(currentHistory.category);
+    const contractEnd = currentHistory?.contractEndDate;
+    const renewalPlanned = currentHistory?.renewalPlanned;
+    const daysLeft = contractEnd ? daysUntil(contractEnd) : null;
+    const showAlert = isFixedTerm && contractEnd && !renewalPlanned && daysLeft !== null && daysLeft <= 60;
+
+    return (
+        <div className="max-w-5xl mx-auto space-y-6">
+            <Link href="/users" className="inline-flex items-center text-sm text-muted-foreground hover:text-brand-500 transition-colors">
+                <ArrowLeft className="w-4 h-4 mr-1.5" /> 社員一覧へ戻る
+            </Link>
+
+            {/* Contract expiry alert banner */}
+            {showAlert && (
+                <div className={cn(
+                    'flex items-start gap-3 p-4 rounded-xl border',
+                    daysLeft! <= 30
+                        ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/30 dark:border-red-900 dark:text-red-400'
+                        : 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-400',
+                )}>
+                    <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                    <div>
+                        <p className="font-semibold text-sm">
+                            契約期限が{daysLeft! <= 30 ? '1ヶ月以内' : '2ヶ月以内'}に迫っています
+                        </p>
+                        <p className="text-sm opacity-80">
+                            契約終了日: {new Date(contractEnd).toLocaleDateString('ja-JP')}（残り {daysLeft} 日）
+                            — 更新予定に設定するとこのアラートは非表示になります。
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Profile header */}
+            <Card>
+                <CardContent className="pt-6 flex flex-col sm:flex-row items-start gap-6 relative">
+                    {canEdit && (
+                        <button
+                            onClick={() => setEditModalOpen(true)}
+                            className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-brand-500 hover:bg-muted rounded-xl transition-colors hidden sm:block"
+                        >
+                            <Edit3 className="w-4 h-4" />
+                        </button>
+                    )}
+
+                    <div className="w-16 h-16 rounded-full bg-muted border-4 border-background shadow-md flex items-center justify-center shrink-0">
+                        <User className="w-8 h-8 text-muted-foreground" />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <h1 className="text-2xl font-bold">{employee.name}</h1>
+                            {employee.currentEmploymentCategory && (
+                                <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', categoryColors[employee.currentEmploymentCategory])}>
+                                    {EmploymentCategoryLabel[employee.currentEmploymentCategory as keyof typeof EmploymentCategoryLabel]}
+                                </span>
+                            )}
+                            <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', acct.className)}>
+                                {acct.label}
+                            </span>
+                        </div>
+                        <p className="text-muted-foreground text-sm flex items-center gap-2">{employee.name_kana}</p>
+                        <p className="text-muted-foreground text-sm flex items-center gap-2"><Mail className="w-4 h-4 shrink-0" />{employee.email}</p>
+                        <p className="text-muted-foreground text-sm flex items-center gap-2"><Phone className="w-4 h-4 shrink-0" /><span>{employee.tel} / {employee.emergencyContact}</span></p>
+                        <p className="text-muted-foreground text-sm mb-4 flex items-center gap-2"><AtSign className="w-4 h-4 shrink-0" />{employee.lineId || '—'}</p>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-2 text-sm mb-4">
+                            <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">会社</p>
+                                <p className="font-medium">{employee.tenant?.name ?? '—'}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">支社</p>
+                                <p className="font-medium">{employee.branch?.name ?? '—'}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">入社日</p>
+                                <p className="font-medium">{new Date(employee.hireDate).toLocaleDateString('ja-JP')}</p>
+                            </div>
+                            {employee.leaveDate && (
+                                <div>
+                                    <p className="text-xs text-muted-foreground mb-0.5">退職日</p>
+                                    <p className="font-medium">{new Date(employee.leaveDate).toLocaleDateString('ja-JP')}</p>
+                                </div>
+                            )}
+                            {employee.currentSalary && (employee.currentEmploymentCategory === 'part_time' || employee.currentEmploymentCategory === 'dispatch') && (
+                                <div>
+                                    <p className="text-xs text-muted-foreground mb-0.5">現在の給与</p>
+                                    <p className="font-medium">{formatSalary(employee.currentSalary, employee.currentSalaryType)}</p>
+                                </div>
+                            )}
+                            {employee.currentContractEnd && (
+                                <div>
+                                    <p className="text-xs text-muted-foreground mb-0.5">契約期限</p>
+                                    <div className="flex items-center gap-1.5">
+                                        <p className={cn('font-medium', showAlert ? (daysLeft! <= 30 ? 'text-red-600' : 'text-amber-600') : '')}>
+                                            {new Date(employee.currentContractEnd).toLocaleDateString('ja-JP')}
+                                        </p>
+                                        {renewalPlanned && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
+                                    </div>
+                                </div>
+                            )}
+                            <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">invoiceNo</p>
+                                <p className="font-medium">{employee.invoiceNum || '—'}</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                            <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">住所</p>
+                                <p className="font-medium">{employee.address || '—'}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">生年月日</p>
+                                <p className="font-medium">{employee.birthDate || employee.birthday ? new Date(employee.birthDate ?? employee.birthday).toLocaleDateString('ja-JP') : '—'}</p>
+                            </div>
+                        </div>
+
+                        {canEdit && !employee.leaveDate && (
+                            <div className="flex gap-2 mt-4">
+                                {employee.accountStatus !== 'active' ? (
+                                    <Button size="sm" className="gap-2 bg-green-500 hover:bg-green-600 text-white" onClick={() => statusMutation.mutate('active')} disabled={statusMutation.isPending}>
+                                        <UserCheck className="w-4 h-4" /> アカウントの有効化
+                                    </Button>
+                                ) : (
+                                    <Button size="sm" variant="outline" className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800" onClick={() => statusMutation.mutate('none')} disabled={statusMutation.isPending}>
+                                        <UserX className="w-4 h-4" /> アカウントの停止
+                                    </Button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
+            {canEdit && (
+                <AccountRoleCard employee={employee} onSaved={() => queryClient.invalidateQueries({ queryKey: ['employee', id] })} />
+            )}
+
+            {/* Tabs */}
+            <Card>
+                <div className="flex overflow-x-auto border-b border-border">
+                    {TABS.map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={cn(
+                                'flex items-center gap-2 px-5 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap outline-none',
+                                activeTab === tab.id
+                                    ? 'border-brand-500 text-brand-600 dark:text-brand-400'
+                                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+                            )}
+                        >
+                            <tab.icon className={cn('w-4 h-4', activeTab === tab.id ? 'text-brand-500' : 'text-muted-foreground')} />
+                            {tab.name}
+                        </button>
+                    ))}
+                </div>
+
+                <CardContent className="pt-6">
+                    {/* Workload Tab */}
+                    {activeTab === 'workload' && (
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-semibold">稼働履歴（人月）</h3>
+                                {canEdit && <Button size="sm" variant="outline" onClick={() => setWorkloadModal({ open: true })}>＋ 追加</Button>}
+                            </div>
+                            {workloads.length === 0 ? (
+                                <p className="text-muted-foreground text-center py-8">稼働履歴がありません</p>
+                            ) : (
+                                workloads.map((wl: any) => (
+                                    <button
+                                        key={wl.id}
+                                        onClick={canEdit ? () => setWorkloadModal({ open: true, record: wl }) : undefined}
+                                        className={cn(
+                                            'w-full flex items-center justify-between p-4 border border-border rounded-xl text-left group',
+                                            canEdit ? 'hover:border-brand-400 hover:bg-muted/40 transition-colors cursor-pointer' : 'cursor-default',
+                                        )}
+                                    >
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-medium">稼働率 {Math.round(wl.workload * 100)}%</span>
+                                                {!wl.endDate && <span className="text-xs bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400 px-2 py-0.5 rounded-full">現在</span>}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                {new Date(wl.startDate).toLocaleDateString('ja-JP')} 〜 {wl.endDate ? new Date(wl.endDate).toLocaleDateString('ja-JP') : '現在'}
+                                            </p>
+                                        </div>
+                                        {canEdit && <Pencil className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />}
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    )}
+
+                    {/* Employment & Salary History Tab */}
+                    {activeTab === 'employment' && (
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-semibold">雇用・配置の変遷</h3>
+                                {canEdit && <Button size="sm" variant="outline" onClick={() => setEmpHistModal({ open: true })}>＋ 追加</Button>}
+                            </div>
+                            {employmentHistory.length === 0 ? (
+                                <p className="text-muted-foreground text-center py-8">履歴がありません</p>
+                            ) : (
+                                <div className="relative">
+                                    <div className="absolute left-4 top-3 bottom-3 w-px bg-border" />
+                                    <div className="space-y-4 pl-10">
+                                        {employmentHistory.map((h: any, i: number) => {
+                                            const isFixed = FIXED_TERM_CATEGORIES.includes(h.category);
+                                            const endDays = h.contractEndDate ? daysUntil(h.contractEndDate) : null;
+                                            const expiring = isFixed && !h.renewalPlanned && endDays !== null && endDays <= 60 && endDays > 0;
+
+                                            return (
+                                                <div key={h.id} className="relative">
+                                                    <div className={cn(
+                                                        'absolute -left-6 w-3 h-3 rounded-full border-2 border-background',
+                                                        i === 0 ? 'bg-brand-500' : 'bg-muted-foreground',
+                                                    )} />
+                                                    <button
+                                                        onClick={canEdit ? () => setEmpHistModal({ open: true, record: h }) : undefined}
+                                                        className={cn(
+                                                            'w-full text-left p-4 rounded-xl border group',
+                                                            canEdit ? 'hover:border-brand-400 hover:bg-muted/30 transition-colors cursor-pointer' : 'cursor-default',
+                                                            expiring
+                                                                ? (endDays! <= 30 ? 'border-red-300 dark:border-red-700' : 'border-amber-300 dark:border-amber-700')
+                                                                : 'border-border',
+                                                        )}
+                                                    >
+                                                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                            <span className={cn('text-sm font-medium px-2.5 py-0.5 rounded-full', categoryColors[h.category])}>
+                                                                {EmploymentCategoryLabel[h.category as keyof typeof EmploymentCategoryLabel]}
+                                                            </span>
+                                                            {i === 0 && <span className="text-xs bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400 px-2 py-0.5 rounded-full">現在</span>}
+                                                            {h.renewalPlanned && (
+                                                                <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                                    <CheckCircle2 className="w-3 h-3" /> 更新予定
+                                                                </span>
+                                                            )}
+                                                            {expiring && (
+                                                                <span className={cn(
+                                                                    'text-xs px-2 py-0.5 rounded-full flex items-center gap-1',
+                                                                    endDays! <= 30
+                                                                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                                )}>
+                                                                    <AlertTriangle className="w-3 h-3" /> 残り {endDays} 日
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Assignment / placement */}
+                                                        {(h.assignmentNote || h.primaryBranchId) && (
+                                                            <div className="flex items-start gap-1.5 mb-2">
+                                                                <MapPin className="w-3.5 h-3.5 text-brand-500 shrink-0 mt-0.5" />
+                                                                <span className="text-sm text-foreground">
+                                                                    {[h.primaryBranch?.name, h.assignmentNote].filter(Boolean).join(' · ')}
+                                                                </span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Salary */}
+                                                        {h.salary && (
+                                                            <div className="flex items-center gap-1.5 mb-2">
+                                                                <BadgeJapaneseYen className="w-3.5 h-3.5 text-muted-foreground" />
+                                                                <span className="text-sm font-semibold tabular-nums">{formatSalary(h.salary, h.salaryType)}</span>
+                                                                {h.salaryType && <span className="text-xs text-muted-foreground">({SalaryTypeLabel[h.salaryType as keyof typeof SalaryTypeLabel]})</span>}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Period */}
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                                                            <p className="text-xs text-muted-foreground">
+                                                                区分期間: {new Date(h.startDate).toLocaleDateString('ja-JP')} 〜 {h.endDate ? new Date(h.endDate).toLocaleDateString('ja-JP') : '現在'}
+                                                            </p>
+                                                        </div>
+
+                                                        {/* Fixed-term contract dates */}
+                                                        {isFixed && h.contractEndDate && (
+                                                            <div className="mt-2 pt-2 border-t border-border">
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    契約期間: {h.contractStartDate ? new Date(h.contractStartDate).toLocaleDateString('ja-JP') : '—'}
+                                                                    {' 〜 '}
+                                                                    <span className={cn('font-medium', expiring ? (endDays! <= 30 ? 'text-red-600' : 'text-amber-600') : '')}>
+                                                                        {new Date(h.contractEndDate).toLocaleDateString('ja-JP')}
+                                                                    </span>
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                        {canEdit && <Pencil className="absolute top-3 right-3 w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'shifts' && (
+                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                            <CalendarDays className="w-12 h-12 mb-4 opacity-30" />
+                            <p>シフト機能は開発中です</p>
+                        </div>
+                    )}
+
+                    {activeTab === 'qualification' && (
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-semibold">資格情報</h3>
+                                {canEdit && <Button size="sm" variant="outline" onClick={() => setQualificationModal({ open: true })}>＋ 追加</Button>}
+                            </div>
+                            {qualifications.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground border border-dashed rounded-xl">
+                                    <Award className="w-12 h-12 mb-4 opacity-30" />
+                                    <p>登録されている資格情報はありません</p>
+                                </div>
+                            ) : (
+                                <div className="grid gap-3">
+                                    {qualifications.map((q: any) => (
+                                        <div
+                                            key={q.qualification}
+                                            className="flex flex-col md:flex-row md:items-center justify-between p-4 border border-border rounded-xl hover:border-brand-400 hover:bg-muted/40 transition-colors text-left gap-4"
+                                        >
+                                            <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-4 items-center">
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground mb-0.5">資格区分</p>
+                                                    <span className="font-semibold text-sm">
+                                                        {QUAL_LABELS[q.qualification] || q.qualification}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground mb-0.5">ステータス</p>
+                                                    <span className="text-sm font-medium">
+                                                        {QUAL_STATUS_LABELS[q.qualificationStatus] || q.qualificationStatus}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground mb-0.5">アクティブ状態</p>
+                                                    <span className={cn(
+                                                        'text-xs px-2 py-0.5 rounded-full font-medium inline-block',
+                                                        q.isActive
+                                                            ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
+                                                            : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                                                    )}>
+                                                        {q.isActive ? 'アクティブ' : '非アクティブ'}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground mb-0.5">資格取得日</p>
+                                                    <span className="text-sm">
+                                                        {q.acquiredDate ? new Date(q.acquiredDate).toLocaleDateString('ja-JP') : '—'}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground mb-0.5">最終勤務日</p>
+                                                    <span className="text-sm">
+                                                        {q.lastWorkDate ? new Date(q.lastWorkDate).toLocaleDateString('ja-JP') : '—'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            {canEdit && (
+                                                <div className="flex justify-end items-center">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-muted-foreground hover:text-brand-500 hover:bg-muted gap-1.5"
+                                                        onClick={() => setQualificationModal({ open: true, record: q })}
+                                                    >
+                                                        <Pencil className="w-3.5 h-3.5" /> 編集
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Modals */}
+            <EmploymentHistoryModal
+                employeeId={String(id)}
+                record={empHistModal.record}
+                open={empHistModal.open}
+                onClose={() => setEmpHistModal({ open: false })}
+            />
+            <WorkloadModal
+                employeeId={String(id)}
+                record={workloadModal.record}
+                open={workloadModal.open}
+                onClose={() => setWorkloadModal({ open: false })}
+            />
+            <QualificationModal
+                employeeId={String(id)}
+                record={qualificationModal.record}
+                open={qualificationModal.open}
+                onClose={() => setQualificationModal({ open: false })}
+            />
+            <NewEmployeeModal
+                employee={employee}
+                open={editModalOpen}
+                showLeaveDate={true}
+                onClose={() => setEditModalOpen(false)}
+            />
+        </div>
+    );
+}
+
+EmployeeDetailPage.getLayout = function getLayout(page: ReactElement) {
+  return <PrivateLayout>{page}</PrivateLayout>
+}
