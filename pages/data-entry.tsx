@@ -4,7 +4,7 @@ import PrivateLayout from '@/components/private-layout'
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Save, Undo2, Redo2, ExternalLink, Keyboard, Archive, Mail } from 'lucide-react';
+import { ArrowLeft, Save, Undo2, Redo2, ExternalLink, Keyboard, Archive, Mail, Eraser } from 'lucide-react';
 import { buildScheduleList } from '@/lib/formatSchedule';
 import type { ScheduleRow } from '@/lib/formatSchedule';
 import { createClient } from '@/lib/supabase/client';
@@ -126,7 +126,7 @@ export default function DataEntry() {
                 collect_time: row.collectTime || '', uid: row.uid || '', facility_name: row.facilityName || '',
                 delivery_type: row.deliveryType || '', base: row.base || '', facility_code: row.facilityCode || '',
                 visit_place: row.visitPlace || '', trial_name: row.trialName || '', request_date: parseDbDate(row.requestDate),
-                request_time: row.requestTime || '', service: row.service || '', con_no: row.conNo || '',
+                request_time: row.requestTime || null, service: row.service || '', con_no: row.conNo || '',
                 box_count: row.boxCount ? Number(row.boxCount) : null, request: row.request || '', courier_code: row.courierCode || '',
                 courier_name: row.courierName || '', reference: row.reference || '', rev: row.rev || '', note: row.note || '',
                 pickup_done: row.pickupDone === 'true', vehicle_loaded: row.vehicleLoaded === 'true',
@@ -531,6 +531,12 @@ export default function DataEntry() {
         updateHistory({ ...tabData, [activeTab]: newData });
     };
 
+    const handleClearAllCells = () => {
+        if (!data.some(row => row.some(cell => cell.trim() !== ''))) return;
+        if (!confirm('現在のタブのすべてのセルをクリアします。よろしいですか？')) return;
+        updateHistory({ ...tabData, [activeTab]: createEmptyData(currentColumns.length) });
+    };
+
     const getActiveTabStyle = (tabId: string) => {
         const styles: Record<string, string> = { manual: 'border-purple-500 text-purple-600', m: 'border-orange-500 text-orange-600', q: 'border-blue-600 text-blue-600', ip: 'border-emerald-500 text-emerald-600', i: 'border-slate-500 text-slate-600', f: 'border-slate-500 text-slate-600' };
         return styles[tabId] ?? 'border-blue-600 text-blue-600';
@@ -570,6 +576,7 @@ export default function DataEntry() {
                                 <Mail size={14} />{isFetchingGmail ? '取得中...' : '今すぐ取得'}
                             </button>
                             <button onClick={handleFillDashes} className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 text-slate-600 rounded hover:bg-slate-200 transition-colors text-xs font-semibold border border-slate-200"><span className="font-mono font-bold">-</span> 挿入</button>
+                            <button onClick={handleClearAllCells} className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 text-slate-600 rounded hover:bg-slate-200 transition-colors text-xs font-semibold border border-slate-200"><Eraser size={14} /> セルクリア</button>
                             <button onClick={handleDraftSave} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-300 rounded hover:bg-slate-200 transition-colors shadow-sm text-xs font-semibold"><Archive size={14} className="text-slate-500" /> 一時保存</button>
                             <button onClick={handleSave} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors shadow-sm text-xs font-semibold"><Save size={14} /> 保存する</button>
                         </>

@@ -231,8 +231,7 @@ function DeliveryAreasMaster({ tenantId }: { tenantId: string }) {
                             ) : (
                                 <>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium">{area.name}</p>
-                                        {area.description && <p className="text-xs text-muted-foreground">{area.description}</p>}
+                                        <p className="text-sm font-medium">{area.description || area.name}</p>
                                     </div>
                                     <div className="flex items-center gap-1 shrink-0">
                                         <button onClick={() => setForm(area)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"><Pencil className="w-3.5 h-3.5" /></button>

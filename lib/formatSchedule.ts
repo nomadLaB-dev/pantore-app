@@ -133,8 +133,8 @@ export function formatIPDRows(rows: string[][]): ScheduleRow[] {
       area = row[9]?.trim() ?? '';
     }
 
-    // 依頼日
-    const [requestDate, requestTime] = splitDatetime(row[18] ?? '');
+    // 依頼日: "YYYY-MM-DD (曜日)" の曜日部分は保存時にnullにするため取り込まない
+    const [requestDate] = splitDatetime(row[18] ?? '');
 
     result.push({
       id: `IP-${i}-${Date.now()}`,
@@ -150,7 +150,7 @@ export function formatIPDRows(rows: string[][]): ScheduleRow[] {
       visitPlace: '',
       trialName: row[17]?.trim() ?? '',
       requestDate,
-      requestTime,
+      requestTime: '',
       service: '',
       conNo: row[4]?.trim() ?? '',            // FedEx伝票番号
       boxCount: row[5]?.trim() ?? '',         // Box総数

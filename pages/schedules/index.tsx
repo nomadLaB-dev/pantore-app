@@ -39,6 +39,18 @@ const COLUMNS: { key: keyof ScheduleRow; label: string }[] = [
 
 const PROGRESS_COLUMNS = new Set<keyof ScheduleRow>(['pickupDone', 'vehicleLoaded', 'unloaded', 'delivered']);
 
+const GARBAGE_CHECK_KEYS = COLUMNS.filter(c => c.key !== 'systemType').map(c => c.key);
+
+function isGarbageRow(row: ScheduleRow): boolean {
+    if (!row.systemType || !row.systemType.trim()) return false;
+    return GARBAGE_CHECK_KEYS.every(key => {
+        const v = ((row[key] as string) || '').toString().trim();
+        return v === '' || v === '-' || v === '- -';
+    });
+}
+
+const DELETE_KEY_SEQUENCE = ['D', 'E', 'L', 'E', 'T', 'E'];
+
 const SYSTEM_META: Record<string, { label: string; color: string }> = {
     M:  { label: 'MDF',    color: 'bg-orange-100 text-orange-700 border-orange-200' },
     Q:  { label: 'Q-dome', color: 'bg-blue-100 text-blue-700 border-blue-200' },
@@ -116,7 +128,7 @@ export default function SchedulesPage() {
     const [mounted, setMounted] = useState(false);
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [columnsOrder, setColumnsOrder] = useState<string[]>(COLUMNS.map(c => c.key));
-    const [mergedColumns, setMergedColumns] = useState<Set<string>>(new Set(['collectDate']));
+    const [mergedColumns, setMergedColumns] = useState<Set<string>>(new Set(['collectDate', 'area', 'collectTime']));
     const dragColKey = useRef<string | null>(null);
     const [dragOverKey, setDragOverKey] = useState<string | null>(null);
     const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
@@ -127,6 +139,13 @@ export default function SchedulesPage() {
     const [editDraft, setEditDraft] = useState<ScheduleRow | null>(null);
     const [saving, setSaving] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
+    const rowsRef = useRef<ScheduleRow[]>([]);
+    const deleteArmedRef = useRef(false);
+    const deleteSeqIdxRef = useRef(0);
+    const deleteArmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [garbageRows, setGarbageRows] = useState<ScheduleRow[]>([]);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deletingGarbage, setDeletingGarbage] = useState(false);
 
     const handlePdfUpload = async (file: File) => {
         if (!editDraft?.id) return;
@@ -307,6 +326,60 @@ export default function SchedulesPage() {
     };
 
     useEffect(() => {
+        rowsRef.current = rows;
+    }, [rows]);
+
+    const armDeleteSequence = () => {
+        deleteArmedRef.current = true;
+        deleteSeqIdxRef.current = 0;
+        if (deleteArmTimerRef.current) clearTimeout(deleteArmTimerRef.current);
+        deleteArmTimerRef.current = setTimeout(() => {
+            deleteArmedRef.current = false;
+            deleteSeqIdxRef.current = 0;
+        }, 8000);
+    };
+
+    const handleShowLatest = () => {
+        load();
+        armDeleteSequence();
+    };
+
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (!deleteArmedRef.current) return;
+            if (e.key === 'Shift') return;
+            if (!e.shiftKey) { deleteSeqIdxRef.current = 0; return; }
+            const expected = DELETE_KEY_SEQUENCE[deleteSeqIdxRef.current];
+            if (e.key.toUpperCase() !== expected) { deleteSeqIdxRef.current = 0; return; }
+            deleteSeqIdxRef.current += 1;
+            if (deleteSeqIdxRef.current === DELETE_KEY_SEQUENCE.length) {
+                deleteArmedRef.current = false;
+                deleteSeqIdxRef.current = 0;
+                if (deleteArmTimerRef.current) clearTimeout(deleteArmTimerRef.current);
+                setGarbageRows(rowsRef.current.filter(isGarbageRow));
+                setShowDeleteConfirm(true);
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, []);
+
+    const handleConfirmDeleteGarbage = async () => {
+        if (garbageRows.length === 0) { setShowDeleteConfirm(false); return; }
+        setDeletingGarbage(true);
+        try {
+            const ids = garbageRows.map(r => r.id).filter(Boolean);
+            const { error } = await supabase.from('schedules').delete().in('id', ids);
+            if (error) { alert(`削除に失敗しました。\n${error.message}`); return; }
+            setRows(prev => prev.filter(r => !ids.includes(r.id)));
+            setShowDeleteConfirm(false);
+            setGarbageRows([]);
+        } finally {
+            setDeletingGarbage(false);
+        }
+    };
+
+    useEffect(() => {
         setMounted(true);
         load();
 
@@ -432,7 +505,7 @@ export default function SchedulesPage() {
                     <Link href="/schedules/archive" className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
                         <Archive size={15} /> 実績
                     </Link>
-                    <button onClick={load} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
+                    <button onClick={handleShowLatest} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
                         <RefreshCw size={15} /> 最新を表示
                     </button>
                     <button onClick={archivePastAndToday} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
@@ -482,7 +555,7 @@ export default function SchedulesPage() {
                             <span className="text-xs font-semibold text-slate-500">表示する項目</span>
                             <div className="flex gap-3">
                                 <button onClick={() => setVisibleColumns(COLUMNS.map(c => c.key))} className="text-[11px] text-blue-600 hover:underline font-medium">すべて選択</button>
-                                <button onClick={() => setVisibleColumns(['systemType', 'collectDate', 'facilityName', 'uid', 'boxCount'])} className="text-[11px] text-slate-500 hover:underline">基本項目のみ</button>
+                                <button onClick={() => setVisibleColumns(['collectDate', 'area', 'collectTime', 'systemType', 'uid', 'facilityName', 'trialName', 'note'])} className="text-[11px] text-slate-500 hover:underline">基本項目のみ</button>
                             </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -844,6 +917,54 @@ export default function SchedulesPage() {
                         >
                             <Save size={14} />
                             {saving ? '保存中…' : '保存する'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* ── 不要データ削除確認モーダル ──────────────────────────── */}
+        {showDeleteConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={e => { if (e.target === e.currentTarget && !deletingGarbage) setShowDeleteConfirm(false); }}>
+                <div className="bg-white text-slate-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                        <h2 className="text-base font-bold text-slate-800 flex items-center gap-2"><Trash2 size={16} className="text-red-500" /> 不要データ削除</h2>
+                        <button onClick={() => setShowDeleteConfirm(false)} disabled={deletingGarbage} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50">
+                            <XIcon size={18} />
+                        </button>
+                    </div>
+                    <div className="overflow-y-auto flex-1 px-6 py-5">
+                        {garbageRows.length === 0 ? (
+                            <p className="text-sm text-slate-500">システム種別のみが入力され、他の項目がすべて空欄または「-」「- -」のデータは見つかりませんでした。</p>
+                        ) : (
+                            <>
+                                <p className="text-sm text-slate-700 mb-3">
+                                    システム種別のみ入力済みで他の項目が空欄または「-」「- -」のデータが <span className="font-bold text-red-600">{garbageRows.length}件</span> 見つかりました。削除しますか？
+                                </p>
+                                <ul className="space-y-1 text-xs text-slate-500 border border-slate-100 rounded-lg divide-y divide-slate-100">
+                                    {garbageRows.map(r => (
+                                        <li key={r.id} className="px-3 py-1.5 flex items-center gap-2">
+                                            <span className={`px-1.5 py-0.5 rounded border text-[10px] font-bold ${SYSTEM_META[r.systemType]?.color ?? 'bg-slate-100 text-slate-600'}`}>
+                                                {SYSTEM_META[r.systemType]?.label ?? r.systemType}
+                                            </span>
+                                            <span className="text-slate-400">id: {r.id}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </>
+                        )}
+                    </div>
+                    <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
+                        <button onClick={() => setShowDeleteConfirm(false)} disabled={deletingGarbage} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50">
+                            キャンセル
+                        </button>
+                        <button
+                            onClick={handleConfirmDeleteGarbage}
+                            disabled={deletingGarbage || garbageRows.length === 0}
+                            className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-60 rounded-lg transition-colors"
+                        >
+                            <Trash2 size={14} />
+                            {deletingGarbage ? '削除中…' : '削除する'}
                         </button>
                     </div>
                 </div>
