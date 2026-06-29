@@ -16,8 +16,13 @@ export async function deleteAllUsers() {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error('Unauthorized')
 
-    // 自分自身のアカウントは削除しない（ログイン不能になるのを防ぐため）
-    const { error } = await supabase.from('users').delete().neq('user_id', user.id)
+    // user_id が未設定（ログインアカウントを持たないドライバー等）の行は
+    // neq('user_id', ...) だとNULL比較で常に除外されてしまうため、
+    // 自分自身の社員レコードIDで除外する
+    const { data: me, error: meError } = await supabase.from('users').select('id').eq('user_id', user.id).single()
+    if (meError) throw meError
+
+    const { error } = await supabase.from('users').delete().neq('id', me.id)
     if (error) throw error
 
     return { success: true }
