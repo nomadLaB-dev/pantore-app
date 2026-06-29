@@ -22,16 +22,18 @@ export default function TenantForm({ initialData }: { initialData: any }) {
         mutationFn: async (data: typeof tenant) => {
             const res = await fetch('/api/tenants', {
                 method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data),
             });
-            if (!res.ok) throw new Error('Failed to update tenant');
+            if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || 'テナント情報の更新に失敗しました');
             return res.json();
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tenant'] });
             setSavedTenant(true);
             setTimeout(() => setSavedTenant(false), 2000);
-        }
+        },
+        onError: (e: Error) => alert(e.message),
     });
 
     return (

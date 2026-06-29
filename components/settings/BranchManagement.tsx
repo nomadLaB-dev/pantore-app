@@ -17,9 +17,29 @@ export default function BranchManagement({ initialBranches }: { initialBranches:
         initialData: initialBranches
     });
 
-    const branchCreate = useMutation({ mutationFn: async (data: { name: string, address: string }) => fetch('/api/branches', { method: 'POST', body: JSON.stringify(data) }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['branches'] }) });
-    const branchUpdate = useMutation({ mutationFn: async (data: { id: string, name: string, address: string }) => fetch(`/api/branches/${data.id}`, { method: 'PUT', body: JSON.stringify({ name: data.name, address: data.address }) }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['branches'] }) });
-    const branchDelete = useMutation({ mutationFn: async (id: string) => fetch(`/api/branches/${id}`, { method: 'DELETE' }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['branches'] }) });
+    const checkOk = async (res: Response, fallback: string) => {
+        if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || fallback);
+        return res.json();
+    };
+
+    const branchCreate = useMutation({
+        mutationFn: async (data: { name: string, address: string }) =>
+            checkOk(await fetch('/api/branches', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }), '支社の追加に失敗しました'),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['branches'] }),
+        onError: (e: Error) => alert(e.message),
+    });
+    const branchUpdate = useMutation({
+        mutationFn: async (data: { id: string, name: string, address: string }) =>
+            checkOk(await fetch(`/api/branches/${data.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: data.name, address: data.address }) }), '支社の更新に失敗しました'),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['branches'] }),
+        onError: (e: Error) => alert(e.message),
+    });
+    const branchDelete = useMutation({
+        mutationFn: async (id: string) =>
+            checkOk(await fetch(`/api/branches/${id}`, { method: 'DELETE' }), '支社の削除に失敗しました'),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['branches'] }),
+        onError: (e: Error) => alert(e.message),
+    });
 
     const [newBranchName, setNewBranchName] = useState('');
     const [newBranchAddress, setNewBranchAddress] = useState('');

@@ -13,9 +13,11 @@ interface Props {
 }
 
 const CSV_COLUMNS = [
-    'name', 'name_kana', 'birth_date', 'company', 'branch', 'email', 'tel', 'address',
+    'role', 'name', 'name_kana', 'birth_date', 'company', 'branch', 'email', 'tel', 'address',
     'emergency_contact', 'hire_date', 'category', 'hourly_rate', 'weekly_hours_min', 'weekly_hours_max',
 ] as const;
+
+const VALID_ROLES = ['admin', 'staff', 'base', 'driver'];
 
 type CsvRow = { [K in typeof CSV_COLUMNS[number]]?: string } & { _error?: string };
 
@@ -31,6 +33,8 @@ function parseCsv(text: string, companies: any[]): CsvRow[] {
             row._error = '必須項目が不足しています';
         } else if (!row.company || !companies.some(c => c.name === row.company)) {
             row._error = '会社が見つかりません';
+        } else if (row.role && !VALID_ROLES.includes(row.role)) {
+            row._error = `権限ロールは ${VALID_ROLES.join('/')} のいずれかで指定してください`;
         }
         return row;
     });
@@ -75,6 +79,7 @@ export function UserCsvImportModal({ open, onClose, onImported }: Props) {
             const company = companies.find(c => c.name === r.company);
             const branch = branches.find((b: any) => b.name === r.branch && b.tenant_id === company?.id);
             return createEmployee({
+                specimenRole: r.role || '',
                 name: r.name,
                 name_kana: r.name_kana,
                 birthDate: r.birth_date,
@@ -133,6 +138,7 @@ export function UserCsvImportModal({ open, onClose, onImported }: Props) {
                                 <table className="w-full">
                                     <thead className="bg-muted sticky top-0">
                                         <tr>
+                                            <th className="px-3 py-2 text-left font-semibold text-muted-foreground">権限ロール</th>
                                             <th className="px-3 py-2 text-left font-semibold text-muted-foreground">氏名</th>
                                             <th className="px-3 py-2 text-left font-semibold text-muted-foreground">メール</th>
                                             <th className="px-3 py-2 text-left font-semibold text-muted-foreground">会社</th>
@@ -142,6 +148,7 @@ export function UserCsvImportModal({ open, onClose, onImported }: Props) {
                                     <tbody className="divide-y divide-border">
                                         {rows.map((r, i) => (
                                             <tr key={i} className={r._error ? 'bg-red-50' : 'bg-white'}>
+                                                <td className="px-3 py-2">{r.role || '—'}</td>
                                                 <td className="px-3 py-2">{r.name || '—'}</td>
                                                 <td className="px-3 py-2">{r.email || '—'}</td>
                                                 <td className="px-3 py-2">{r.company || '—'}</td>
