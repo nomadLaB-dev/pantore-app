@@ -3,27 +3,27 @@ import type { ReactElement } from 'react'
 import PrivateLayout from '@/components/private-layout'
 
 import { useRouter } from 'next/router';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { ArrowLeft, FlaskConical, CheckCircle, Clock, Truck, Building, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-const MOCK_DATA: Record<string, any> = {
-    'SP-001': {
-        id: 'SP-001', patient: '田中 太郎', type: '血液', collectDate: '2026/06/01', clinic: '広島中央病院',
-        doctor: '鈴木 一郎', notes: '冷蔵保存必要', status: '検査中',
-        timeline: [
-            { step: '集荷受付', done: true, time: '09:00' },
-            { step: '集荷完了', done: true, time: '10:30' },
-            { step: '搬送中', done: true, time: '11:00' },
-            { step: '検査機関受取', done: false, time: null },
-            { step: '報告書作成', done: false, time: null },
-        ],
-    },
-};
-
 export default function SpecimenDetailPage() {
     const { id } = useRouter().query;
-    const specimen = MOCK_DATA[id as string];
+
+    const { data: specimen, isLoading } = useQuery<any>({
+        queryKey: ['specimen', id],
+        queryFn: async () => {
+            const res = await fetch(`/api/specimens/${id}`);
+            if (!res.ok) return null;
+            return res.json();
+        },
+        enabled: Boolean(id),
+    });
+
+    if (isLoading) {
+        return <div className="py-20 text-center text-slate-400">読み込み中...</div>;
+    }
 
     if (!specimen) {
         return (
@@ -88,8 +88,11 @@ export default function SpecimenDetailPage() {
 
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
                     <h2 className="font-semibold text-slate-800 mb-4">搬送タイムライン</h2>
+                    {!specimen.timeline?.length && (
+                        <p className="text-sm text-slate-400 text-center py-6">タイムラインの記録がありません</p>
+                    )}
                     <ol className="space-y-4">
-                        {specimen.timeline.map((step: any, i: number) => (
+                        {(specimen.timeline || []).map((step: any, i: number) => (
                             <li key={i} className="flex items-center gap-3">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${step.done ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
                                     {step.done ? <CheckCircle size={16} /> : <Clock size={16} />}

@@ -2,7 +2,7 @@
 import type { ReactElement } from 'react'
 import PrivateLayout from '@/components/private-layout'
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     CreditCard, Plus, ExternalLink, User, Building2, ChevronRight,
     DollarSign, JapaneseYen, BarChart3, RefreshCcw, Calendar,
@@ -12,6 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { NewSubscriptionModal } from '@/components/modals/new-subscription-modal';
+import { SubscriptionCsvImportModal } from '@/components/modals/subscription-csv-import-modal';
+import { DeleteAllSubscriptionsModal } from '@/components/modals/delete-all-subscriptions-modal';
+import { useCsvDeleteShortcut } from '@/lib/hooks/use-csv-delete-shortcut';
 import { SubscriptionBillingIntervalLabel } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -34,12 +37,19 @@ function formatAmount(amount: number | null, currency: string, interval: string)
 }
 
 export default function SubscriptionsPage() {
+    const qc = useQueryClient();
     const [showNewModal, setShowNewModal] = useState(false);
+    const [showCsvModal, setShowCsvModal] = useState(false);
+    const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+
+    useCsvDeleteShortcut(() => setShowCsvModal(true), () => setShowDeleteAllModal(true));
 
     const { data: subscriptions = [], isLoading } = useQuery<any[]>({
         queryKey: ['subscriptions'],
         queryFn: async () => (await fetch('/api/subscriptions')).json(),
     });
+
+    const refresh = () => qc.invalidateQueries({ queryKey: ['subscriptions'] });
 
     const totalJpy = subscriptions.reduce((sum, s) => {
         if (s.currentAmount === null || s.billingInterval === 'usage') return sum;
@@ -62,6 +72,8 @@ export default function SubscriptionsPage() {
                 </Button>
             </div>
             <NewSubscriptionModal open={showNewModal} onClose={() => setShowNewModal(false)} />
+            <SubscriptionCsvImportModal open={showCsvModal} onClose={() => setShowCsvModal(false)} onImported={refresh} />
+            <DeleteAllSubscriptionsModal open={showDeleteAllModal} onClose={() => setShowDeleteAllModal(false)} subscriptionCount={subscriptions.length} onDeleted={refresh} />
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

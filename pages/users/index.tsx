@@ -19,6 +19,9 @@ import { EmploymentCategoryLabel, AccountStatus, type SpecimenRole } from '@/typ
 import { cn } from '@/lib/utils';
 import { NewEmployeeModal } from '@/components/modals/new-employee-modal';
 import { QRModal } from '@/components/modals/qr-modal';
+import { UserCsvImportModal } from '@/components/modals/user-csv-import-modal';
+import { DeleteAllUsersModal } from '@/components/modals/delete-all-users-modal';
+import { useCsvDeleteShortcut } from '@/lib/hooks/use-csv-delete-shortcut';
 import { useAppStore } from '@/store';
 
 const categoryColors: Record<string, string> = {
@@ -37,7 +40,7 @@ const accountStatusConfig: Record<AccountStatus, { label: string; className: str
 const ROLE_LABEL: Record<SpecimenRole, string> = {
     admin: '管理者',
     staff: 'スタッフ',
-    base: '拠点',
+    base: '拠点長',
     driver: 'ドライバー',
 };
 
@@ -72,7 +75,14 @@ export default function EmployeesPage() {
     const [showNewModal, setShowNewModal] = useState(false);
     const [roleFilter, setRoleFilter] = useState<string>('all');
     const [qrUser, setQrUser] = useState<any | null>(null);
+    const [showCsvModal, setShowCsvModal] = useState(false);
+    const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
     const queryClient = useQueryClient();
+
+    useCsvDeleteShortcut(
+        () => canEdit && setShowCsvModal(true),
+        () => canEdit && setShowDeleteAllModal(true),
+    );
 
     const { data: employees = [], isLoading } = useQuery<any[]>({
         queryKey: ['users', { includeArchived: true }],
@@ -123,6 +133,8 @@ export default function EmployeesPage() {
                 e.branch?.name?.includes(searchTerm)),
     );
 
+    const isFieldStaffView = roleFilter === 'base' || roleFilter === 'driver';
+
     const active = employees.filter((e) => isCurrentEmployee(e) && e.accountStatus === 'active').length;
     const noAccount = employees.filter((e) => isCurrentEmployee(e) && e.accountStatus === 'none').length;
     const total = active + noAccount;
@@ -153,6 +165,17 @@ export default function EmployeesPage() {
                             <Plus className="w-4 h-4" /> 新規追加
                         </Button>
                         <NewEmployeeModal open={showNewModal} onClose={() => setShowNewModal(false)} />
+                        <UserCsvImportModal
+                            open={showCsvModal}
+                            onClose={() => setShowCsvModal(false)}
+                            onImported={() => queryClient.invalidateQueries({ queryKey: ['users'] })}
+                        />
+                        <DeleteAllUsersModal
+                            open={showDeleteAllModal}
+                            onClose={() => setShowDeleteAllModal(false)}
+                            userCount={employees.length}
+                            onDeleted={() => queryClient.invalidateQueries({ queryKey: ['users'] })}
+                        />
                     </>
                 )}
             </div>
@@ -218,25 +241,38 @@ export default function EmployeesPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>社員名</TableHead>
-                            <TableHead className="hidden lg:table-cell">支社</TableHead>
-                            <TableHead className="hidden md:table-cell">雇用区分</TableHead>
-                            <TableHead className="hidden lg:table-cell">権限ロール</TableHead>
-                            <TableHead className="hidden lg:table-cell">ユーザーコード</TableHead>
-                            <TableHead className="hidden sm:table-cell">入社日</TableHead>
-                            <TableHead className="text-center">アカウント</TableHead>
-                            <TableHead className="text-center hidden sm:table-cell">在籍</TableHead>
+                            {isFieldStaffView ? (
+                                <>
+                                    <TableHead className="hidden lg:table-cell">拠点名</TableHead>
+                                    <TableHead className="hidden lg:table-cell">集材員コード</TableHead>
+                                    <TableHead>氏名</TableHead>
+                                    <TableHead className="hidden md:table-cell">雇用形態</TableHead>
+                                    <TableHead className="hidden sm:table-cell">入社日</TableHead>
+                                    <TableHead className="text-center hidden sm:table-cell">在籍</TableHead>
+                                </>
+                            ) : (
+                                <>
+                                    <TableHead>社員名</TableHead>
+                                    <TableHead className="hidden lg:table-cell">支社</TableHead>
+                                    <TableHead className="hidden md:table-cell">雇用区分</TableHead>
+                                    <TableHead className="hidden lg:table-cell">権限ロール</TableHead>
+                                    <TableHead className="hidden lg:table-cell">ユーザーコード</TableHead>
+                                    <TableHead className="hidden sm:table-cell">入社日</TableHead>
+                                    <TableHead className="text-center">アカウント</TableHead>
+                                    <TableHead className="text-center hidden sm:table-cell">在籍</TableHead>
+                                </>
+                            )}
                             <TableHead />
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">読み込み中...</TableCell>
+                                <TableCell colSpan={isFieldStaffView ? 7 : 9} className="text-center py-12 text-muted-foreground">読み込み中...</TableCell>
                             </TableRow>
                         ) : filtered.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">ユーザーが見つかりません</TableCell>
+                                <TableCell colSpan={isFieldStaffView ? 7 : 9} className="text-center py-12 text-muted-foreground">ユーザーが見つかりません</TableCell>
                             </TableRow>
                         ) : (
                             filtered.map((emp) => {
@@ -251,55 +287,99 @@ export default function EmployeesPage() {
                                             status === 'retired' && 'opacity-60 bg-slate-50/50 dark:bg-slate-900/50'
                                         )}
                                     >
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                                                    <User className="w-4 h-4 text-muted-foreground" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium leading-tight">{emp.name}</p>
-                                                    <p className="text-xs text-muted-foreground hidden sm:block">{emp.email}</p>
-                                                </div>
-                                            </div>
-                                        </TableCell>
+                                        {isFieldStaffView ? (
+                                            <>
+                                                <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
+                                                    {emp.branch?.name ?? '—'}
+                                                </TableCell>
 
-                                        <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
-                                            {emp.branch?.name ?? '—'}
-                                        </TableCell>
+                                                <TableCell className="hidden lg:table-cell">
+                                                    {emp.userCode ? <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{emp.userCode}</span> : <span className="text-muted-foreground text-xs">未設定</span>}
+                                                </TableCell>
 
-                                        <TableCell className="hidden md:table-cell">
-                                            {emp.currentEmploymentCategory ? (
-                                                <Badge variant="outline" className={cn('text-xs', categoryColors[emp.currentEmploymentCategory])}>
-                                                    {EmploymentCategoryLabel[emp.currentEmploymentCategory as keyof typeof EmploymentCategoryLabel]}
-                                                </Badge>
-                                            ) : '—'}
-                                        </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                                                            <User className="w-4 h-4 text-muted-foreground" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-medium leading-tight">{emp.name}</p>
+                                                            <p className="text-xs text-muted-foreground hidden sm:block">{emp.email}</p>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
 
-                                        <TableCell className="hidden lg:table-cell">
-                                            {emp.specimenRole ? (
-                                                <Badge variant={ROLE_VARIANT[emp.specimenRole as SpecimenRole]}>{ROLE_LABEL[emp.specimenRole as SpecimenRole]}</Badge>
-                                            ) : <span className="text-muted-foreground text-xs">—</span>}
-                                        </TableCell>
+                                                <TableCell className="hidden md:table-cell">
+                                                    {emp.currentEmploymentCategory ? (
+                                                        <Badge variant="outline" className={cn('text-xs', categoryColors[emp.currentEmploymentCategory])}>
+                                                            {EmploymentCategoryLabel[emp.currentEmploymentCategory as keyof typeof EmploymentCategoryLabel]}
+                                                        </Badge>
+                                                    ) : '—'}
+                                                </TableCell>
 
-                                        <TableCell className="hidden lg:table-cell">
-                                            {emp.userCode ? <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{emp.userCode}</span> : <span className="text-muted-foreground text-xs">未設定</span>}
-                                        </TableCell>
+                                                <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
+                                                    {new Date(emp.hireDate).toLocaleDateString('ja-JP')}
+                                                </TableCell>
 
-                                        <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
-                                            {new Date(emp.hireDate).toLocaleDateString('ja-JP')}
-                                        </TableCell>
+                                                <TableCell className="text-center hidden sm:table-cell">
+                                                    <Badge variant="outline" className={cn('text-xs font-medium border', statusCfg.className)}>
+                                                        {statusCfg.label}
+                                                    </Badge>
+                                                </TableCell>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                                                            <User className="w-4 h-4 text-muted-foreground" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-medium leading-tight">{emp.name}</p>
+                                                            <p className="text-xs text-muted-foreground hidden sm:block">{emp.email}</p>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
 
-                                        <TableCell className="text-center">
-                                            <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', acct.className)}>
-                                                {acct.label}
-                                            </span>
-                                        </TableCell>
+                                                <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
+                                                    {emp.branch?.name ?? '—'}
+                                                </TableCell>
 
-                                        <TableCell className="text-center hidden sm:table-cell">
-                                            <Badge variant="outline" className={cn('text-xs font-medium border', statusCfg.className)}>
-                                                {statusCfg.label}
-                                            </Badge>
-                                        </TableCell>
+                                                <TableCell className="hidden md:table-cell">
+                                                    {emp.currentEmploymentCategory ? (
+                                                        <Badge variant="outline" className={cn('text-xs', categoryColors[emp.currentEmploymentCategory])}>
+                                                            {EmploymentCategoryLabel[emp.currentEmploymentCategory as keyof typeof EmploymentCategoryLabel]}
+                                                        </Badge>
+                                                    ) : '—'}
+                                                </TableCell>
+
+                                                <TableCell className="hidden lg:table-cell">
+                                                    {emp.specimenRole ? (
+                                                        <Badge variant={ROLE_VARIANT[emp.specimenRole as SpecimenRole]}>{ROLE_LABEL[emp.specimenRole as SpecimenRole]}</Badge>
+                                                    ) : <span className="text-muted-foreground text-xs">—</span>}
+                                                </TableCell>
+
+                                                <TableCell className="hidden lg:table-cell">
+                                                    {emp.userCode ? <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{emp.userCode}</span> : <span className="text-muted-foreground text-xs">未設定</span>}
+                                                </TableCell>
+
+                                                <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
+                                                    {new Date(emp.hireDate).toLocaleDateString('ja-JP')}
+                                                </TableCell>
+
+                                                <TableCell className="text-center">
+                                                    <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', acct.className)}>
+                                                        {acct.label}
+                                                    </span>
+                                                </TableCell>
+
+                                                <TableCell className="text-center hidden sm:table-cell">
+                                                    <Badge variant="outline" className={cn('text-xs font-medium border', statusCfg.className)}>
+                                                        {statusCfg.label}
+                                                    </Badge>
+                                                </TableCell>
+                                            </>
+                                        )}
 
                                         <TableCell className="text-right">
                                             <div className="flex items-center justify-end gap-1">

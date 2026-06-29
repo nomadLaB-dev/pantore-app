@@ -1,0 +1,8 @@
+service_name,service_url,corporate_name,billing_interval,branch,assignee,amount,currency,contract_start_date,note
+Notion,https://notion.so,"Notion Labs, Inc.",monthly,本社,山田 太郎,2500,JPY,2023-04-01,料金改定
+Slack,https://slack.com,Salesforce Japan 株式会社,monthly,本社,佐藤 花子,8.75,USD,2022-10-01,Pro plan 値上げ
+Adobe Creative Cloud,https://adobe.com,アドビ株式会社,monthly,大阪支社,鈴木 一郎,6480,JPY,2023-11-01,単体プラン
+GitHub Team,https://github.com,"GitHub, Inc.",monthly,本社,山田 太郎,4,USD,2023-01-15,価格据え置き
+Google Workspace,https://workspace.google.com,グーグル合同会社,monthly,全支社,佐藤 花子,1700,JPY,2022-06-01,Business Standard へ移行
+Figma Professional,https://figma.com,"Figma, Inc.",annual,本社,山田 太郎,50000,JPY,2024-01-01,年間契約
+AWS,https://aws.amazon.com,Amazon Web Services Japan,usage,本社,佐藤 花子,,USD,2024-03-01,従量課金（目安 $30〜120/月）

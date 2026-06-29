@@ -3,17 +3,13 @@ import type { ReactElement } from 'react'
 import PrivateLayout from '@/components/private-layout'
 
 import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { FlaskConical, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-
-const MOCK_SPECIMENS = [
-    { id: 'SP-001', patient: '田中 太郎', type: '血液', date: '2026/06/01', status: '検査中' as const },
-    { id: 'SP-002', patient: '鈴木 花子', type: '尿', date: '2026/06/02', status: '完了' as const },
-    { id: 'SP-003', patient: '佐藤 次郎', type: '血液', date: '2026/06/03', status: '受付済' as const, priority: true },
-    { id: 'SP-004', patient: '高橋 三郎', type: '組織', date: '2026/06/03', status: '集荷待ち' as const },
-    { id: 'SP-005', patient: '伊藤 四郎', type: '血液', date: '2026/06/04', status: '集荷待ち' as const },
-];
+import { SpecimenCsvImportModal } from '@/components/modals/specimen-csv-import-modal';
+import { DeleteAllSpecimensModal } from '@/components/modals/delete-all-specimens-modal';
+import { useCsvDeleteShortcut } from '@/lib/hooks/use-csv-delete-shortcut';
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
     '完了': 'default',
@@ -23,9 +19,21 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | '
 };
 
 export default function SpecimensPage() {
+    const qc = useQueryClient();
     const [search, setSearch] = useState('');
+    const [showCsvModal, setShowCsvModal] = useState(false);
+    const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
-    const filtered = MOCK_SPECIMENS.filter(s =>
+    useCsvDeleteShortcut(() => setShowCsvModal(true), () => setShowDeleteAllModal(true));
+
+    const { data: specimens = [], isLoading } = useQuery<any[]>({
+        queryKey: ['specimens'],
+        queryFn: async () => (await fetch('/api/specimens')).json(),
+    });
+
+    const refresh = () => qc.invalidateQueries({ queryKey: ['specimens'] });
+
+    const filtered = specimens.filter(s =>
         !search ||
         s.id.toLowerCase().includes(search.toLowerCase()) ||
         s.patient.toLowerCase().includes(search.toLowerCase()) ||
@@ -41,6 +49,9 @@ export default function SpecimensPage() {
                 </div>
             </div>
 
+            <SpecimenCsvImportModal open={showCsvModal} onClose={() => setShowCsvModal(false)} onImported={refresh} />
+            <DeleteAllSpecimensModal open={showDeleteAllModal} onClose={() => setShowDeleteAllModal(false)} specimenCount={specimens.length} onDeleted={refresh} />
+
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
                 <div className="relative">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -55,7 +66,9 @@ export default function SpecimensPage() {
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                {filtered.length === 0 ? (
+                {isLoading ? (
+                    <div className="py-20 text-center text-slate-400">読み込み中...</div>
+                ) : filtered.length === 0 ? (
                     <div className="py-20 text-center text-slate-400">
                         <FlaskConical size={40} className="mx-auto mb-3 opacity-30" />
                         <p className="font-medium">検体が見つかりません</p>
@@ -77,7 +90,7 @@ export default function SpecimensPage() {
                                 <tr key={specimen.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-2">
-                                            {'priority' in specimen && specimen.priority && (
+                                            {specimen.priority && (
                                                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
                                             )}
                                             <span className="font-mono font-semibold text-slate-800">{specimen.id}</span>

@@ -1,0 +1,7 @@
+name,address,ownership_type,usage_type,floor_area,office_registration_status,tenant,branch,landlord,monthly_rent,start_date,end_date
+広島本社オフィス,広島県広島市中区基町6-78,owned,office,320.5,applied,シューペルブリアン株式会社,広島本社,,,,
+広島第二倉庫,広島県広島市西区扇2-1-1,leased,warehouse,580,applied,シューペルブリアン株式会社,広島本社,広島デベロップメント株式会社,280000,2023-04-01,2027-03-31
+松山事業所,愛媛県松山市湊町5-1-1,leased,office,210,not_applied,シューペルブリアン株式会社,松山事業所,四国不動産株式会社,180000,2024-01-01,2026-12-31
+松山駐車場,愛媛県松山市湊町5-2-3,leased,parking_lot,150,not_required,シューペルブリアン株式会社,松山事業所,四国不動産株式会社,60000,2024-01-01,2026-12-31
+高松事業所,香川県高松市丸亀町2-1,leased,office,195,applied,シューペルブリアン株式会社,高松事業所,瀬戸内興産株式会社,150000,2022-07-01,2026-06-30
+高松倉庫,香川県高松市朝日町3-5,leased,warehouse,420,not_applied,シューペルブリアン株式会社,高松事業所,瀬戸内興産株式会社,200000,2025-03-01,2027-02-28
