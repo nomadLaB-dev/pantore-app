@@ -2,9 +2,9 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import {
-    Layers, LayoutDashboard, Users, Car, Building2, ShieldCheck,
-    Building, CreditCard, Settings2, LogOut, UserCircle,
-    Handshake, BookUser, CalendarDays, FlaskConical, TableIcon,
+    Layers, LayoutDashboard, Users, Car, Building2,
+    Building, Settings2, LogOut, UserCircle,
+    CalendarDays, TableIcon,
     Clock, MapPin, Bell, Sun, Moon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,9 +17,6 @@ const erpNavItems = [
     { name: 'ユーザー管理', href: '/users', icon: Users },
     { name: '車両管理', href: '/vehicles', icon: Car },
     { name: '不動産管理', href: '/real-estates', icon: Building2 },
-    { name: 'サブスク管理', href: '/subscriptions', icon: CreditCard },
-    { name: '契約管理', href: '/contracts', icon: ShieldCheck },
-    { name: '検体一覧', href: '/specimens', icon: FlaskConical },
     { name: '出勤管理', href: '/attendance', icon: Clock },
 ];
 
@@ -28,14 +25,6 @@ const specimenNavItems = [
     { name: 'エリアスケジュール', href: '/area-schedule', icon: MapPin },
     { name: 'データ入力', href: '/data-entry', icon: TableIcon },
 ];
-
-const dealNavItems = [
-    { name: '取引管理', href: '/deals', icon: Handshake },
-    { name: '取引先', href: '/clients', icon: BookUser },
-];
-
-
-
 
 function NavLink({ item, pathname }: { item: { name: string; href: string; icon: React.ElementType }; pathname: string }) {
     const isActive = pathname.startsWith(item.href);
@@ -213,11 +202,6 @@ export default function Sidebar({
                 {/* ERP管理 */}
                 <SectionLabel label="ERP管理" />
                 {erpNavItems.map((item) => (
-                    <NavLink key={item.href} item={item} pathname={pathname} />
-                ))}
-
-                <SectionLabel label="取引" />
-                {dealNavItems.map((item) => (
                     <NavLink key={item.href} item={item} pathname={pathname} />
                 ))}
 

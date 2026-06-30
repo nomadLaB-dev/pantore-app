@@ -297,11 +297,6 @@ export default function DashboardPage() {
         queryKey: ['vehicles'],
         queryFn: async () => (await fetch('/api/vehicles')).json(),
     });
-    const { data: contracts = [] } = useQuery<any[]>({
-        queryKey: ['contracts'],
-        queryFn: async () => (await fetch('/api/contracts')).json(),
-    });
-
     // エリア一覧の取得
     const { data: areasData } = useQuery<any>({
         queryKey: ['staff-allocation-areas'],
@@ -326,7 +321,6 @@ export default function DashboardPage() {
 
     const activeEmployees = employees.filter((e: any) => isCurrentEmployee(e)).length;
     const totalAccidents = vehicles.reduce((s: number, v: any) => s + v.accidents.length, 0);
-    const alertContracts = contracts.filter((c: any) => c.daysLeft <= 90);
 
     // Employee contract expiry alerts (fixed-term, within 60 days, no renewalPlanned)
     const expiringEmployees = employees
@@ -444,40 +438,6 @@ export default function DashboardPage() {
                             </Card>
                         </motion.div>
                     )}
-
-                    {/* 契約期限アラート */}
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-                        <Card>
-                            <CardHeader className="pb-2 flex-row items-center justify-between">
-                                <CardTitle className="text-base flex items-center gap-2">
-                                    <AlertTriangle className="w-4 h-4 text-amber-500" /> 契約期限アラート
-                                </CardTitle>
-                                <Link href="/contracts" className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-0.5">
-                                    すべて見る <ChevronRight className="w-3 h-3" />
-                                </Link>
-                            </CardHeader>
-                            <CardContent>
-                                {alertContracts.length === 0 ? (
-                                    <p className="text-center py-8 text-muted-foreground text-sm">期限近くの契約はありません</p>
-                                ) : (
-                                    <div className="divide-y divide-border">
-                                        {alertContracts.slice(0, 5).map((c: any) => (
-                                            <div key={c.id} className="flex items-center justify-between py-3 gap-3">
-                                                <div className="min-w-0">
-                                                    <p className="text-sm font-medium truncate">{c.relatedName}</p>
-                                                    <p className="text-xs text-muted-foreground">{c.counterparty}</p>
-                                                </div>
-                                                <div className="shrink-0 text-right">
-                                                    <DaysLeftBadge days={c.daysLeft} />
-                                                    <p className="text-xs text-muted-foreground mt-0.5">{new Date(c.endDate).toLocaleDateString('ja-JP')}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </motion.div>
 
                     {/* 人員管理 */}
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>

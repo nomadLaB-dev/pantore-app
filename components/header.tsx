@@ -7,10 +7,6 @@ const pageTitles: Record<string, string> = {
     '/users': 'ユーザー管理',
     '/vehicles': '車両管理',
     '/real-estates': '不動産管理',
-    '/subscriptions': 'サブスク管理',
-    '/contracts': '契約管理',
-    '/deals': '取引管理',
-    '/clients': '取引先',
     '/settings': '設定',
     '/account': 'アカウント設定',
 };

@@ -137,6 +137,7 @@ export default function SchedulesPage() {
     const [filterDropdownPos, setFilterDropdownPos] = useState<{ top: number; left: number } | null>(null);
     const [editingRow, setEditingRow] = useState<ScheduleRow | null>(null);
     const [editDraft, setEditDraft] = useState<ScheduleRow | null>(null);
+    const [couriers, setCouriers] = useState<{ name: string; userCode: string }[]>([]);
     const [saving, setSaving] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const rowsRef = useRef<ScheduleRow[]>([]);
@@ -307,9 +308,10 @@ export default function SchedulesPage() {
 
     const load = async () => {
         try {
-            const [schedulesRes, facilitiesRes] = await Promise.all([
+            const [schedulesRes, facilitiesRes, couriersRes] = await Promise.all([
                 supabase.from('schedules').select('*').eq('is_archived', false),
                 supabase.from('settings_facilities').select('facility, area'),
+                supabase.from('users').select('name, user_code').in('specimen_role', ['base', 'driver']).is('leave_date', null),
             ]);
             if (schedulesRes.data && !schedulesRes.error) {
                 const facilityAreaMap: Record<string, string> = {};
@@ -320,6 +322,7 @@ export default function SchedulesPage() {
             } else {
                 setRows([]);
             }
+            setCouriers((couriersRes.data || []).map((u: any) => ({ name: u.name, userCode: u.user_code || '' })));
         } catch {
             setRows([]);
         }
@@ -842,9 +845,40 @@ export default function SchedulesPage() {
                         <section>
                             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">業者情報</p>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                <label className="flex flex-col gap-1">
+                                    <span className="text-[11px] font-semibold text-slate-500">集材員コード</span>
+                                    <input
+                                        type="text"
+                                        value={(editDraft.courierCode as string) || ''}
+                                        onChange={e => {
+                                            const code = e.target.value;
+                                            const courier = code ? couriers.find(c => c.userCode === code) : undefined;
+                                            setEditDraft(d => d ? { ...d, courierCode: code, courierName: courier?.name ?? d.courierName } : d);
+                                        }}
+                                        className="px-2.5 py-1.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                                    />
+                                </label>
+                                <label className="flex flex-col gap-1">
+                                    <span className="text-[11px] font-semibold text-slate-500">集材員名</span>
+                                    <select
+                                        value={(editDraft.courierName as string) || ''}
+                                        onChange={e => {
+                                            const name = e.target.value;
+                                            const courier = couriers.find(c => c.name === name);
+                                            setEditDraft(d => d ? { ...d, courierName: name, courierCode: courier?.userCode || '' } : d);
+                                        }}
+                                        className="px-2.5 py-1.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"
+                                    >
+                                        <option value="">未選択</option>
+                                        {couriers.map(c => (
+                                            <option key={c.name} value={c.name}>{c.name}</option>
+                                        ))}
+                                        {editDraft.courierName && !couriers.some(c => c.name === editDraft.courierName) && (
+                                            <option value={editDraft.courierName}>{editDraft.courierName}</option>
+                                        )}
+                                    </select>
+                                </label>
                                 {([
-                                    { key: 'courierCode', label: '集材員コード' },
-                                    { key: 'courierName', label: '集材員名' },
                                     { key: 'reference', label: 'リファレンス' },
                                     { key: 'rev', label: 'REV' },
                                 ] as { key: keyof ScheduleRow; label: string }[]).map(({ key, label }) => (
