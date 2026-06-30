@@ -10,6 +10,13 @@ export async function createEmployee(data: any) {
     return res.json()
 }
 
+export async function deleteEmployee(id: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from('users').delete().eq('id', id)
+    if (error) throw error
+    return { success: true }
+}
+
 export async function deleteAllUsers() {
     const supabase = createClient()
 

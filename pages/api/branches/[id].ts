@@ -8,9 +8,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'PUT') {
         try {
             const body = req.body
+            const update: Record<string, any> = { name: body.name, address: body.address }
+            if (body.deliveryAreas !== undefined) {
+                const areas = Array.isArray(body.deliveryAreas) ? body.deliveryAreas.slice(0, 5) : []
+                update.delivery_areas = areas
+            }
             const { data, error } = await supabase
                 .from('branches')
-                .update({ name: body.name, address: body.address })
+                .update(update)
                 .eq('id', id)
                 .select('*')
                 .single()

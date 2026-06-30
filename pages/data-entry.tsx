@@ -8,6 +8,7 @@ import { ArrowLeft, Save, Undo2, Redo2, ExternalLink, Keyboard, Archive, Mail, E
 import { buildScheduleList } from '@/lib/formatSchedule';
 import type { ScheduleRow } from '@/lib/formatSchedule';
 import { createClient } from '@/lib/supabase/client';
+import ScheduleTabs from '@/components/schedule-tabs';
 
 const COLUMNS_DEFAULT = [
     '集荷予定\n日時', 'ステータス', '手配状況\n送信時間', '依頼', '至急', '集材種別',
@@ -550,7 +551,10 @@ export default function DataEntry() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 w-full overflow-hidden select-none -m-5 md:-m-7">
+        <div className="flex flex-col h-full bg-slate-50 w-full overflow-hidden select-none -mx-5 md:-mx-7 -mb-5 md:-mb-7">
+            <div className="flex-none bg-white px-4">
+                <ScheduleTabs />
+            </div>
             <div className="flex flex-none flex-col sm:flex-row items-center justify-between px-4 py-2 sm:py-3 bg-white border-b border-slate-200 gap-3 sm:gap-0">
                 <div className="flex items-center gap-3">
                     <Link href="/dashboard" className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">

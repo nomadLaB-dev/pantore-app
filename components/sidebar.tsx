@@ -4,8 +4,8 @@ import { useRouter } from 'next/router';
 import {
     Layers, LayoutDashboard, Users, Car, Building2,
     Building, Settings2, LogOut, UserCircle,
-    CalendarDays, TableIcon,
-    Clock, MapPin, Bell, Sun, Moon,
+    CalendarDays,
+    Clock, Bell, Sun, Moon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
@@ -14,16 +14,18 @@ import { Button } from '@/components/ui/button';
 import type { SpecimenRole } from '@/types';
 
 const erpNavItems = [
-    { name: 'ユーザー管理', href: '/users', icon: Users },
     { name: '車両管理', href: '/vehicles', icon: Car },
-    { name: '不動産管理', href: '/real-estates', icon: Building2 },
-    { name: '出勤管理', href: '/attendance', icon: Clock },
+    { name: '不動産管理', href: '/real-estates', icon: Building },
+    { name: '勤怠管理', href: '/attendance', icon: Clock },
+];
+
+const peopleNavItems = [
+    { name: 'オペレーター', href: '/operators', icon: Users },
+    { name: '拠点・支社', href: '/branches', icon: Building2 },
 ];
 
 const specimenNavItems = [
     { name: 'スケジュール', href: '/schedules', icon: CalendarDays },
-    { name: 'エリアスケジュール', href: '/area-schedule', icon: MapPin },
-    { name: 'データ入力', href: '/data-entry', icon: TableIcon },
 ];
 
 function NavLink({ item, pathname }: { item: { name: string; href: string; icon: React.ElementType }; pathname: string }) {
@@ -150,15 +152,15 @@ export default function Sidebar({
     branchName,
     specimenRole,
     currentUser,
-    isAdmin = true,
 }: {
     tenantName?: string;
     branchName?: string;
     specimenRole?: SpecimenRole;
     currentUser?: { name: string; email: string };
-    isAdmin?: boolean;
 }) {
     const { pathname } = useRouter();
+    const isBase = specimenRole === 'base';
+    const isAdmin = specimenRole === 'admin';
 
     return (
         <aside className="w-64 shrink-0 h-screen flex flex-col sticky top-0 z-20 hidden lg:flex bg-amber-950">
@@ -199,11 +201,15 @@ export default function Sidebar({
                     </>
                 )}
 
-                {/* ERP管理 */}
-                <SectionLabel label="ERP管理" />
-                {erpNavItems.map((item) => (
-                    <NavLink key={item.href} item={item} pathname={pathname} />
-                ))}
+                {/* ERP管理（拠点長は対象外） */}
+                {!isBase && (
+                    <>
+                        <SectionLabel label="ERP管理" />
+                        {erpNavItems.map((item) => (
+                            <NavLink key={item.href} item={item} pathname={pathname} />
+                        ))}
+                    </>
+                )}
 
                 {isAdmin && (
                     <>
@@ -211,6 +217,12 @@ export default function Sidebar({
                         <NavLink item={{ name: '設定', href: '/settings', icon: Settings2 }} pathname={pathname} />
                     </>
                 )}
+
+                {peopleNavItems
+                    .filter((item) => !isBase || item.href === '/branches')
+                    .map((item) => (
+                        <NavLink key={item.href} item={item} pathname={pathname} />
+                    ))}
             </nav>
 
             {/* ── User menu ────────────────────────────────────────── */}

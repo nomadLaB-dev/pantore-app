@@ -7,18 +7,18 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmploymentCategoryLabel, type SpecimenRole } from '@/types';
 
-interface Props { open: boolean; onClose: () => void; employee?: any; showLeaveDate?: boolean; }
+interface Props { open: boolean; onClose: () => void; employee?: any; showLeaveDate?: boolean; initialBranchId?: string; initialSpecimenRole?: SpecimenRole; roleOptions?: SpecimenRole[]; }
 
 const ROLE_LABEL: Record<SpecimenRole, string> = {
     admin: '管理者',
     staff: 'スタッフ',
-    base: '拠点',
+    base: '拠点長',
     driver: 'ドライバー',
 };
 
 const empty = { name: '', name_kana: '', birthDate: '', companyId: '', branchId: '', lineId: '', email: '', tel: '', address: '', emergencyContact: '', hireDate: '', leaveDate: '', category: 'full_time', hourlyRate: '1085', certificationNum: '', invoiceNum: '', weeklyHoursMin: '', weeklyHoursMax: '', proficiencyRate: '', specimenRole: '', userCode: '', initialPassword: '' };
 
-export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Props) {
+export function NewEmployeeModal({ open, onClose, employee, showLeaveDate, initialBranchId, initialSpecimenRole, roleOptions }: Props) {
     const qc = useQueryClient();
     const isEdit = !!employee;
     const [form, setForm] = useState(empty);
@@ -45,12 +45,19 @@ export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Pro
         enabled: open,
     });
 
-    // 会社が変更されたら、選択済みの支社をリセット（ただし編集初期表示時を除く）
+    // 会社が変更されたら、選択済みの支社をリセット（ただし編集初期表示時・初期値プリセット時を除く）
     useEffect(() => {
         if (!employee || form.companyId !== employee.companyId) {
-            setForm((f) => ({ ...f, branchId: '' }));
+            setForm((f) => (f.branchId && f.branchId === initialBranchId ? f : { ...f, branchId: '' }));
         }
-    }, [form.companyId, employee]);
+    }, [form.companyId, employee, initialBranchId]);
+
+    // 新規作成時、初期指定された拠点からその所属会社を逆引きしてセットする（拠点・支社ページからの「配送員を追加」用）
+    useEffect(() => {
+        if (!open || employee || !initialBranchId || form.companyId) return;
+        const branch = dbBranches.find((b: any) => b.id === initialBranchId);
+        if (branch) setForm((f) => ({ ...f, companyId: branch.tenant_id }));
+    }, [open, employee, initialBranchId, dbBranches, form.companyId]);
 
     useEffect(() => {
         if (open) {
@@ -80,10 +87,10 @@ export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Pro
                     initialPassword: '',
                 });
             } else {
-                setForm(empty);
+                setForm({ ...empty, branchId: initialBranchId || '', specimenRole: initialSpecimenRole || '' });
             }
         }
-    }, [open, employee]);
+    }, [open, employee, initialBranchId, initialSpecimenRole]);
 
     // 選択された会社に属する支社をフィルタリング
     const filteredBranches = dbBranches.filter(
@@ -327,8 +334,8 @@ export function NewEmployeeModal({ open, onClose, employee, showLeaveDate }: Pro
                             <Select value={form.specimenRole} onValueChange={set('specimenRole')}>
                                 <SelectTrigger><SelectValue placeholder="なし（ERP専用）">{form.specimenRole ? ROLE_LABEL[form.specimenRole as SpecimenRole] : 'なし（ERP専用）'}</SelectValue></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">なし（ERP専用）</SelectItem>
-                                    {(Object.keys(ROLE_LABEL) as SpecimenRole[]).map((r) => (
+                                    {!roleOptions && <SelectItem value="">なし（ERP専用）</SelectItem>}
+                                    {(roleOptions ?? (Object.keys(ROLE_LABEL) as SpecimenRole[])).map((r) => (
                                         <SelectItem key={r} value={r}>{ROLE_LABEL[r]} ({r})</SelectItem>
                                     ))}
                                 </SelectContent>

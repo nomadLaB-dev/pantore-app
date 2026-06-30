@@ -4,10 +4,10 @@ import PrivateLayout from '@/components/private-layout'
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import Link from 'next/link';
-import { Calendar, Search, RefreshCw, Database, Settings2, Archive, GripVertical, Merge, Filter, X as XIcon, Save, FileText, Upload, Trash2, ExternalLink, Check } from 'lucide-react';
+import { Calendar, Search, RefreshCw, Settings2, GripVertical, Merge, Filter, X as XIcon, Save, FileText, Upload, Trash2, ExternalLink, Check, List, Building2, HelpCircle } from 'lucide-react';
 import type { ScheduleRow } from '@/lib/formatSchedule';
 import { createClient } from '@/lib/supabase/client';
+import ScheduleTabs from '@/components/schedule-tabs';
 
 const COLUMNS: { key: keyof ScheduleRow; label: string }[] = [
     { key: 'collectDate',  label: '集配日' },
@@ -50,6 +50,8 @@ function isGarbageRow(row: ScheduleRow): boolean {
 }
 
 const DELETE_KEY_SEQUENCE = ['D', 'E', 'L', 'E', 'T', 'E'];
+
+const UNKNOWN_BRANCH_TAB = '__unknown__';
 
 const SYSTEM_META: Record<string, { label: string; color: string }> = {
     M:  { label: 'MDF',    color: 'bg-orange-100 text-orange-700 border-orange-200' },
@@ -147,6 +149,9 @@ export default function SchedulesPage() {
     const [garbageRows, setGarbageRows] = useState<ScheduleRow[]>([]);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deletingGarbage, setDeletingGarbage] = useState(false);
+    const [viewMode, setViewMode] = useState<'list' | 'branch'>('list');
+    const [selectedBranchTab, setSelectedBranchTab] = useState('');
+    const [branches, setBranches] = useState<{ id: string; name: string; delivery_areas: string[] }[]>([]);
 
     const handlePdfUpload = async (file: File) => {
         if (!editDraft?.id) return;
@@ -308,10 +313,11 @@ export default function SchedulesPage() {
 
     const load = async () => {
         try {
-            const [schedulesRes, facilitiesRes, couriersRes] = await Promise.all([
+            const [schedulesRes, facilitiesRes, couriersRes, branchesRes] = await Promise.all([
                 supabase.from('schedules').select('*').eq('is_archived', false),
                 supabase.from('settings_facilities').select('facility, area'),
                 supabase.from('users').select('name, user_code').in('specimen_role', ['base', 'driver']).is('leave_date', null),
+                supabase.from('branches').select('id, name, delivery_areas').order('created_at', { ascending: true }),
             ]);
             if (schedulesRes.data && !schedulesRes.error) {
                 const facilityAreaMap: Record<string, string> = {};
@@ -323,6 +329,7 @@ export default function SchedulesPage() {
                 setRows([]);
             }
             setCouriers((couriersRes.data || []).map((u: any) => ({ name: u.name, userCode: u.user_code || '' })));
+            setBranches((branchesRes.data || []).map((b: any) => ({ id: b.id, name: b.name, delivery_areas: b.delivery_areas || [] })));
         } catch {
             setRows([]);
         }
@@ -464,10 +471,29 @@ export default function SchedulesPage() {
         setRows(toKeep);
     };
 
+    const registeredAreaSet = new Set(branches.flatMap(b => b.delivery_areas || []));
+    const branchScheduleCount = (b: { delivery_areas: string[] }) => rows.filter(r => r.area && b.delivery_areas.includes(r.area)).length;
+    const unknownScheduleCount = rows.filter(r => !r.area || !registeredAreaSet.has(r.area)).length;
+
+    useEffect(() => {
+        if (selectedBranchTab && (selectedBranchTab === UNKNOWN_BRANCH_TAB || branches.some(b => b.id === selectedBranchTab))) return;
+        if (branches.length > 0) setSelectedBranchTab(branches[0].id);
+        else setSelectedBranchTab(UNKNOWN_BRANCH_TAB);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [branches]);
+
     if (!mounted) return null;
 
     const filtered = rows
         .filter(r => {
+            if (viewMode === 'branch') {
+                if (selectedBranchTab === UNKNOWN_BRANCH_TAB) {
+                    if (r.area && registeredAreaSet.has(r.area)) return false;
+                } else {
+                    const branch = branches.find(b => b.id === selectedBranchTab);
+                    if (!branch || !r.area || !branch.delivery_areas.includes(r.area)) return false;
+                }
+            }
             if (filterType !== 'all' && r.systemType !== filterType) return false;
             for (const [colKey, allowed] of Object.entries(columnFilters)) {
                 if (allowed.size === 0) continue;
@@ -496,18 +522,14 @@ export default function SchedulesPage() {
     return (
         <>
         <div className="space-y-6 animate-fade-in">
+            <ScheduleTabs />
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-xl font-bold text-foreground">集配送予定リスト</h1>
                     <p className="text-sm text-muted-foreground mt-1">データ入力画面で保存した集配データの一覧です。</p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                    <Link href="/data-entry" className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
-                        <Database size={15} /> データ入力へ
-                    </Link>
-                    <Link href="/schedules/archive" className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
-                        <Archive size={15} /> 実績
-                    </Link>
                     <button onClick={handleShowLatest} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
                         <RefreshCw size={15} /> 最新を表示
                     </button>
@@ -530,6 +552,24 @@ export default function SchedulesPage() {
                         />
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden">
+                            <button
+                                onClick={() => setViewMode('list')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold transition-colors ${
+                                    viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                                }`}
+                            >
+                                <List size={13} /> リスト
+                            </button>
+                            <button
+                                onClick={() => setViewMode('branch')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold transition-colors border-l border-slate-200 ${
+                                    viewMode === 'branch' ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                                }`}
+                            >
+                                <Building2 size={13} /> 拠点表示
+                            </button>
+                        </div>
                         {(['all', 'M', 'Q', 'IP', 'I', 'F'] as const).map(t => (
                             <button
                                 key={t}
@@ -590,6 +630,45 @@ export default function SchedulesPage() {
                     </div>
                 )}
             </div>
+
+            {viewMode === 'branch' && (branches.length > 0 || unknownScheduleCount > 0) && (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-2 flex items-center gap-0.5 overflow-x-auto">
+                    {branches.map(b => {
+                        const count = branchScheduleCount(b);
+                        return (
+                            <button
+                                key={b.id}
+                                onClick={() => setSelectedBranchTab(b.id)}
+                                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px whitespace-nowrap ${
+                                    selectedBranchTab === b.id
+                                        ? 'border-blue-600 text-blue-600'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                                }`}
+                            >
+                                <Building2 size={13} />
+                                {b.name}
+                                <span className={`text-xs font-normal ${selectedBranchTab === b.id ? 'text-blue-400' : 'text-slate-400'}`}>
+                                    {count}
+                                </span>
+                            </button>
+                        );
+                    })}
+                    <button
+                        onClick={() => setSelectedBranchTab(UNKNOWN_BRANCH_TAB)}
+                        className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px whitespace-nowrap ${
+                            selectedBranchTab === UNKNOWN_BRANCH_TAB
+                                ? 'border-blue-600 text-blue-600'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                        }`}
+                    >
+                        <HelpCircle size={13} />
+                        不明
+                        <span className={`text-xs font-normal ${selectedBranchTab === UNKNOWN_BRANCH_TAB ? 'text-blue-400' : 'text-slate-400'}`}>
+                            {unknownScheduleCount}
+                        </span>
+                    </button>
+                </div>
+            )}
 
             {rows.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap">

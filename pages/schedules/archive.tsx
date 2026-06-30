@@ -4,10 +4,10 @@ import PrivateLayout from '@/components/private-layout';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import Link from 'next/link';
-import { Calendar, Search, Settings2, ArrowLeft, GripVertical, Merge, Filter, X as XIcon, Save, FileText, Upload, Trash2, ExternalLink } from 'lucide-react';
+import { Calendar, Search, Settings2, GripVertical, Merge, Filter, X as XIcon, Save, FileText, Upload, Trash2, ExternalLink } from 'lucide-react';
 import type { ScheduleRow } from '@/lib/formatSchedule';
 import { createClient } from '@/lib/supabase/client';
+import ScheduleTabs from '@/components/schedule-tabs';
 
 const COLUMNS: { key: keyof ScheduleRow; label: string }[] = [
     { key: 'collectDate',  label: '集配日' },
@@ -273,14 +273,13 @@ export default function SchedulesArchivePage() {
     return (
         <>
         <div className="space-y-6 animate-fade-in">
+            <ScheduleTabs />
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-xl font-bold text-foreground">集配送実績リスト</h1>
                     <p className="text-sm text-muted-foreground mt-1">過去の集配済みデータの一覧です。行をダブルクリックで編集できます。</p>
                 </div>
-                <Link href="/schedules" className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-semibold shadow-sm">
-                    <ArrowLeft size={15} /> 予定リストへ戻る
-                </Link>
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col gap-3">

@@ -3,7 +3,6 @@ import type { GetServerSideProps, NextPage } from 'next'
 import type { ReactElement } from 'react'
 import { createClient } from '@/lib/supabase/server-pages'
 import TenantForm from '@/components/settings/TenantForm'
-import BranchManagement from '@/components/settings/BranchManagement'
 import AssetExport from '@/components/settings/AssetExport'
 import SpecimenSettings from '@/components/settings/SpecimenSettings'
 import PrivateLayout from '@/components/private-layout'
@@ -12,12 +11,11 @@ import { cn } from '@/lib/utils'
 
 type Props = {
   tenant: any
-  branches: any[]
 }
 
 type Tab = 'erp' | 'specimen'
 
-const SettingsPage: NextPage<Props> & { getLayout: (page: ReactElement) => ReactElement } = ({ tenant, branches }) => {
+const SettingsPage: NextPage<Props> & { getLayout: (page: ReactElement) => ReactElement } = ({ tenant }) => {
   const [activeTab, setActiveTab] = useState<Tab>('erp')
   const specimenRole = useAppStore((s) => s.specimenRole)
 
@@ -63,7 +61,6 @@ const SettingsPage: NextPage<Props> & { getLayout: (page: ReactElement) => React
       {activeTab === 'erp' && (
         <div className="space-y-8">
           <TenantForm initialData={tenant} />
-          <BranchManagement initialBranches={branches} />
           <AssetExport />
         </div>
       )}
@@ -89,7 +86,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
   }
 
   let tenant = null
-  let branches: any[] = []
 
   const { data: employee } = await supabase
     .from('users')
@@ -104,18 +100,11 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
       .eq('id', employee.tenant_id)
       .maybeSingle()
     tenant = tenantData
-
-    const { data: branchData } = await supabase
-      .from('branches')
-      .select('*')
-      .order('created_at', { ascending: true })
-    branches = branchData || []
   }
 
   return {
     props: {
       tenant: tenant ? JSON.parse(JSON.stringify(tenant)) : null,
-      branches: JSON.parse(JSON.stringify(branches)),
     },
   }
 }

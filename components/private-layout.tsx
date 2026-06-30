@@ -18,6 +18,7 @@ type LayoutData = {
 export default function PrivateLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const setSpecimenRole = useAppStore((s) => s.setSpecimenRole);
+  const setBranchId = useAppStore((s) => s.setBranchId);
   const [loading, setLoading] = useState(true);
   const [layoutData, setLayoutData] = useState<LayoutData | null>(null);
 
@@ -68,6 +69,7 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
         : { name: user.email ?? '', email: user.email ?? '' };
 
       setSpecimenRole(specimenRole ?? null);
+      setBranchId(employee?.branch_id ?? null);
       setLayoutData({ tenantName, branchName, specimenRole, currentUser });
       setLoading(false);
     };

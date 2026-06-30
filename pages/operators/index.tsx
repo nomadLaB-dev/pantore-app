@@ -2,8 +2,8 @@
 import type { ReactElement } from 'react'
 import PrivateLayout from '@/components/private-layout'
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus, User, ChevronRight, UserCheck, UserX, Archive, ArchiveRestore, QrCode } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Search, Plus, User, ChevronRight, Archive, ArchiveRestore, QrCode } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,9 +12,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import {
-    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { EmploymentCategoryLabel, AccountStatus, type SpecimenRole } from '@/types';
 import { cn } from '@/lib/utils';
 import { NewEmployeeModal } from '@/components/modals/new-employee-modal';
@@ -66,7 +63,7 @@ const employeeStatusConfig: Record<'active' | 'scheduled' | 'retired', { label: 
     },
 };
 
-export default function EmployeesPage() {
+export default function OperatorsPage() {
     const specimenRole = useAppStore((s) => s.specimenRole);
     const canView = specimenRole === 'admin' || specimenRole === 'staff';
     const canEdit = specimenRole === 'admin';
@@ -84,12 +81,15 @@ export default function EmployeesPage() {
         () => canEdit && setShowDeleteAllModal(true),
     );
 
-    const { data: employees = [], isLoading } = useQuery<any[]>({
+    const { data: allEmployees = [], isLoading } = useQuery<any[]>({
         queryKey: ['users', { includeArchived: true }],
         queryFn: async () => {
             return (await fetch('/api/users?includeArchived=true')).json();
         },
     });
+
+    // 拠点・支社ページで管理する配送員（base/driver）はここでは表示しない
+    const employees = allEmployees.filter((e) => e.specimenRole !== 'base' && e.specimenRole !== 'driver');
 
     const getEmployeeStatus = (employee: any): 'active' | 'scheduled' | 'retired' => {
         if (!employee.leaveDate) return 'active';
@@ -111,18 +111,6 @@ export default function EmployeesPage() {
         return status === 'active' || status === 'scheduled';
     };
 
-    // Mock account status mutation
-    const statusMutation = useMutation({
-        mutationFn: async ({ id, status }: { id: string; status: AccountStatus }) => {
-            await fetch(`/api/users/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ accountStatus: status }),
-            });
-        },
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
-    });
-
     const filtered = employees.filter(
         (e) =>
             (showArchived ? !isCurrentEmployee(e) : isCurrentEmployee(e)) &&
@@ -132,8 +120,6 @@ export default function EmployeesPage() {
                 (e.userCode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 e.branch?.name?.includes(searchTerm)),
     );
-
-    const isFieldStaffView = roleFilter === 'base' || roleFilter === 'driver';
 
     const active = employees.filter((e) => isCurrentEmployee(e) && e.accountStatus === 'active').length;
     const noAccount = employees.filter((e) => isCurrentEmployee(e) && e.accountStatus === 'none').length;
@@ -156,8 +142,8 @@ export default function EmployeesPage() {
 
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">ユーザー管理</h1>
-                    <p className="text-muted-foreground text-sm">社員の情報・権限ロール・アカウント状態を管理します。</p>
+                    <h1 className="text-2xl font-bold tracking-tight">オペレーター管理</h1>
+                    <p className="text-muted-foreground text-sm">管理者・スタッフの情報・権限ロール・アカウント状態を管理します。</p>
                 </div>
                 {canEdit && (
                     <>
@@ -210,7 +196,7 @@ export default function EmployeesPage() {
                         />
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                        {(['all', 'admin', 'staff', 'base', 'driver'] as const).map((role) => (
+                        {(['all', 'admin', 'staff'] as const).map((role) => (
                             <button
                                 key={role}
                                 onClick={() => setRoleFilter(role)}
@@ -241,38 +227,25 @@ export default function EmployeesPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            {isFieldStaffView ? (
-                                <>
-                                    <TableHead className="hidden lg:table-cell">拠点名</TableHead>
-                                    <TableHead className="hidden lg:table-cell">集材員コード</TableHead>
-                                    <TableHead>氏名</TableHead>
-                                    <TableHead className="hidden md:table-cell">雇用形態</TableHead>
-                                    <TableHead className="hidden sm:table-cell">入社日</TableHead>
-                                    <TableHead className="text-center hidden sm:table-cell">在籍</TableHead>
-                                </>
-                            ) : (
-                                <>
-                                    <TableHead>社員名</TableHead>
-                                    <TableHead className="hidden lg:table-cell">支社</TableHead>
-                                    <TableHead className="hidden md:table-cell">雇用区分</TableHead>
-                                    <TableHead className="hidden lg:table-cell">権限ロール</TableHead>
-                                    <TableHead className="hidden lg:table-cell">ユーザーコード</TableHead>
-                                    <TableHead className="hidden sm:table-cell">入社日</TableHead>
-                                    <TableHead className="text-center">アカウント</TableHead>
-                                    <TableHead className="text-center hidden sm:table-cell">在籍</TableHead>
-                                </>
-                            )}
+                            <TableHead>社員名</TableHead>
+                            <TableHead className="hidden lg:table-cell">支社</TableHead>
+                            <TableHead className="hidden md:table-cell">雇用区分</TableHead>
+                            <TableHead className="hidden lg:table-cell">権限ロール</TableHead>
+                            <TableHead className="hidden lg:table-cell">ユーザーコード</TableHead>
+                            <TableHead className="hidden sm:table-cell">入社日</TableHead>
+                            <TableHead className="text-center">アカウント</TableHead>
+                            <TableHead className="text-center hidden sm:table-cell">在籍</TableHead>
                             <TableHead />
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={isFieldStaffView ? 7 : 9} className="text-center py-12 text-muted-foreground">読み込み中...</TableCell>
+                                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">読み込み中...</TableCell>
                             </TableRow>
                         ) : filtered.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={isFieldStaffView ? 7 : 9} className="text-center py-12 text-muted-foreground">ユーザーが見つかりません</TableCell>
+                                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">オペレーターが見つかりません</TableCell>
                             </TableRow>
                         ) : (
                             filtered.map((emp) => {
@@ -287,99 +260,55 @@ export default function EmployeesPage() {
                                             status === 'retired' && 'opacity-60 bg-slate-50/50 dark:bg-slate-900/50'
                                         )}
                                     >
-                                        {isFieldStaffView ? (
-                                            <>
-                                                <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
-                                                    {emp.branch?.name ?? '—'}
-                                                </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                                                    <User className="w-4 h-4 text-muted-foreground" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium leading-tight">{emp.name}</p>
+                                                    <p className="text-xs text-muted-foreground hidden sm:block">{emp.email}</p>
+                                                </div>
+                                            </div>
+                                        </TableCell>
 
-                                                <TableCell className="hidden lg:table-cell">
-                                                    {emp.userCode ? <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{emp.userCode}</span> : <span className="text-muted-foreground text-xs">未設定</span>}
-                                                </TableCell>
+                                        <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
+                                            {emp.branch?.name ?? '—'}
+                                        </TableCell>
 
-                                                <TableCell>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                                                            <User className="w-4 h-4 text-muted-foreground" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-medium leading-tight">{emp.name}</p>
-                                                            <p className="text-xs text-muted-foreground hidden sm:block">{emp.email}</p>
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
+                                        <TableCell className="hidden md:table-cell">
+                                            {emp.currentEmploymentCategory ? (
+                                                <Badge variant="outline" className={cn('text-xs', categoryColors[emp.currentEmploymentCategory])}>
+                                                    {EmploymentCategoryLabel[emp.currentEmploymentCategory as keyof typeof EmploymentCategoryLabel]}
+                                                </Badge>
+                                            ) : '—'}
+                                        </TableCell>
 
-                                                <TableCell className="hidden md:table-cell">
-                                                    {emp.currentEmploymentCategory ? (
-                                                        <Badge variant="outline" className={cn('text-xs', categoryColors[emp.currentEmploymentCategory])}>
-                                                            {EmploymentCategoryLabel[emp.currentEmploymentCategory as keyof typeof EmploymentCategoryLabel]}
-                                                        </Badge>
-                                                    ) : '—'}
-                                                </TableCell>
+                                        <TableCell className="hidden lg:table-cell">
+                                            {emp.specimenRole ? (
+                                                <Badge variant={ROLE_VARIANT[emp.specimenRole as SpecimenRole]}>{ROLE_LABEL[emp.specimenRole as SpecimenRole]}</Badge>
+                                            ) : <span className="text-muted-foreground text-xs">—</span>}
+                                        </TableCell>
 
-                                                <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
-                                                    {new Date(emp.hireDate).toLocaleDateString('ja-JP')}
-                                                </TableCell>
+                                        <TableCell className="hidden lg:table-cell">
+                                            {emp.userCode ? <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{emp.userCode}</span> : <span className="text-muted-foreground text-xs">未設定</span>}
+                                        </TableCell>
 
-                                                <TableCell className="text-center hidden sm:table-cell">
-                                                    <Badge variant="outline" className={cn('text-xs font-medium border', statusCfg.className)}>
-                                                        {statusCfg.label}
-                                                    </Badge>
-                                                </TableCell>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                                                            <User className="w-4 h-4 text-muted-foreground" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-medium leading-tight">{emp.name}</p>
-                                                            <p className="text-xs text-muted-foreground hidden sm:block">{emp.email}</p>
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
+                                        <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
+                                            {new Date(emp.hireDate).toLocaleDateString('ja-JP')}
+                                        </TableCell>
 
-                                                <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
-                                                    {emp.branch?.name ?? '—'}
-                                                </TableCell>
+                                        <TableCell className="text-center">
+                                            <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', acct.className)}>
+                                                {acct.label}
+                                            </span>
+                                        </TableCell>
 
-                                                <TableCell className="hidden md:table-cell">
-                                                    {emp.currentEmploymentCategory ? (
-                                                        <Badge variant="outline" className={cn('text-xs', categoryColors[emp.currentEmploymentCategory])}>
-                                                            {EmploymentCategoryLabel[emp.currentEmploymentCategory as keyof typeof EmploymentCategoryLabel]}
-                                                        </Badge>
-                                                    ) : '—'}
-                                                </TableCell>
-
-                                                <TableCell className="hidden lg:table-cell">
-                                                    {emp.specimenRole ? (
-                                                        <Badge variant={ROLE_VARIANT[emp.specimenRole as SpecimenRole]}>{ROLE_LABEL[emp.specimenRole as SpecimenRole]}</Badge>
-                                                    ) : <span className="text-muted-foreground text-xs">—</span>}
-                                                </TableCell>
-
-                                                <TableCell className="hidden lg:table-cell">
-                                                    {emp.userCode ? <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{emp.userCode}</span> : <span className="text-muted-foreground text-xs">未設定</span>}
-                                                </TableCell>
-
-                                                <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
-                                                    {new Date(emp.hireDate).toLocaleDateString('ja-JP')}
-                                                </TableCell>
-
-                                                <TableCell className="text-center">
-                                                    <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', acct.className)}>
-                                                        {acct.label}
-                                                    </span>
-                                                </TableCell>
-
-                                                <TableCell className="text-center hidden sm:table-cell">
-                                                    <Badge variant="outline" className={cn('text-xs font-medium border', statusCfg.className)}>
-                                                        {statusCfg.label}
-                                                    </Badge>
-                                                </TableCell>
-                                            </>
-                                        )}
+                                        <TableCell className="text-center hidden sm:table-cell">
+                                            <Badge variant="outline" className={cn('text-xs font-medium border', statusCfg.className)}>
+                                                {statusCfg.label}
+                                            </Badge>
+                                        </TableCell>
 
                                         <TableCell className="text-right">
                                             <div className="flex items-center justify-end gap-1">
@@ -406,6 +335,6 @@ export default function EmployeesPage() {
     );
 }
 
-EmployeesPage.getLayout = function getLayout(page: ReactElement) {
+OperatorsPage.getLayout = function getLayout(page: ReactElement) {
   return <PrivateLayout>{page}</PrivateLayout>
 }

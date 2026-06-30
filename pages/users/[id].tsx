@@ -4,7 +4,7 @@ import PrivateLayout from '@/components/private-layout'
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-    ArrowLeft, User, Activity, CalendarDays, Edit3,
+    ArrowLeft, User, Activity, CalendarDays, Edit3, Trash2,
     UserCheck, UserX, Briefcase, BadgeJapaneseYen, AlertTriangle,
     CheckCircle2, Clock, Pencil, MapPin, History, Award, Phone, Mail, AtSign,
     QrCode, KeyRound, ShieldCheck,
@@ -22,11 +22,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
+import { deleteEmployee } from '@/lib/actions/employee.actions';
 
 const ROLE_LABEL: Record<SpecimenRole, string> = {
     admin: '管理者',
     staff: 'スタッフ',
-    base: '拠点',
+    base: '拠点長',
     driver: 'ドライバー',
 };
 
@@ -194,11 +195,13 @@ function formatSalary(amount: number | null, type: string | null) {
 }
 
 export default function EmployeeDetailPage() {
-    const { id } = useRouter().query;
+    const router = useRouter();
+    const { id } = router.query;
     const specimenRole = useAppStore((s) => s.specimenRole);
     const canView = specimenRole === 'admin' || specimenRole === 'staff';
     const canEdit = specimenRole === 'admin';
     const [activeTab, setActiveTab] = useState<TabId>('workload');
+    const [deleting, setDeleting] = useState(false);
     const queryClient = useQueryClient();
 
     // Modal state
@@ -259,10 +262,26 @@ export default function EmployeeDetailPage() {
     const daysLeft = contractEnd ? daysUntil(contractEnd) : null;
     const showAlert = isFixedTerm && contractEnd && !renewalPlanned && daysLeft !== null && daysLeft <= 60;
 
+    const isDriver = employee.specimenRole === 'base' || employee.specimenRole === 'driver';
+    const backHref = isDriver ? '/branches' : '/operators';
+    const backLabel = isDriver ? '拠点・支社へ戻る' : 'オペレーター一覧へ戻る';
+
+    const handleDelete = async () => {
+        if (!confirm(`${employee.name}を削除してよろしいですか？この操作は取り消せません。`)) return;
+        setDeleting(true);
+        try {
+            await deleteEmployee(employee.id);
+            router.push(backHref);
+        } catch (e: any) {
+            alert(e.message || '削除に失敗しました');
+            setDeleting(false);
+        }
+    };
+
     return (
         <div className="max-w-5xl mx-auto space-y-6">
-            <Link href="/users" className="inline-flex items-center text-sm text-muted-foreground hover:text-brand-500 transition-colors">
-                <ArrowLeft className="w-4 h-4 mr-1.5" /> 社員一覧へ戻る
+            <Link href={backHref} className="inline-flex items-center text-sm text-muted-foreground hover:text-brand-500 transition-colors">
+                <ArrowLeft className="w-4 h-4 mr-1.5" /> {backLabel}
             </Link>
 
             {/* Contract expiry alert banner */}
@@ -290,12 +309,24 @@ export default function EmployeeDetailPage() {
             <Card>
                 <CardContent className="pt-6 flex flex-col sm:flex-row items-start gap-6 relative">
                     {canEdit && (
-                        <button
-                            onClick={() => setEditModalOpen(true)}
-                            className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-brand-500 hover:bg-muted rounded-xl transition-colors hidden sm:block"
-                        >
-                            <Edit3 className="w-4 h-4" />
-                        </button>
+                        <div className="absolute top-4 right-4 hidden sm:flex items-center gap-1">
+                            <button
+                                onClick={() => setEditModalOpen(true)}
+                                className="p-2 text-muted-foreground hover:text-brand-500 hover:bg-muted rounded-xl transition-colors"
+                            >
+                                <Edit3 className="w-4 h-4" />
+                            </button>
+                            {isDriver && (
+                                <button
+                                    onClick={handleDelete}
+                                    disabled={deleting}
+                                    className="p-2 text-muted-foreground hover:text-red-600 hover:bg-muted rounded-xl transition-colors disabled:opacity-50"
+                                    title="配送員を削除"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
                     )}
 
                     <div className="w-16 h-16 rounded-full bg-muted border-4 border-background shadow-md flex items-center justify-center shrink-0">

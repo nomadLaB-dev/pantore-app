@@ -409,7 +409,7 @@ export default function DashboardPage() {
                                             {expiringEmployees.length}件
                                         </span>
                                     </CardTitle>
-                                    <Link href="/users" className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-0.5">
+                                    <Link href="/operators" className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-0.5">
                                         社員一覧 <ChevronRight className="w-3 h-3" />
                                     </Link>
                                 </CardHeader>
