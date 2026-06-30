@@ -43,6 +43,42 @@ const SYSTEM_META: Record<string, { label: string; color: string }> = {
     F:  { label: 'Fedex',  color: 'bg-purple-100 text-purple-700 border-purple-200' },
 };
 
+const PAGE_SIZE = 100;
+
+function PaginationBar({ currentPage, totalPages, totalCount, onPrev, onNext, borderClass }: {
+    currentPage: number;
+    totalPages: number;
+    totalCount: number;
+    onPrev: () => void;
+    onNext: () => void;
+    borderClass: string;
+}) {
+    return (
+        <div className={`flex items-center justify-between px-4 py-3 ${borderClass}`}>
+            <p className="text-xs text-slate-500">
+                全{totalCount}件中 {(currentPage - 1) * PAGE_SIZE + 1}〜{Math.min(currentPage * PAGE_SIZE, totalCount)}件を表示
+            </p>
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={onPrev}
+                    disabled={currentPage <= 1}
+                    className="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                >
+                    前へ
+                </button>
+                <span className="text-xs text-slate-600 font-medium px-1">{currentPage} / {totalPages}</span>
+                <button
+                    onClick={onNext}
+                    disabled={currentPage >= totalPages}
+                    className="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                >
+                    次へ
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export default function SchedulesArchivePage() {
     const supabase = createClient();
     const specimenRole = useAppStore((s) => s.specimenRole);
@@ -67,6 +103,7 @@ export default function SchedulesArchivePage() {
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const [availabilityRow, setAvailabilityRow] = useState<ScheduleRow | null>(null);
     const [savingAvailability, setSavingAvailability] = useState(false);
+    const [page, setPage] = useState(1);
 
     const handlePdfUpload = async (file: File) => {
         if (!editDraft?.id) return;
@@ -285,6 +322,8 @@ export default function SchedulesArchivePage() {
 
     useEffect(() => { setMounted(true); load(); }, []); // eslint-disable-line
 
+    useEffect(() => { setPage(1); }, [search, filterType, columnFilters]);
+
     if (!mounted) return null;
 
     const filtered = rows.filter(r => {
@@ -297,6 +336,10 @@ export default function SchedulesArchivePage() {
         const q = search.toLowerCase();
         return COLUMNS.some(col => { const val = r[col.key]; return typeof val === 'string' && val.toLowerCase().includes(q); });
     });
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    const currentPage = Math.min(page, totalPages);
+    const pageRows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
     return (
         <>
@@ -345,6 +388,16 @@ export default function SchedulesArchivePage() {
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                {filtered.length > 0 && totalPages > 1 && (
+                    <PaginationBar
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalCount={filtered.length}
+                        onPrev={() => setPage(p => Math.max(1, p - 1))}
+                        onNext={() => setPage(p => Math.min(totalPages, p + 1))}
+                        borderClass="border-b border-slate-200"
+                    />
+                )}
                 {filtered.length === 0 ? (
                     <div className="py-20 text-center text-slate-400">
                         <Calendar size={40} className="mx-auto mb-3 opacity-30" />
@@ -368,7 +421,7 @@ export default function SchedulesArchivePage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filtered.map((row, rowIndex) => {
+                                {pageRows.map((row, rowIndex) => {
                                     const meta = SYSTEM_META[row.systemType] ?? { label: row.systemType, color: 'bg-slate-100 text-slate-600' };
                                     const isUnavailable = row.branchAvailable === 'false';
                                     return (
@@ -382,12 +435,12 @@ export default function SchedulesArchivePage() {
                                                 const isSystemType = col.key === 'systemType';
                                                 if (mergedColumns.has(col.key)) {
                                                     const leftMergedCols = displayCols.slice(0, displayCols.findIndex(c => c.key === col.key)).filter(c => mergedColumns.has(c.key));
-                                                    const isSameGroup = (ti: number) => leftMergedCols.every(lc => (filtered[ti][lc.key] as string) === (filtered[rowIndex][lc.key] as string));
+                                                    const isSameGroup = (ti: number) => leftMergedCols.every(lc => (pageRows[ti][lc.key] as string) === (pageRows[rowIndex][lc.key] as string));
                                                     const prevSameGroup = rowIndex > 0 && isSameGroup(rowIndex - 1);
-                                                    const prevVal = rowIndex > 0 ? filtered[rowIndex - 1][col.key] as string : null;
+                                                    const prevVal = rowIndex > 0 ? pageRows[rowIndex - 1][col.key] as string : null;
                                                     if (val && val === prevVal && prevSameGroup) return null;
                                                     let rowSpan = 1;
-                                                    if (val) { let i = rowIndex + 1; while (i < filtered.length && (filtered[i][col.key] as string) === val && isSameGroup(i)) { rowSpan++; i++; } }
+                                                    if (val) { let i = rowIndex + 1; while (i < pageRows.length && (pageRows[i][col.key] as string) === val && isSameGroup(i)) { rowSpan++; i++; } }
                                                     return (
                                                         <td key={col.key} rowSpan={rowSpan} className={`px-3 py-2.5 border-r border-slate-100 last:border-r-0 align-top ${isUnavailable ? 'bg-red-100' : 'bg-white'} ${isSystemType ? 'sticky left-0 z-10' : ''}`}>
                                                             {isSystemType ? <span className={`px-2 py-1 rounded-md border text-[11px] font-bold ${meta.color}`}>{meta.label}</span> : <span className="text-slate-700 whitespace-pre-wrap font-bold">{val || ''}</span>}
@@ -406,6 +459,16 @@ export default function SchedulesArchivePage() {
                             </tbody>
                         </table>
                     </div>
+                )}
+                {filtered.length > 0 && totalPages > 1 && (
+                    <PaginationBar
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalCount={filtered.length}
+                        onPrev={() => setPage(p => Math.max(1, p - 1))}
+                        onNext={() => setPage(p => Math.min(totalPages, p + 1))}
+                        borderClass="border-t border-slate-200"
+                    />
                 )}
             </div>
         </div>

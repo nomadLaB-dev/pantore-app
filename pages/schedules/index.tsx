@@ -143,7 +143,7 @@ export default function SchedulesPage() {
     const [filterDropdownPos, setFilterDropdownPos] = useState<{ top: number; left: number } | null>(null);
     const [editingRow, setEditingRow] = useState<ScheduleRow | null>(null);
     const [editDraft, setEditDraft] = useState<ScheduleRow | null>(null);
-    const [couriers, setCouriers] = useState<{ name: string; userCode: string }[]>([]);
+    const [couriers, setCouriers] = useState<{ name: string; userCode: string; branchId: string }[]>([]);
     const [saving, setSaving] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const rowsRef = useRef<ScheduleRow[]>([]);
@@ -266,9 +266,34 @@ export default function SchedulesPage() {
         if (!availabilityRow) return;
         setSavingAvailability(true);
         try {
-            const { error } = await supabase.from('schedules').update({ branch_available: available }).eq('id', availabilityRow.id);
+            // 対応不可の場合は集材員の指定を解除する
+            const payload: any = { branch_available: available };
+            if (!available) { payload.courier_name = null; payload.courier_code = null; }
+            const { error } = await supabase.from('schedules').update(payload).eq('id', availabilityRow.id);
             if (error) { alert(`保存に失敗しました。\n${error.message}`); return; }
-            const updated = { ...availabilityRow, branchAvailable: available ? 'true' : 'false' };
+            const updated = {
+                ...availabilityRow,
+                branchAvailable: available ? 'true' : 'false',
+                ...(available ? {} : { courierName: '', courierCode: '' }),
+            };
+            setRows(prev => prev.map(r => r.id === updated.id ? updated : r));
+            setAvailabilityRow(updated);
+        } finally {
+            setSavingAvailability(false);
+        }
+    };
+
+    const handleSetAvailabilityCourier = async (courierName: string) => {
+        if (!availabilityRow) return;
+        const courier = couriers.find(c => c.name === courierName);
+        setSavingAvailability(true);
+        try {
+            const { error } = await supabase.from('schedules').update({
+                courier_name: courierName || null,
+                courier_code: courier?.userCode || null,
+            }).eq('id', availabilityRow.id);
+            if (error) { alert(`保存に失敗しました。\n${error.message}`); return; }
+            const updated = { ...availabilityRow, courierName, courierCode: courier?.userCode || '' };
             setRows(prev => prev.map(r => r.id === updated.id ? updated : r));
             setAvailabilityRow(updated);
         } finally {
@@ -336,11 +361,18 @@ export default function SchedulesPage() {
             const [schedulesRes, facilitiesRes, couriersRes, branchesRes] = await Promise.all([
                 supabase.from('schedules').select('*').eq('is_archived', false),
                 supabase.from('settings_facilities').select('facility, area'),
-                supabase.from('users').select('name, user_code').in('specimen_role', ['base', 'driver']).is('leave_date', null),
+                supabase.from('users').select('name, user_code, branch_id').in('specimen_role', ['base', 'driver']).is('leave_date', null),
                 supabase.from('branches').select('id, name, delivery_areas').order('created_at', { ascending: true }),
             ]);
             const branchList = (branchesRes.data || []).map((b: any) => ({ id: b.id, name: b.name, delivery_areas: b.delivery_areas || [] }));
-            // 拠点長は自身の拠点・支社に対応するエリアのみ閲覧可能
+            const courierList = (couriersRes.data || []).map((u: any) => ({ name: u.name, userCode: u.user_code || '', branchId: u.branch_id || '' }));
+            // 集材員名が選択されている場合は、その集材員の所属拠点を優先してエリア判定する
+            const courierBranchMap: Record<string, string> = {};
+            for (const c of courierList) {
+                if (c.name && c.branchId) courierBranchMap[c.name] = c.branchId;
+            }
+            const rowBranchId = (r: ScheduleRow) => (r.courierName && courierBranchMap[r.courierName]) || '';
+            // 拠点長は自身の拠点・支社に対応するエリア、または自拠点の集材員が割り当てられたデータのみ閲覧可能
             const myBranch = specimenRole === 'base' ? branchList.find((b) => b.id === myBranchId) : null;
 
             if (schedulesRes.data && !schedulesRes.error) {
@@ -351,13 +383,17 @@ export default function SchedulesPage() {
                 let normalized = schedulesRes.data.map((d: any) => normalizeScheduleRow(d, facilityAreaMap));
                 if (myBranch) {
                     const allowedAreas = new Set(myBranch.delivery_areas);
-                    normalized = normalized.filter((r) => r.area && allowedAreas.has(r.area));
+                    normalized = normalized.filter((r) => {
+                        const assignedBranchId = rowBranchId(r);
+                        if (assignedBranchId) return assignedBranchId === myBranch.id;
+                        return !!r.area && allowedAreas.has(r.area);
+                    });
                 }
                 setRows(normalized);
             } else {
                 setRows([]);
             }
-            setCouriers((couriersRes.data || []).map((u: any) => ({ name: u.name, userCode: u.user_code || '' })));
+            setCouriers(courierList);
             setBranches(myBranch ? [myBranch] : branchList);
         } catch {
             setRows([]);
@@ -500,9 +536,18 @@ export default function SchedulesPage() {
         setRows(toKeep);
     };
 
-    const registeredAreaSet = new Set(branches.flatMap(b => b.delivery_areas || []));
-    const branchScheduleCount = (b: { delivery_areas: string[] }) => rows.filter(r => r.area && b.delivery_areas.includes(r.area)).length;
-    const unknownScheduleCount = rows.filter(r => !r.area || !registeredAreaSet.has(r.area)).length;
+    const courierBranchMap: Record<string, string> = {};
+    for (const c of couriers) {
+        if (c.name && c.branchId) courierBranchMap[c.name] = c.branchId;
+    }
+    // 集材員名が選択されている場合は、その集材員の所属拠点を優先してタブ振り分けする
+    const matchesBranch = (r: ScheduleRow, b: { id: string; delivery_areas: string[] }) => {
+        const assignedBranchId = r.courierName && courierBranchMap[r.courierName];
+        if (assignedBranchId) return assignedBranchId === b.id;
+        return !!r.area && b.delivery_areas.includes(r.area);
+    };
+    const branchScheduleCount = (b: { id: string; delivery_areas: string[] }) => rows.filter(r => matchesBranch(r, b)).length;
+    const unknownScheduleCount = rows.filter(r => !branches.some(b => matchesBranch(r, b))).length;
 
     useEffect(() => {
         if (selectedBranchTab && (selectedBranchTab === UNKNOWN_BRANCH_TAB || branches.some(b => b.id === selectedBranchTab))) return;
@@ -517,10 +562,10 @@ export default function SchedulesPage() {
         .filter(r => {
             if (viewMode === 'branch') {
                 if (selectedBranchTab === UNKNOWN_BRANCH_TAB) {
-                    if (r.area && registeredAreaSet.has(r.area)) return false;
+                    if (branches.some(b => matchesBranch(r, b))) return false;
                 } else {
                     const branch = branches.find(b => b.id === selectedBranchTab);
-                    if (!branch || !r.area || !branch.delivery_areas.includes(r.area)) return false;
+                    if (!branch || !matchesBranch(r, branch)) return false;
                 }
             }
             if (filterType !== 'all' && r.systemType !== filterType) return false;
@@ -878,6 +923,32 @@ export default function SchedulesPage() {
                                 </button>
                             </div>
                         </div>
+
+                        {availabilityRow.branchAvailable === 'true' && (
+                            <div className="pt-3 border-t border-slate-100 space-y-3">
+                                <div>
+                                    <p className="text-xs font-semibold text-slate-500 mb-1.5">集材員名</p>
+                                    <select
+                                        value={availabilityRow.courierName || ''}
+                                        onChange={e => handleSetAvailabilityCourier(e.target.value)}
+                                        disabled={savingAvailability}
+                                        className="w-full px-2.5 py-1.5 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 disabled:opacity-50"
+                                    >
+                                        <option value="">未選択</option>
+                                        {couriers.filter(c => c.branchId === myBranchId).map(c => (
+                                            <option key={c.name} value={c.name}>{c.name}</option>
+                                        ))}
+                                        {availabilityRow.courierName && !couriers.some(c => c.name === availabilityRow.courierName && c.branchId === myBranchId) && (
+                                            <option value={availabilityRow.courierName}>{availabilityRow.courierName}</option>
+                                        )}
+                                    </select>
+                                </div>
+                                <div className="flex items-center justify-between gap-4">
+                                    <span className="text-xs font-semibold text-slate-500 shrink-0">集材員コード</span>
+                                    <span className="text-sm text-slate-800 text-right">{availabilityRow.courierCode || '—'}</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
