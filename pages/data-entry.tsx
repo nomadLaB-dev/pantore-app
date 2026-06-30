@@ -9,6 +9,15 @@ import { buildScheduleList } from '@/lib/formatSchedule';
 import type { ScheduleRow } from '@/lib/formatSchedule';
 import { createClient } from '@/lib/supabase/client';
 import ScheduleTabs from '@/components/schedule-tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+type ManualKey = 'mdf' | 'qdome' | 'ipd';
+
+const MANUAL_CONTENT: Record<ManualKey, { title: string; description: string }> = {
+    mdf: { title: 'MDF マニュアル', description: 'MDFに関する受付処理やシステム入力手順' },
+    qdome: { title: 'Q-dome マニュアル', description: 'Q-domeに関する受付処理やシステム入力手順' },
+    ipd: { title: 'IPD マニュアル', description: 'IPD検体に関するデータ入力およびイレギュラー対応手順' },
+};
 
 const COLUMNS_DEFAULT = [
     '集荷予定\n日時', 'ステータス', '手配状況\n送信時間', '依頼', '至急', '集材種別',
@@ -51,6 +60,7 @@ export default function DataEntry() {
     const supabase = createClient();
 
     const [activeTab, setActiveTab] = useState('manual');
+    const [openManual, setOpenManual] = useState<ManualKey | null>(null);
     const [tabData, setTabData] = useState<Record<string, string[][]>>(() => {
         const initial: Record<string, string[][]> = {};
         for (const tab of TABS) initial[tab.id] = createEmptyData(getInitialCols(tab.id));
@@ -595,17 +605,33 @@ export default function DataEntry() {
                             <h2 className="text-lg font-bold text-slate-800">業務マニュアル</h2>
                             <p className="text-sm text-slate-500 mt-1">データ入力に関する各種業務マニュアルはこちらのドキュメントをご参照ください。</p>
                         </div>
-                        <div className="p-6 space-y-4">
-                            <div className="flex flex-col p-5 rounded-lg border border-slate-200 bg-white">
-                                <div className="flex items-center justify-between"><h3 className="font-semibold text-blue-600 text-base">MDF・Q-dome マニュアル</h3><ExternalLink size={18} className="text-slate-400" /></div>
-                                <p className="text-sm text-slate-500 mt-2">MDFおよびQ-domeに関する受付処理やシステム入力手順</p>
-                            </div>
-                            <div className="flex flex-col p-5 rounded-lg border border-slate-200 bg-white">
-                                <div className="flex items-center justify-between"><h3 className="font-semibold text-blue-600 text-base">IPD マニュアル</h3><ExternalLink size={18} className="text-slate-400" /></div>
-                                <p className="text-sm text-slate-500 mt-2">IPD検体に関するデータ入力およびイレギュラー対応手順</p>
-                            </div>
+                        <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {(Object.keys(MANUAL_CONTENT) as ManualKey[]).map((key) => (
+                                <button
+                                    key={key}
+                                    onClick={() => setOpenManual(key)}
+                                    className="flex flex-col text-left p-5 rounded-lg border border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm transition-all"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="font-semibold text-blue-600 text-base">{MANUAL_CONTENT[key].title}</h3>
+                                        <ExternalLink size={18} className="text-slate-400" />
+                                    </div>
+                                    <p className="text-sm text-slate-500 mt-2">{MANUAL_CONTENT[key].description}</p>
+                                </button>
+                            ))}
                         </div>
                     </div>
+
+                    <Dialog open={!!openManual} onOpenChange={(v) => !v && setOpenManual(null)}>
+                        <DialogContent className="sm:max-w-lg">
+                            <DialogHeader>
+                                <DialogTitle>{openManual ? MANUAL_CONTENT[openManual].title : ''}</DialogTitle>
+                            </DialogHeader>
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                                {openManual ? MANUAL_CONTENT[openManual].description : ''}
+                            </p>
+                        </DialogContent>
+                    </Dialog>
                     <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-8">
                         <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/80">
                             <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Keyboard size={20} className="text-blue-600" /> キーボード操作・ショートカットキー一覧</h2>
