@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Database, CalendarDays, Archive } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/store';
 
 const TABS = [
     { name: 'データ入力', href: '/data-entry', icon: Database },
@@ -12,10 +13,12 @@ const TABS = [
 
 export default function ScheduleTabs() {
     const { pathname } = useRouter();
+    const specimenRole = useAppStore((s) => s.specimenRole);
+    const tabs = specimenRole === 'base' ? TABS.filter((t) => t.href !== '/data-entry') : TABS;
 
     return (
         <div className="flex items-center gap-1 border-b border-slate-200">
-            {TABS.map((tab) => {
+            {tabs.map((tab) => {
                 const isActive = pathname === tab.href;
                 return (
                     <Link

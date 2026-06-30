@@ -55,7 +55,7 @@ export default function LoginPage() {
                 <div className="absolute bottom-12 left-10 text-white drop-shadow-lg">
                     <div className="flex items-center gap-3 mb-3">
                         <Layers className="w-9 h-9" />
-                        <span className="font-bold text-3xl tracking-tight">Pantore</span>
+                        <span className="font-bold text-3xl tracking-tight">SpecimenChimera</span>
                     </div>
                     <p className="text-white/80 text-base max-w-xs leading-relaxed">
                         人・資産・契約のすべてを、<br />一つのパントリーへ。
@@ -79,7 +79,7 @@ export default function LoginPage() {
                     {/* Logo — mobile only */}
                     <div className="flex items-center justify-center gap-2 mb-10 lg:hidden">
                         <Layers className="w-8 h-8 text-amber-700 dark:text-amber-500" />
-                        <span className="font-bold text-xl tracking-tight text-amber-900 dark:text-amber-100">Pantore</span>
+                        <span className="font-bold text-xl tracking-tight text-amber-900 dark:text-amber-100">SpecimenChimera</span>
                     </div>
 
                     <h1 className="text-2xl font-bold mb-1 text-amber-950 dark:text-amber-50">おかえりなさい</h1>

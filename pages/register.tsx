@@ -37,14 +37,14 @@ export default function RegisterPage() {
                 <div className="relative z-10">
                     <div className="flex items-center gap-2.5 mb-12">
                         <Layers className="w-9 h-9" />
-                        <span className="font-bold text-2xl tracking-tight">Pantore</span>
+                        <span className="font-bold text-2xl tracking-tight">SpecimenChimera</span>
                     </div>
 
                     <h2 className="text-3xl font-bold mb-3 leading-tight">
                         人・資産・契約の<br />すべてを一つに。
                     </h2>
                     <p className="text-amber-200/80 mb-10 text-sm leading-relaxed">
-                        Pantoreは企業の社員稼働から車両・不動産・サブスクまでを<br />劇的にシンプルに統合管理するモダンERPです。
+                        SpecimenChimeraは企業の社員稼働から車両・不動産・サブスクまでを<br />劇的にシンプルに統合管理するモダンERPです。
                     </p>
 
                     <ul className="space-y-4">
@@ -71,7 +71,7 @@ export default function RegisterPage() {
                     {/* Mobile logo */}
                     <div className="flex items-center justify-center gap-2 mb-10 lg:hidden">
                         <Layers className="w-8 h-8 text-amber-700 dark:text-amber-500" />
-                        <span className="font-bold text-xl tracking-tight text-amber-900 dark:text-amber-100">Pantore</span>
+                        <span className="font-bold text-xl tracking-tight text-amber-900 dark:text-amber-100">SpecimenChimera</span>
                     </div>
 
                     {step === 'done' ? (

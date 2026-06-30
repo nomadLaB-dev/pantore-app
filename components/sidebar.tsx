@@ -169,7 +169,7 @@ export default function Sidebar({
             <div className="relative h-24 shrink-0 overflow-hidden">
                 <div
                     className="absolute inset-0 bg-cover bg-center"
-                    style={{ backgroundImage: 'url(/hero-bakery.png)', backgroundPosition: 'center 35%' }}
+                    style={{ backgroundImage: 'url(/Chimera.png)', backgroundPosition: 'center 35%' }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-amber-950/30 via-amber-950/60 to-amber-950" />
                 <Link
@@ -180,7 +180,7 @@ export default function Sidebar({
                         <Layers className="w-4 h-4 text-amber-950" />
                     </div>
                     <div>
-                        <span className="font-bold text-base text-white tracking-tight leading-none">Pantore</span>
+                        <span className="font-bold text-base text-white tracking-tight leading-none">SpecimenChimera</span>
                         <p className="text-[10px] text-amber-300/70 leading-none mt-0.5">ERP</p>
                     </div>
                 </Link>

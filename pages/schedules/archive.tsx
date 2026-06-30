@@ -8,6 +8,7 @@ import { Calendar, Search, Settings2, GripVertical, Merge, Filter, X as XIcon, S
 import type { ScheduleRow } from '@/lib/formatSchedule';
 import { createClient } from '@/lib/supabase/client';
 import ScheduleTabs from '@/components/schedule-tabs';
+import { useAppStore } from '@/store';
 
 const COLUMNS: { key: keyof ScheduleRow; label: string }[] = [
     { key: 'collectDate',  label: '集配日' },
@@ -44,6 +45,8 @@ const SYSTEM_META: Record<string, { label: string; color: string }> = {
 
 export default function SchedulesArchivePage() {
     const supabase = createClient();
+    const specimenRole = useAppStore((s) => s.specimenRole);
+    const myBranchId = useAppStore((s) => s.branchId);
     const [rows, setRows] = useState<ScheduleRow[]>([]);
     const [search, setSearch] = useState('');
     const [filterType, setFilterType] = useState<string>('all');
@@ -62,6 +65,8 @@ export default function SchedulesArchivePage() {
     const [editDraft, setEditDraft] = useState<ScheduleRow | null>(null);
     const [saving, setSaving] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
+    const [availabilityRow, setAvailabilityRow] = useState<ScheduleRow | null>(null);
+    const [savingAvailability, setSavingAvailability] = useState(false);
 
     const handlePdfUpload = async (file: File) => {
         if (!editDraft?.id) return;
@@ -162,6 +167,20 @@ export default function SchedulesArchivePage() {
         setEditDraft(null);
     }, []);
 
+    const handleSetBranchAvailable = async (available: boolean) => {
+        if (!availabilityRow) return;
+        setSavingAvailability(true);
+        try {
+            const { error } = await supabase.from('schedules').update({ branch_available: available }).eq('id', availabilityRow.id);
+            if (error) { alert(`保存に失敗しました。\n${error.message}`); return; }
+            const updated = { ...availabilityRow, branchAvailable: available ? 'true' : 'false' };
+            setRows(prev => prev.map(r => r.id === updated.id ? updated : r));
+            setAvailabilityRow(updated);
+        } finally {
+            setSavingAvailability(false);
+        }
+    };
+
     const parseDbDate = (s: string | null | undefined): string | null => {
         if (!s) return null;
         const m = s.match(/(\d{4})[/\-](\d{2})[/\-](\d{2})/);
@@ -210,15 +229,22 @@ export default function SchedulesArchivePage() {
 
     const load = async () => {
         try {
-            const [schedulesRes, facilitiesRes] = await Promise.all([
+            const [schedulesRes, facilitiesRes, branchesRes] = await Promise.all([
                 supabase.from('schedules').select('*').eq('is_archived', true),
                 supabase.from('settings_facilities').select('facility, area'),
+                specimenRole === 'base'
+                    ? supabase.from('branches').select('delivery_areas').eq('id', myBranchId).maybeSingle()
+                    : Promise.resolve({ data: null }),
             ]);
             const facilityAreaMap: Record<string, string> = {};
             for (const f of facilitiesRes.data || []) {
                 if (f.facility && f.area) facilityAreaMap[f.facility] = f.area;
             }
-            setRows((schedulesRes.data || []).map((d: any) => {
+            // 拠点長は自身の拠点・支社に対応するエリアのみ閲覧可能
+            const allowedAreas: Set<string> | null = specimenRole === 'base'
+                ? new Set((branchesRes as any)?.data?.delivery_areas || [])
+                : null;
+            const mapped = (schedulesRes.data || []).map((d: any) => {
                 const facilityName = d.facility_name || '';
                 return {
                     id: d.id,
@@ -250,8 +276,10 @@ export default function SchedulesArchivePage() {
                     delivered: d.delivered ? 'true' : '',
                     attachmentPath: d.attachment_path || '',
                     attachmentName: d.attachment_name || '',
+                    branchAvailable: d.branch_available === true ? 'true' : d.branch_available === false ? 'false' : '',
                 };
-            }));
+            });
+            setRows(allowedAreas ? mapped.filter((r) => r.area && allowedAreas.has(r.area)) : mapped);
         } catch { setRows([]); }
     };
 
@@ -342,8 +370,13 @@ export default function SchedulesArchivePage() {
                             <tbody className="divide-y divide-slate-100">
                                 {filtered.map((row, rowIndex) => {
                                     const meta = SYSTEM_META[row.systemType] ?? { label: row.systemType, color: 'bg-slate-100 text-slate-600' };
+                                    const isUnavailable = row.branchAvailable === 'false';
                                     return (
-                                        <tr key={row.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onDoubleClick={() => openEdit(row)}>
+                                        <tr
+                                            key={row.id}
+                                            className={`transition-colors cursor-pointer ${isUnavailable ? 'bg-red-100 hover:bg-red-200' : 'hover:bg-slate-50'}`}
+                                            onDoubleClick={() => specimenRole === 'base' ? setAvailabilityRow(row) : openEdit(row)}
+                                        >
                                             {displayCols.map(col => {
                                                 const val = row[col.key] as string;
                                                 const isSystemType = col.key === 'systemType';
@@ -356,13 +389,13 @@ export default function SchedulesArchivePage() {
                                                     let rowSpan = 1;
                                                     if (val) { let i = rowIndex + 1; while (i < filtered.length && (filtered[i][col.key] as string) === val && isSameGroup(i)) { rowSpan++; i++; } }
                                                     return (
-                                                        <td key={col.key} rowSpan={rowSpan} className={`px-3 py-2.5 border-r border-slate-100 last:border-r-0 align-top bg-white ${isSystemType ? 'sticky left-0 z-10' : ''}`}>
+                                                        <td key={col.key} rowSpan={rowSpan} className={`px-3 py-2.5 border-r border-slate-100 last:border-r-0 align-top ${isUnavailable ? 'bg-red-100' : 'bg-white'} ${isSystemType ? 'sticky left-0 z-10' : ''}`}>
                                                             {isSystemType ? <span className={`px-2 py-1 rounded-md border text-[11px] font-bold ${meta.color}`}>{meta.label}</span> : <span className="text-slate-700 whitespace-pre-wrap font-bold">{val || ''}</span>}
                                                         </td>
                                                     );
                                                 }
                                                 return (
-                                                    <td key={col.key} className={`px-3 py-2.5 border-r border-slate-100 last:border-r-0 align-top ${isSystemType ? 'sticky left-0 bg-white/95 z-10' : ''}`}>
+                                                    <td key={col.key} className={`px-3 py-2.5 border-r border-slate-100 last:border-r-0 align-top ${isSystemType ? `sticky left-0 z-10 ${isUnavailable ? 'bg-red-100' : 'bg-white/95'}` : ''}`}>
                                                         {isSystemType ? <span className={`px-2 py-1 rounded-md border text-[11px] font-bold ${meta.color}`}>{meta.label}</span> : <span className="text-slate-700 whitespace-pre-wrap">{val || ''}</span>}
                                                     </td>
                                                 );
@@ -376,6 +409,57 @@ export default function SchedulesArchivePage() {
                 )}
             </div>
         </div>
+
+        {/* ── 拠点長向け：対応可否モーダル ──────────────────────────── */}
+        {availabilityRow && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={e => { if (e.target === e.currentTarget) setAvailabilityRow(null); }}>
+                <div className="bg-white text-slate-800 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                        <h2 className="text-base font-bold text-slate-800">集配スケジュール</h2>
+                        <button onClick={() => setAvailabilityRow(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                            <XIcon size={18} />
+                        </button>
+                    </div>
+                    <div className="px-6 py-5 space-y-3">
+                        {([
+                            { label: '集配日', value: availabilityRow.collectDate },
+                            { label: '集配エリア', value: availabilityRow.area },
+                            { label: '集配時間', value: availabilityRow.collectTime },
+                            { label: '集配施設名', value: availabilityRow.facilityName },
+                        ]).map(({ label, value }) => (
+                            <div key={label} className="flex items-center justify-between gap-4">
+                                <span className="text-xs font-semibold text-slate-500 shrink-0">{label}</span>
+                                <span className="text-sm text-slate-800 text-right">{value || '—'}</span>
+                            </div>
+                        ))}
+
+                        <div className="pt-3 border-t border-slate-100">
+                            <p className="text-xs font-semibold text-slate-500 mb-2">対応可否</p>
+                            <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden">
+                                <button
+                                    onClick={() => handleSetBranchAvailable(true)}
+                                    disabled={savingAvailability}
+                                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors disabled:opacity-50 ${
+                                        availabilityRow.branchAvailable === 'true' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    対応可
+                                </button>
+                                <button
+                                    onClick={() => handleSetBranchAvailable(false)}
+                                    disabled={savingAvailability}
+                                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors border-l border-slate-200 disabled:opacity-50 ${
+                                        availabilityRow.branchAvailable === 'false' ? 'bg-red-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    対応不可
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* Edit modal */}
         {editDraft && (

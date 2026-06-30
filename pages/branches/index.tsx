@@ -444,7 +444,13 @@ export default function BranchesPage() {
             )}
 
             {branches.length === 0 && (
-                <Card><CardContent className="py-12 text-center text-muted-foreground">拠点・支社が登録されていません。「拠点を追加」から作成してください。</CardContent></Card>
+                <Card>
+                    <CardContent className="py-12 text-center text-muted-foreground">
+                        {isBaseRestricted
+                            ? '所属する拠点・支社が設定されていません。管理者にお問い合わせください。'
+                            : '拠点・支社が登録されていません。「拠点を追加」から作成してください。'}
+                    </CardContent>
+                </Card>
             )}
         </div>
     );

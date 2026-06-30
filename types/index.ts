@@ -333,6 +333,7 @@ export interface ScheduleRow {
     delivered: string;
     attachmentPath?: string;
     attachmentName?: string;
+    branchAvailable?: string;
 }
 
 export interface AttendanceRecord {

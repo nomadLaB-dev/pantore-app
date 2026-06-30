@@ -17,7 +17,7 @@ function getPageTitle(pathname: string) {
     for (const [key, val] of Object.entries(pageTitles)) {
         if (pathname.startsWith(key)) return val;
     }
-    return 'Pantore';
+    return 'SpecimenChimera';
 }
 
 export default function Header() {

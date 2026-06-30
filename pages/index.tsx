@@ -29,7 +29,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Layers className="w-8 h-8 text-amber-700 dark:text-amber-500" />
-            <span className="font-bold text-xl tracking-tight text-amber-900 dark:text-amber-100">Pantore</span>
+            <span className="font-bold text-xl tracking-tight text-amber-900 dark:text-amber-100">SpecimenChimera</span>
           </div>
           <div className="flex items-center gap-4">
             {mounted && (
@@ -71,7 +71,7 @@ export default function LandingPage() {
                 </span>
               </h1>
               <p className="text-base md:text-lg text-amber-800/80 dark:text-amber-200/70 mb-12 max-w-lg leading-relaxed">
-                Pantoreは、企業の社員の稼働から、車両・不動産などの物理資産、契約期限までを劇的にシンプルに統合管理するモダンERPです。
+                SpecimenChimeraは、企業の社員の稼働から、車両・不動産などの物理資産、契約期限までを劇的にシンプルに統合管理するモダンERPです。
               </p>
               <div className="flex flex-col sm:flex-row items-start gap-3">
                 <Link href="/register">
@@ -167,7 +167,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="py-8 text-center text-amber-700/60 dark:text-amber-400/50 text-sm border-t border-amber-200/40 dark:border-amber-900/40 bg-[#FDFAF6] dark:bg-[#1a1510]">
-        <p>&copy; {new Date().getFullYear()} Pantore ERP. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} SpecimenChimera ERP. All rights reserved.</p>
       </footer>
     </div>
   );
