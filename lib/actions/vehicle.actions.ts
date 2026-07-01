@@ -122,6 +122,18 @@ export async function updateVehicle(id: string, data: any) {
     return { success: true }
 }
 
+export async function deleteAllVehicles() {
+    const supabase = createClient()
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error('Unauthorized')
+
+    const { error } = await supabase.from('vehicles').delete().neq('id', '')
+    if (error) throw error
+
+    return { success: true }
+}
+
 export async function updateVehiclePurchase(vehicleId: string, purchase: any) {
     const supabase = createClient()
 

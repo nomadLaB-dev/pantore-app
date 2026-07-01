@@ -4,10 +4,11 @@ import PrivateLayout from '@/components/private-layout'
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import Link from 'next/link';
-import { Calendar, Search, RefreshCw, Database, Settings2, Archive, GripVertical, Merge, Filter, X as XIcon, Save, FileText, Upload, Trash2, ExternalLink, Check } from 'lucide-react';
+import { Calendar, Search, RefreshCw, Settings2, GripVertical, Merge, Filter, X as XIcon, Save, FileText, Upload, Trash2, ExternalLink, Check, List, Building2, HelpCircle } from 'lucide-react';
 import type { ScheduleRow } from '@/lib/formatSchedule';
 import { createClient } from '@/lib/supabase/client';
+import ScheduleTabs from '@/components/schedule-tabs';
+import { useAppStore } from '@/store';
 
 const COLUMNS: { key: keyof ScheduleRow; label: string }[] = [
     { key: 'collectDate',  label: '集配日' },
@@ -50,6 +51,8 @@ function isGarbageRow(row: ScheduleRow): boolean {
 }
 
 const DELETE_KEY_SEQUENCE = ['D', 'E', 'L', 'E', 'T', 'E'];
+
+const UNKNOWN_BRANCH_TAB = '__unknown__';
 
 const SYSTEM_META: Record<string, { label: string; color: string }> = {
     M:  { label: 'MDF',    color: 'bg-orange-100 text-orange-700 border-orange-200' },
@@ -115,14 +118,21 @@ function normalizeScheduleRow(d: any, facilityAreaMap: Record<string, string>): 
         delivered: d.delivered ? 'true' : '',
         attachmentPath: d.attachment_path || '',
         attachmentName: d.attachment_name || '',
+        branchAvailable: d.branch_available === true ? 'true' : d.branch_available === false ? 'false' : '',
     };
 }
 
 export default function SchedulesPage() {
     const supabase = createClient();
+    const specimenRole = useAppStore((s) => s.specimenRole);
+    const myBranchId = useAppStore((s) => s.branchId);
+    const myUserName = useAppStore((s) => s.userName);
+    const [driverDetailRow, setDriverDetailRow] = useState<ScheduleRow | null>(null);
+    const lastTapRef = useRef<{ id: string; time: number } | null>(null);
     const [rows, setRows] = useState<ScheduleRow[]>([]);
     const [search, setSearch] = useState('');
-    const [filterType, setFilterType] = useState<string>('all');
+    const [filterTypes, setFilterTypes] = useState<string[]>([]);
+    const [showTypeDropdown, setShowTypeDropdown] = useState(false);
     const [visibleColumns, setVisibleColumns] = useState<string[]>(COLUMNS.map(c => c.key));
     const [showColumns, setShowColumns] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -137,6 +147,7 @@ export default function SchedulesPage() {
     const [filterDropdownPos, setFilterDropdownPos] = useState<{ top: number; left: number } | null>(null);
     const [editingRow, setEditingRow] = useState<ScheduleRow | null>(null);
     const [editDraft, setEditDraft] = useState<ScheduleRow | null>(null);
+    const [couriers, setCouriers] = useState<{ name: string; userCode: string; branchId: string }[]>([]);
     const [saving, setSaving] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const rowsRef = useRef<ScheduleRow[]>([]);
@@ -146,6 +157,12 @@ export default function SchedulesPage() {
     const [garbageRows, setGarbageRows] = useState<ScheduleRow[]>([]);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deletingGarbage, setDeletingGarbage] = useState(false);
+    const [viewMode, setViewMode] = useState<'list' | 'branch'>('list');
+    const [selectedBranchTab, setSelectedBranchTab] = useState('');
+    const [branches, setBranches] = useState<{ id: string; name: string; delivery_areas: string[] }[]>([]);
+    const [availabilityRow, setAvailabilityRow] = useState<ScheduleRow | null>(null);
+    const [baseViewMode, setBaseViewMode] = useState<'branch' | 'mine'>('mine');
+    const [savingAvailability, setSavingAvailability] = useState(false);
 
     const handlePdfUpload = async (file: File) => {
         if (!editDraft?.id) return;
@@ -250,6 +267,45 @@ export default function SchedulesPage() {
         setEditDraft({ ...row });
     }, []);
 
+    const handleSetBranchAvailable = async (available: boolean) => {
+        if (!availabilityRow) return;
+        setSavingAvailability(true);
+        try {
+            // 対応不可の場合は集材員の指定を解除する
+            const payload: any = { branch_available: available };
+            if (!available) { payload.courier_name = null; payload.courier_code = null; }
+            const { error } = await supabase.from('schedules').update(payload).eq('id', availabilityRow.id);
+            if (error) { alert(`保存に失敗しました。\n${error.message}`); return; }
+            const updated = {
+                ...availabilityRow,
+                branchAvailable: available ? 'true' : 'false',
+                ...(available ? {} : { courierName: '', courierCode: '' }),
+            };
+            setRows(prev => prev.map(r => r.id === updated.id ? updated : r));
+            setAvailabilityRow(updated);
+        } finally {
+            setSavingAvailability(false);
+        }
+    };
+
+    const handleSetAvailabilityCourier = async (courierName: string) => {
+        if (!availabilityRow) return;
+        const courier = couriers.find(c => c.name === courierName);
+        setSavingAvailability(true);
+        try {
+            const { error } = await supabase.from('schedules').update({
+                courier_name: courierName || null,
+                courier_code: courier?.userCode || null,
+            }).eq('id', availabilityRow.id);
+            if (error) { alert(`保存に失敗しました。\n${error.message}`); return; }
+            const updated = { ...availabilityRow, courierName, courierCode: courier?.userCode || '' };
+            setRows(prev => prev.map(r => r.id === updated.id ? updated : r));
+            setAvailabilityRow(updated);
+        } finally {
+            setSavingAvailability(false);
+        }
+    };
+
     const closeEdit = useCallback(() => {
         setEditingRow(null);
         setEditDraft(null);
@@ -307,19 +363,51 @@ export default function SchedulesPage() {
 
     const load = async () => {
         try {
-            const [schedulesRes, facilitiesRes] = await Promise.all([
+            const [schedulesRes, facilitiesRes, couriersRes, branchesRes] = await Promise.all([
                 supabase.from('schedules').select('*').eq('is_archived', false),
                 supabase.from('settings_facilities').select('facility, area'),
+                supabase.from('users').select('name, user_code, branch_id').in('specimen_role', ['base', 'driver']).is('leave_date', null),
+                supabase.from('branches').select('id, name, delivery_areas').order('created_at', { ascending: true }),
             ]);
+            const branchList = (branchesRes.data || []).map((b: any) => ({ id: b.id, name: b.name, delivery_areas: b.delivery_areas || [] }));
+            const courierList = (couriersRes.data || []).map((u: any) => ({ name: u.name, userCode: u.user_code || '', branchId: u.branch_id || '' }));
+            const courierBranchMap: Record<string, string> = {};
+            for (const c of courierList) {
+                if (c.name && c.branchId) courierBranchMap[c.name] = c.branchId;
+            }
+            const rowBranchId = (r: ScheduleRow) => (r.courierName && courierBranchMap[r.courierName]) || '';
+            const myBranch = (specimenRole === 'base' || specimenRole === 'driver')
+                ? branchList.find((b) => b.id === myBranchId) ?? null
+                : null;
+
             if (schedulesRes.data && !schedulesRes.error) {
                 const facilityAreaMap: Record<string, string> = {};
                 for (const f of facilitiesRes.data || []) {
                     if (f.facility && f.area) facilityAreaMap[f.facility] = f.area;
                 }
-                setRows(schedulesRes.data.map((d: any) => normalizeScheduleRow(d, facilityAreaMap)));
+                let normalized = schedulesRes.data.map((d: any) => normalizeScheduleRow(d, facilityAreaMap));
+                if (specimenRole === 'base' && myBranch) {
+                    const allowedAreas = new Set(myBranch.delivery_areas);
+                    normalized = normalized.filter((r) => {
+                        const assignedBranchId = rowBranchId(r);
+                        if (assignedBranchId) return assignedBranchId === myBranch.id;
+                        return !!r.area && allowedAreas.has(r.area);
+                    });
+                } else if (specimenRole === 'driver' && myBranch) {
+                    // ドライバー：自拠点のエリアに属し、且つ自分に割り当てられた集配のみ表示
+                    const allowedAreas = new Set(myBranch.delivery_areas);
+                    normalized = normalized.filter((r) => {
+                        const inBranchArea = !!r.area && allowedAreas.has(r.area);
+                        const isMyCourier = r.courierName === myUserName;
+                        return inBranchArea && isMyCourier;
+                    });
+                }
+                setRows(normalized);
             } else {
                 setRows([]);
             }
+            setCouriers(courierList);
+            setBranches(myBranch ? [myBranch] : branchList);
         } catch {
             setRows([]);
         }
@@ -461,11 +549,157 @@ export default function SchedulesPage() {
         setRows(toKeep);
     };
 
+    const courierBranchMap: Record<string, string> = {};
+    for (const c of couriers) {
+        if (c.name && c.branchId) courierBranchMap[c.name] = c.branchId;
+    }
+    // 集材員名が選択されている場合は、その集材員の所属拠点を優先してタブ振り分けする
+    const matchesBranch = (r: ScheduleRow, b: { id: string; delivery_areas: string[] }) => {
+        const assignedBranchId = r.courierName && courierBranchMap[r.courierName];
+        if (assignedBranchId) return assignedBranchId === b.id;
+        return !!r.area && b.delivery_areas.includes(r.area);
+    };
+    const branchScheduleCount = (b: { id: string; delivery_areas: string[] }) => rows.filter(r => matchesBranch(r, b)).length;
+    const unknownScheduleCount = rows.filter(r => !branches.some(b => matchesBranch(r, b))).length;
+
+    useEffect(() => {
+        if (selectedBranchTab && (selectedBranchTab === UNKNOWN_BRANCH_TAB || branches.some(b => b.id === selectedBranchTab))) return;
+        if (branches.length > 0) setSelectedBranchTab(branches[0].id);
+        else setSelectedBranchTab(UNKNOWN_BRANCH_TAB);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [branches]);
+
     if (!mounted) return null;
+
+    // ── ドライバー専用モバイルビュー ───────────────────────────────────
+    if (specimenRole === 'driver') {
+        const DRIVER_COLS = [
+            { key: 'collectDate' as const, label: '集配日' },
+            { key: 'collectTime' as const, label: '集配時間' },
+            { key: 'area' as const, label: '集配エリア' },
+            { key: 'facilityName' as const, label: '集配施設名' },
+        ];
+        // タッチ端末でのダブルタップ検出（300ms以内の同一行2タップで開く）
+        const handleTap = (row: ScheduleRow) => {
+            const now = Date.now();
+            if (lastTapRef.current?.id === row.id && now - lastTapRef.current.time < 300) {
+                lastTapRef.current = null;
+                setDriverDetailRow(row);
+            } else {
+                lastTapRef.current = { id: row.id, time: now };
+            }
+        };
+        return (
+            <>
+                <div className="space-y-4 animate-fade-in">
+                    <ScheduleTabs />
+                    <div>
+                        <h1 className="text-lg font-bold">集配送予定リスト</h1>
+                        <p className="text-xs text-muted-foreground mt-0.5">合計 {rows.length} 件（行をダブルタップで詳細表示）</p>
+                    </div>
+                    {rows.length === 0 ? (
+                        <div className="py-16 text-center text-slate-400 bg-white rounded-xl border border-slate-200 shadow-sm">
+                            <Calendar size={36} className="mx-auto mb-3 opacity-30" />
+                            <p className="text-sm font-medium">割り当てられた集配データがありません</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {[...rows].sort((a, b) => {
+                                const dateA = a.collectDate || '';
+                                const dateB = b.collectDate || '';
+                                if (dateA !== dateB) return dateA.localeCompare(dateB);
+                                const timeA = (a.collectTime || '').split(' - ')[0] || '';
+                                const timeB = (b.collectTime || '').split(' - ')[0] || '';
+                                return timeA.localeCompare(timeB);
+                            }).map(row => {
+                                const meta = SYSTEM_META[row.systemType] ?? { label: row.systemType, color: 'bg-slate-100 text-slate-600 border-slate-200' };
+                                return (
+                                    <div
+                                        key={row.id}
+                                        className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3.5 select-none active:bg-blue-50 transition-colors"
+                                        onTouchEnd={(e) => { e.preventDefault(); handleTap(row); }}
+                                        onDoubleClick={() => setDriverDetailRow(row)}
+                                    >
+                                        {/* 1行目：集配日 ＋ 集配時間 */}
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-sm font-bold text-slate-800">{row.collectDate || '—'}</span>
+                                            <span className="text-sm text-slate-600">{row.collectTime || '—'}</span>
+                                        </div>
+                                        {/* 2行目：集配エリア（バッジ） */}
+                                        <div className="mb-1">
+                                            <span className={`px-2 py-0.5 rounded-md border text-[11px] font-bold ${meta.color}`}>{row.area || '—'}</span>
+                                        </div>
+                                        {/* 3行目：集配施設名 */}
+                                        <div>
+                                            <span className="text-sm text-slate-700">{row.facilityName || '—'}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* ドライバー詳細モーダル */}
+                {driverDetailRow && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={e => { if (e.target === e.currentTarget) setDriverDetailRow(null); }}>
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] flex flex-col">
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+                                <h2 className="text-base font-bold text-slate-800">集配スケジュール詳細</h2>
+                                <button onClick={() => setDriverDetailRow(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
+                                    <XIcon size={18} />
+                                </button>
+                            </div>
+                            <div className="overflow-y-auto flex-1 px-4 py-3 space-y-1.5">
+                                {([
+                                    { label: 'システム種別', value: SYSTEM_META[driverDetailRow.systemType]?.label ?? driverDetailRow.systemType },
+                                    { label: '集配日', value: driverDetailRow.collectDate },
+                                    { label: '集配時間', value: driverDetailRow.collectTime },
+                                    { label: '集配エリア', value: driverDetailRow.area },
+                                    { label: '集配施設名', value: driverDetailRow.facilityName },
+                                    { label: '配送種別', value: driverDetailRow.deliveryType },
+                                    { label: '搬入拠点', value: driverDetailRow.base },
+                                    { label: 'UID', value: driverDetailRow.uid },
+                                    { label: '治験名', value: driverDetailRow.trialName },
+                                    { label: '訪問場所', value: driverDetailRow.visitPlace },
+                                    { label: '依頼受付日', value: driverDetailRow.requestDate },
+                                    { label: '依頼受付時間', value: driverDetailRow.requestTime },
+                                    { label: 'Box総数', value: driverDetailRow.boxCount },
+                                ] as { label: string; value: string }[])
+                                    .filter(({ value }) => value)
+                                    .map(({ label, value }) => (
+                                        <div key={label} className="flex items-center justify-between gap-3 min-w-0">
+                                            <span className="text-[11px] font-semibold text-slate-400 shrink-0 whitespace-nowrap">{label}</span>
+                                            <span className="text-[11px] text-slate-800 text-right truncate">{value}</span>
+                                        </div>
+                                    ))}
+                                {driverDetailRow.note && (
+                                    <div className="pt-1.5 border-t border-slate-100">
+                                        <span className="text-[11px] font-semibold text-slate-400 block mb-1">備考</span>
+                                        <div className="text-[11px] text-slate-800 max-h-16 overflow-y-auto leading-relaxed break-words">
+                                            {driverDetailRow.note}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </>
+        );
+    }
 
     const filtered = rows
         .filter(r => {
-            if (filterType !== 'all' && r.systemType !== filterType) return false;
+            if (viewMode === 'branch') {
+                if (selectedBranchTab === UNKNOWN_BRANCH_TAB) {
+                    if (branches.some(b => matchesBranch(r, b))) return false;
+                } else {
+                    const branch = branches.find(b => b.id === selectedBranchTab);
+                    if (!branch || !matchesBranch(r, branch)) return false;
+                }
+            }
+            if (filterTypes.length > 0 && !filterTypes.includes(r.systemType)) return false;
             for (const [colKey, allowed] of Object.entries(columnFilters)) {
                 if (allowed.size === 0) continue;
                 const val = (r[colKey as keyof ScheduleRow] || '') as string;
@@ -490,25 +724,163 @@ export default function SchedulesPage() {
             return 0;
         });
 
+    // ── 拠点長「自分の予定」ビュー ───────────────────────────────────────
+    if (specimenRole === 'base' && baseViewMode === 'mine') {
+        const myRows = [...rows]
+            .filter(r => r.courierName === myUserName)
+            .sort((a, b) => {
+                const dateA = a.collectDate || '';
+                const dateB = b.collectDate || '';
+                if (dateA !== dateB) return dateA.localeCompare(dateB);
+                const timeA = (a.collectTime || '').split(' - ')[0] || '';
+                const timeB = (b.collectTime || '').split(' - ')[0] || '';
+                return timeA.localeCompare(timeB);
+            });
+        const handleTap = (row: ScheduleRow) => {
+            const now = Date.now();
+            if (lastTapRef.current?.id === row.id && now - lastTapRef.current.time < 300) {
+                lastTapRef.current = null;
+                setDriverDetailRow(row);
+            } else {
+                lastTapRef.current = { id: row.id, time: now };
+            }
+        };
+        return (
+            <>
+                <div className="space-y-4 animate-fade-in">
+                    <ScheduleTabs />
+                    {/* 自分の予定 ／ 拠点全体 切り替え */}
+                    <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden w-fit">
+                        <button
+                            className="px-4 py-2 text-xs font-bold bg-blue-600 text-white"
+                        >
+                            自分の予定
+                        </button>
+                        <button
+                            onClick={() => setBaseViewMode('branch')}
+                            className="px-4 py-2 text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 transition-colors border-l border-slate-200"
+                        >
+                            拠点全体
+                        </button>
+                    </div>
+                    <div>
+                        <h1 className="text-lg font-bold">自分の予定</h1>
+                        <p className="text-xs text-muted-foreground mt-0.5">合計 {myRows.length} 件（行をダブルタップで詳細表示）</p>
+                    </div>
+                    {myRows.length === 0 ? (
+                        <div className="py-16 text-center text-slate-400 bg-white rounded-xl border border-slate-200 shadow-sm">
+                            <Calendar size={36} className="mx-auto mb-3 opacity-30" />
+                            <p className="text-sm font-medium">自分に割り当てられた集配データがありません</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {myRows.map(row => {
+                                const meta = SYSTEM_META[row.systemType] ?? { label: row.systemType, color: 'bg-slate-100 text-slate-600 border-slate-200' };
+                                return (
+                                    <div
+                                        key={row.id}
+                                        className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3.5 select-none active:bg-blue-50 transition-colors"
+                                        onTouchEnd={(e) => { e.preventDefault(); handleTap(row); }}
+                                        onDoubleClick={() => setDriverDetailRow(row)}
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-sm font-bold text-slate-800">{row.collectDate || '—'}</span>
+                                            <span className="text-sm text-slate-600">{row.collectTime || '—'}</span>
+                                        </div>
+                                        <div className="mb-1">
+                                            <span className={`px-2 py-0.5 rounded-md border text-[11px] font-bold ${meta.color}`}>{row.area || '—'}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-sm text-slate-700">{row.facilityName || '—'}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* 詳細モーダル */}
+                {driverDetailRow && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={e => { if (e.target === e.currentTarget) setDriverDetailRow(null); }}>
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] flex flex-col">
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+                                <h2 className="text-base font-bold text-slate-800">集配スケジュール詳細</h2>
+                                <button onClick={() => setDriverDetailRow(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
+                                    <XIcon size={18} />
+                                </button>
+                            </div>
+                            <div className="overflow-y-auto flex-1 px-4 py-3 space-y-1.5">
+                                {([
+                                    { label: 'システム種別', value: SYSTEM_META[driverDetailRow.systemType]?.label ?? driverDetailRow.systemType },
+                                    { label: '集配日', value: driverDetailRow.collectDate },
+                                    { label: '集配時間', value: driverDetailRow.collectTime },
+                                    { label: '集配エリア', value: driverDetailRow.area },
+                                    { label: '集配施設名', value: driverDetailRow.facilityName },
+                                    { label: '配送種別', value: driverDetailRow.deliveryType },
+                                    { label: '搬入拠点', value: driverDetailRow.base },
+                                    { label: 'UID', value: driverDetailRow.uid },
+                                    { label: '治験名', value: driverDetailRow.trialName },
+                                    { label: '訪問場所', value: driverDetailRow.visitPlace },
+                                    { label: '依頼受付日', value: driverDetailRow.requestDate },
+                                    { label: '依頼受付時間', value: driverDetailRow.requestTime },
+                                    { label: 'Box総数', value: driverDetailRow.boxCount },
+                                ] as { label: string; value: string }[])
+                                    .filter(({ value }) => value)
+                                    .map(({ label, value }) => (
+                                        <div key={label} className="flex items-center justify-between gap-3 min-w-0">
+                                            <span className="text-[11px] font-semibold text-slate-400 shrink-0 whitespace-nowrap">{label}</span>
+                                            <span className="text-[11px] text-slate-800 text-right truncate">{value}</span>
+                                        </div>
+                                    ))}
+                                {driverDetailRow.note && (
+                                    <div className="pt-1.5 border-t border-slate-100">
+                                        <span className="text-[11px] font-semibold text-slate-400 block mb-1">備考</span>
+                                        <div className="text-[11px] text-slate-800 max-h-16 overflow-y-auto leading-relaxed break-words">
+                                            {driverDetailRow.note}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </>
+        );
+    }
+
     return (
         <>
         <div className="space-y-6 animate-fade-in">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <ScheduleTabs />
+
+            {/* 拠点長用：自分の予定 ／ 拠点全体 切り替え */}
+            {specimenRole === 'base' && (
+                <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden w-fit">
+                    <button
+                        onClick={() => setBaseViewMode('mine')}
+                        className="px-4 py-2 text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+                    >
+                        自分の予定
+                    </button>
+                    <button
+                        className="px-4 py-2 text-xs font-bold bg-blue-600 text-white border-l border-slate-200"
+                    >
+                        拠点全体
+                    </button>
+                </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-foreground">集配送予定リスト</h1>
-                    <p className="text-sm text-muted-foreground mt-1">データ入力画面で保存した集配データの一覧です。</p>
+                    <p className="text-sm text-muted-foreground mt-1">集配データの一覧です。</p>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                    <Link href="/data-entry" className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
-                        <Database size={15} /> データ入力へ
-                    </Link>
-                    <Link href="/schedules/archive" className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
-                        <Archive size={15} /> 実績
-                    </Link>
-                    <button onClick={handleShowLatest} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
+                <div className="flex items-center gap-2">
+                    <button onClick={handleShowLatest} className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
                         <RefreshCw size={15} /> 最新を表示
                     </button>
-                    <button onClick={archivePastAndToday} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
+                    <button onClick={archivePastAndToday} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
                         翌日以降を表示
                     </button>
                 </div>
@@ -527,17 +899,79 @@ export default function SchedulesPage() {
                         />
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                        {(['all', 'M', 'Q', 'IP', 'I', 'F'] as const).map(t => (
+                        {specimenRole !== 'base' && (
+                            <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden">
+                                <button
+                                    onClick={() => setViewMode('list')}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold transition-colors ${
+                                        viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <List size={13} /> リスト
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('branch')}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold transition-colors border-l border-slate-200 ${
+                                        viewMode === 'branch' ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <Building2 size={13} /> 拠点表示
+                                </button>
+                            </div>
+                        )}
+                        {/* デスクトップ：トグルボタン（複数選択可） */}
+                        <div className="hidden lg:flex items-center gap-2 flex-wrap">
                             <button
-                                key={t}
-                                onClick={() => setFilterType(t)}
+                                onClick={() => setFilterTypes([])}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                                    filterType === t ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                    filterTypes.length === 0 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                                 }`}
                             >
-                                {t === 'all' ? 'すべて' : (SYSTEM_META[t]?.label ?? t)}
+                                すべて
                             </button>
-                        ))}
+                            {(['M', 'Q', 'IP', 'I', 'F'] as const).map(t => (
+                                <button
+                                    key={t}
+                                    onClick={() => setFilterTypes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                                        filterTypes.includes(t) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    {SYSTEM_META[t]?.label ?? t}
+                                </button>
+                            ))}
+                        </div>
+                        {/* モバイル：複数選択ドロップダウン */}
+                        <div className="lg:hidden relative">
+                            <button
+                                onClick={() => setShowTypeDropdown(v => !v)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors whitespace-nowrap"
+                            >
+                                {filterTypes.length === 0 ? 'すべて' : filterTypes.map(t => SYSTEM_META[t]?.label ?? t).join(', ')}
+                                <span className="text-slate-400">▾</span>
+                            </button>
+                            {showTypeDropdown && (
+                                <div className="absolute left-0 top-full mt-1 z-30 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[130px]">
+                                    <button
+                                        onClick={() => { setFilterTypes([]); setShowTypeDropdown(false); }}
+                                        className={`w-full text-left px-4 py-2 text-xs font-bold transition-colors ${filterTypes.length === 0 ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-50'}`}
+                                    >
+                                        すべて
+                                    </button>
+                                    {(['M', 'Q', 'IP', 'I', 'F'] as const).map(t => (
+                                        <label key={t} className="flex items-center gap-2.5 px-4 py-2 cursor-pointer hover:bg-slate-50">
+                                            <input
+                                                type="checkbox"
+                                                checked={filterTypes.includes(t)}
+                                                onChange={() => setFilterTypes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                                                className="accent-blue-600"
+                                            />
+                                            <span className="text-xs font-bold text-slate-700">{SYSTEM_META[t]?.label ?? t}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                         <button
                             onClick={() => setShowColumns(!showColumns)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
@@ -588,6 +1022,45 @@ export default function SchedulesPage() {
                 )}
             </div>
 
+            {viewMode === 'branch' && (branches.length > 0 || unknownScheduleCount > 0) && (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-2 flex items-center gap-0.5 overflow-x-auto">
+                    {branches.map(b => {
+                        const count = branchScheduleCount(b);
+                        return (
+                            <button
+                                key={b.id}
+                                onClick={() => setSelectedBranchTab(b.id)}
+                                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px whitespace-nowrap ${
+                                    selectedBranchTab === b.id
+                                        ? 'border-blue-600 text-blue-600'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                                }`}
+                            >
+                                <Building2 size={13} />
+                                {b.name}
+                                <span className={`text-xs font-normal ${selectedBranchTab === b.id ? 'text-blue-400' : 'text-slate-400'}`}>
+                                    {count}
+                                </span>
+                            </button>
+                        );
+                    })}
+                    <button
+                        onClick={() => setSelectedBranchTab(UNKNOWN_BRANCH_TAB)}
+                        className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px whitespace-nowrap ${
+                            selectedBranchTab === UNKNOWN_BRANCH_TAB
+                                ? 'border-blue-600 text-blue-600'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                        }`}
+                    >
+                        <HelpCircle size={13} />
+                        不明
+                        <span className={`text-xs font-normal ${selectedBranchTab === UNKNOWN_BRANCH_TAB ? 'text-blue-400' : 'text-slate-400'}`}>
+                            {unknownScheduleCount}
+                        </span>
+                    </button>
+                </div>
+            )}
+
             {rows.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap">
                     {Object.entries(SYSTEM_META).map(([type, meta]) => {
@@ -603,7 +1076,8 @@ export default function SchedulesPage() {
                 </div>
             )}
 
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            {/* ── デスクトップ：テーブル表示 ── */}
+            <div className="hidden lg:block bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 {filtered.length === 0 ? (
                     <div className="py-20 text-center text-slate-400">
                         <Calendar size={40} className="mx-auto mb-3 opacity-30" />
@@ -661,10 +1135,17 @@ export default function SchedulesPage() {
                                 {filtered.map((row, rowIndex) => {
                                     const meta = SYSTEM_META[row.systemType] ?? { label: row.systemType, color: 'bg-slate-100 text-slate-600' };
                                     return (
-                                        <tr key={row.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onDoubleClick={() => openEdit(row)}>
+                                        <tr
+                                            key={row.id}
+                                            className={`transition-colors cursor-pointer ${
+                                                row.branchAvailable === 'false' ? 'bg-red-100 hover:bg-red-200' : 'hover:bg-slate-50'
+                                            }`}
+                                            onDoubleClick={() => specimenRole === 'base' ? setAvailabilityRow(row) : openEdit(row)}
+                                        >
                                             {displayCols.map(col => {
                                                 const val = row[col.key] as string;
                                                 const isSystemType = col.key === 'systemType';
+                                                const isUnavailable = row.branchAvailable === 'false';
 
                                                 if (mergedColumns.has(col.key)) {
                                                     const colIdx = displayCols.findIndex(c => c.key === col.key);
@@ -680,7 +1161,7 @@ export default function SchedulesPage() {
                                                         while (i < filtered.length && (filtered[i][col.key] as string) === val && isSameGroup(i)) { rowSpan++; i++; }
                                                     }
                                                     return (
-                                                        <td key={col.key} rowSpan={rowSpan} className={`px-3 py-2.5 border-r border-slate-100 last:border-r-0 align-top bg-white ${rowSpan > 1 ? 'border-b border-slate-200' : ''} ${isSystemType ? 'sticky left-0 z-10' : ''}`}>
+                                                        <td key={col.key} rowSpan={rowSpan} className={`px-3 py-2.5 border-r border-slate-100 last:border-r-0 align-top ${isUnavailable ? 'bg-red-100' : 'bg-white'} ${rowSpan > 1 ? 'border-b border-slate-200' : ''} ${isSystemType ? 'sticky left-0 z-10' : ''}`}>
                                                             {isSystemType ? (
                                                                 <span className={`px-2 py-1 rounded-md border text-[11px] font-bold ${meta.color}`}>{meta.label}</span>
                                                             ) : (
@@ -691,7 +1172,7 @@ export default function SchedulesPage() {
                                                 }
 
                                                 return (
-                                                    <td key={col.key} className={`px-3 py-2.5 border-r border-slate-100 last:border-r-0 align-top ${isSystemType ? 'sticky left-0 bg-white/95 z-10' : ''}`}>
+                                                    <td key={col.key} className={`px-3 py-2.5 border-r border-slate-100 last:border-r-0 align-top ${isSystemType ? `sticky left-0 z-10 ${isUnavailable ? 'bg-red-100' : 'bg-white/95'}` : ''}`}>
                                                         {isSystemType ? (
                                                             <span className={`px-2 py-1 rounded-md border text-[11px] font-bold ${meta.color}`}>{meta.label}</span>
                                                         ) : PROGRESS_COLUMNS.has(col.key) ? (
@@ -710,7 +1191,127 @@ export default function SchedulesPage() {
                     </div>
                 )}
             </div>
+            {/* ── モバイル：カード表示 ── */}
+            <div className="lg:hidden">
+                {filtered.length === 0 ? (
+                    <div className="py-16 text-center text-slate-400 bg-white rounded-xl border border-slate-200 shadow-sm">
+                        <Calendar size={36} className="mx-auto mb-3 opacity-30" />
+                        <p className="text-sm font-medium">データがありません</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {filtered.map(row => {
+                            const meta = SYSTEM_META[row.systemType] ?? { label: row.systemType, color: 'bg-slate-100 text-slate-600 border-slate-200' };
+                            const handleMobileTap = () => {
+                                const now = Date.now();
+                                if (lastTapRef.current?.id === row.id && now - lastTapRef.current.time < 300) {
+                                    lastTapRef.current = null;
+                                    specimenRole === 'base' ? setAvailabilityRow(row) : openEdit(row);
+                                } else {
+                                    lastTapRef.current = { id: row.id, time: now };
+                                }
+                            };
+                            return (
+                                <div
+                                    key={row.id}
+                                    className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3.5 select-none active:bg-blue-50 transition-colors"
+                                    onTouchEnd={(e) => { e.preventDefault(); handleMobileTap(); }}
+                                    onDoubleClick={() => specimenRole === 'base' ? setAvailabilityRow(row) : openEdit(row)}
+                                >
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-bold text-slate-800">{row.collectDate || '—'}</span>
+                                        <span className="text-sm text-slate-600">{row.collectTime || '—'}</span>
+                                    </div>
+                                    <div className="mb-1">
+                                        <span className={`px-2 py-0.5 rounded-md border text-[11px] font-bold ${meta.color}`}>{row.area || '—'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-sm text-slate-700">{row.facilityName || '—'}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
         </div>
+
+        {/* ── 拠点長向け：対応可否モーダル ──────────────────────────── */}
+        {availabilityRow && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={e => { if (e.target === e.currentTarget) setAvailabilityRow(null); }}>
+                <div className="bg-white text-slate-800 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                        <h2 className="text-base font-bold text-slate-800">集配スケジュール</h2>
+                        <button onClick={() => setAvailabilityRow(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                            <XIcon size={18} />
+                        </button>
+                    </div>
+                    <div className="px-6 py-5 space-y-3">
+                        {([
+                            { label: '集配日', value: availabilityRow.collectDate },
+                            { label: '集配エリア', value: availabilityRow.area },
+                            { label: '集配時間', value: availabilityRow.collectTime },
+                            { label: '集配施設名', value: availabilityRow.facilityName },
+                        ]).map(({ label, value }) => (
+                            <div key={label} className="flex items-center justify-between gap-4">
+                                <span className="text-xs font-semibold text-slate-500 shrink-0">{label}</span>
+                                <span className="text-sm text-slate-800 text-right">{value || '—'}</span>
+                            </div>
+                        ))}
+
+                        <div className="pt-3 border-t border-slate-100">
+                            <p className="text-xs font-semibold text-slate-500 mb-2">対応可否</p>
+                            <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden">
+                                <button
+                                    onClick={() => handleSetBranchAvailable(true)}
+                                    disabled={savingAvailability}
+                                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors disabled:opacity-50 ${
+                                        availabilityRow.branchAvailable === 'true' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    対応可
+                                </button>
+                                <button
+                                    onClick={() => handleSetBranchAvailable(false)}
+                                    disabled={savingAvailability}
+                                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors border-l border-slate-200 disabled:opacity-50 ${
+                                        availabilityRow.branchAvailable === 'false' ? 'bg-red-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    対応不可
+                                </button>
+                            </div>
+                        </div>
+
+                        {availabilityRow.branchAvailable === 'true' && (
+                            <div className="pt-3 border-t border-slate-100 space-y-3">
+                                <div>
+                                    <p className="text-xs font-semibold text-slate-500 mb-1.5">集材員名</p>
+                                    <select
+                                        value={availabilityRow.courierName || ''}
+                                        onChange={e => handleSetAvailabilityCourier(e.target.value)}
+                                        disabled={savingAvailability}
+                                        className="w-full px-2.5 py-1.5 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 disabled:opacity-50"
+                                    >
+                                        <option value="">未選択</option>
+                                        {couriers.filter(c => c.branchId === myBranchId).map(c => (
+                                            <option key={c.name} value={c.name}>{c.name}</option>
+                                        ))}
+                                        {availabilityRow.courierName && !couriers.some(c => c.name === availabilityRow.courierName && c.branchId === myBranchId) && (
+                                            <option value={availabilityRow.courierName}>{availabilityRow.courierName}</option>
+                                        )}
+                                    </select>
+                                </div>
+                                <div className="flex items-center justify-between gap-4">
+                                    <span className="text-xs font-semibold text-slate-500 shrink-0">集材員コード</span>
+                                    <span className="text-sm text-slate-800 text-right">{availabilityRow.courierCode || '—'}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* ── Edit modal ──────────────────────────────────────────── */}
         {editDraft && (
@@ -842,9 +1443,40 @@ export default function SchedulesPage() {
                         <section>
                             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">業者情報</p>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                <label className="flex flex-col gap-1">
+                                    <span className="text-[11px] font-semibold text-slate-500">集材員コード</span>
+                                    <input
+                                        type="text"
+                                        value={(editDraft.courierCode as string) || ''}
+                                        onChange={e => {
+                                            const code = e.target.value;
+                                            const courier = code ? couriers.find(c => c.userCode === code) : undefined;
+                                            setEditDraft(d => d ? { ...d, courierCode: code, courierName: courier?.name ?? d.courierName } : d);
+                                        }}
+                                        className="px-2.5 py-1.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                                    />
+                                </label>
+                                <label className="flex flex-col gap-1">
+                                    <span className="text-[11px] font-semibold text-slate-500">集材員名</span>
+                                    <select
+                                        value={(editDraft.courierName as string) || ''}
+                                        onChange={e => {
+                                            const name = e.target.value;
+                                            const courier = couriers.find(c => c.name === name);
+                                            setEditDraft(d => d ? { ...d, courierName: name, courierCode: courier?.userCode || '' } : d);
+                                        }}
+                                        className="px-2.5 py-1.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"
+                                    >
+                                        <option value="">未選択</option>
+                                        {couriers.map(c => (
+                                            <option key={c.name} value={c.name}>{c.name}</option>
+                                        ))}
+                                        {editDraft.courierName && !couriers.some(c => c.name === editDraft.courierName) && (
+                                            <option value={editDraft.courierName}>{editDraft.courierName}</option>
+                                        )}
+                                    </select>
+                                </label>
                                 {([
-                                    { key: 'courierCode', label: '集材員コード' },
-                                    { key: 'courierName', label: '集材員名' },
                                     { key: 'reference', label: 'リファレンス' },
                                     { key: 'rev', label: 'REV' },
                                 ] as { key: keyof ScheduleRow; label: string }[]).map(({ key, label }) => (

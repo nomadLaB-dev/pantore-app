@@ -89,7 +89,7 @@ export default function AssetExport() {
 
         const dateLabel = dateFrom || dateTo ? `_${dateFrom || 'start'}_${dateTo || 'end'}` : '_全期間';
         zip.forEach(({ name, csv }) => {
-            downloadCSV(`Pantore_${name.replace('.csv', '')}${dateLabel}.csv`, csv);
+            downloadCSV(`SpecimenChimera_${name.replace('.csv', '')}${dateLabel}.csv`, csv);
         });
 
         await new Promise((r) => setTimeout(r, 400));

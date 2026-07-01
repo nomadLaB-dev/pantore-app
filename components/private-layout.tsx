@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { Menu, Layers } from 'lucide-react';
 import Sidebar from '@/components/sidebar';
 import { createClient } from '@/lib/supabase/client';
 import { useAppStore } from '@/store';
@@ -18,8 +19,11 @@ type LayoutData = {
 export default function PrivateLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const setSpecimenRole = useAppStore((s) => s.setSpecimenRole);
+  const setBranchId = useAppStore((s) => s.setBranchId);
+  const setUserName = useAppStore((s) => s.setUserName);
   const [loading, setLoading] = useState(true);
   const [layoutData, setLayoutData] = useState<LayoutData | null>(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -68,8 +72,19 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
         : { name: user.email ?? '', email: user.email ?? '' };
 
       setSpecimenRole(specimenRole ?? null);
+      setBranchId(employee?.branch_id ?? null);
+      setUserName(employee?.name ?? null);
       setLayoutData({ tenantName, branchName, specimenRole, currentUser });
       setLoading(false);
+
+      // ドライバーは集配送予定とタイムカードのみアクセス可能
+      if (specimenRole === 'driver') {
+        const p = window.location.pathname;
+        if (!p.startsWith('/schedules') && !p.startsWith('/timecard')) {
+          router.replace('/schedules');
+          return;
+        }
+      }
     };
 
     checkAuth();
@@ -93,9 +108,29 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
         branchName={layoutData.branchName}
         specimenRole={layoutData.specimenRole}
         currentUser={layoutData.currentUser}
+        mobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
       />
+
       <div className="flex-1 flex flex-col min-w-0">
-        <main className="flex-1 overflow-auto p-5 md:p-7">{children}</main>
+        {/* モバイル用ヘッダー */}
+        <header className="lg:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-amber-950 sticky top-0 z-30">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-amber-400 flex items-center justify-center">
+              <Layers className="w-3.5 h-3.5 text-amber-950" />
+            </div>
+            <span className="font-bold text-sm text-white">SpecimenChimera</span>
+          </div>
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            className="p-2 text-amber-100/70 hover:text-amber-100 hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="メニューを開く"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        </header>
+
+        <main className="flex-1 overflow-auto p-4 md:p-5 lg:p-7">{children}</main>
       </div>
     </div>
   );

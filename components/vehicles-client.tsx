@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/router';
 import { getUsefulLife } from '@/lib/depreciation';
 import { Car, Plus, Building2, ChevronRight, Snowflake, MessageCircleWarning, Wrench } from 'lucide-react';
 import Link from 'next/link';
@@ -8,6 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { NewVehicleModal } from '@/components/modals/new-vehicle-modal';
 import { EditVehicleModal } from '@/components/modals/edit-vehicle-modal';
+import { VehicleCsvImportModal } from '@/components/modals/vehicle-csv-import-modal';
+import { DeleteAllVehiclesModal } from '@/components/modals/delete-all-vehicles-modal';
+import { useCsvDeleteShortcut } from '@/lib/hooks/use-csv-delete-shortcut';
 
 interface VehiclesClientProps {
     vehicles: any[];
@@ -21,9 +25,16 @@ interface VehiclesClientProps {
 }
 
 export function VehiclesClient({ vehicles, branches, stats }: VehiclesClientProps) {
+    const router = useRouter();
     const [showNewModal, setShowNewModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
+    const [showCsvModal, setShowCsvModal] = useState(false);
+    const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+
+    useCsvDeleteShortcut(() => setShowCsvModal(true), () => setShowDeleteAllModal(true));
+
+    const refresh = () => router.replace(router.asPath);
 
     return (
         <div className="space-y-6">
@@ -39,6 +50,8 @@ export function VehiclesClient({ vehicles, branches, stats }: VehiclesClientProp
 
             <NewVehicleModal open={showNewModal} onClose={() => setShowNewModal(false)} branches={branches} />
             <EditVehicleModal open={showEditModal} onClose={() => { setShowEditModal(false); setSelectedVehicle(null); }} vehicle={selectedVehicle} branches={branches} />
+            <VehicleCsvImportModal open={showCsvModal} onClose={() => setShowCsvModal(false)} branches={branches} onImported={refresh} />
+            <DeleteAllVehiclesModal open={showDeleteAllModal} onClose={() => setShowDeleteAllModal(false)} vehicleCount={vehicles.length} onDeleted={refresh} />
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

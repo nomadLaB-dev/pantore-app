@@ -1,12 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/router';
 import { Building2, Plus, MapPin, FileText, RotateCcw, MessageCircleWarning } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { NewRealEstateModal } from '@/components/modals/new-real-estate-modal';
 import { EditRealEstateModal } from '@/components/modals/edit-real-estate-modal';
+import { RealEstateCsvImportModal } from '@/components/modals/real-estate-csv-import-modal';
+import { DeleteAllRealEstatesModal } from '@/components/modals/delete-all-real-estates-modal';
+import { useCsvDeleteShortcut } from '@/lib/hooks/use-csv-delete-shortcut';
 
 interface RealEstatesClientProps {
     estates: any[];
@@ -47,9 +51,16 @@ const isAboutToExpire = (endDateStr: string | null | undefined) => {
 };
 
 export function RealEstatesClient({ estates, stats, masters }: RealEstatesClientProps) {
+    const router = useRouter();
     const [showNewModal, setShowNewModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [selectedEstate, setSelectedEstate] = useState<any>(null);
+    const [showCsvModal, setShowCsvModal] = useState(false);
+    const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+
+    useCsvDeleteShortcut(() => setShowCsvModal(true), () => setShowDeleteAllModal(true));
+
+    const refresh = () => router.replace(router.asPath);
 
     return (
         <div className="space-y-6">
@@ -63,6 +74,8 @@ export function RealEstatesClient({ estates, stats, masters }: RealEstatesClient
                 </Button>
                 <NewRealEstateModal open={showNewModal} onClose={() => setShowNewModal(false)} masters={masters} />
                 <EditRealEstateModal open={showEditModal} onClose={() => { setShowEditModal(false); setSelectedEstate(null); }} estate={selectedEstate} masters={masters} />
+                <RealEstateCsvImportModal open={showCsvModal} onClose={() => setShowCsvModal(false)} masters={masters} onImported={refresh} />
+                <DeleteAllRealEstatesModal open={showDeleteAllModal} onClose={() => setShowDeleteAllModal(false)} estateCount={estates.length} onDeleted={refresh} />
             </div>
 
             {/* Stats */}

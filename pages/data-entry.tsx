@@ -4,10 +4,56 @@ import PrivateLayout from '@/components/private-layout'
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Save, Undo2, Redo2, ExternalLink, Keyboard, Archive, Mail, Eraser } from 'lucide-react';
+import { ArrowLeft, Save, Undo2, Redo2, ExternalLink, Keyboard, Archive, Mail, Eraser, ChevronLeft, ChevronRight } from 'lucide-react';
 import { buildScheduleList } from '@/lib/formatSchedule';
 import type { ScheduleRow } from '@/lib/formatSchedule';
 import { createClient } from '@/lib/supabase/client';
+import ScheduleTabs from '@/components/schedule-tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useAppStore } from '@/store';
+
+type ManualKey = 'mdf' | 'qdome' | 'ipd';
+
+type ManualStep = { image?: string; lines: string[] };
+
+type ManualData = { title: string; description: string; steps: ManualStep[] };
+
+const MANUAL_CONTENT: Record<ManualKey, ManualData> = {
+    mdf: {
+        title: 'MDF マニュアル',
+        description: 'MDFに関する受付処理やシステム入力手順',
+        steps: [
+            { lines: ['https://scs.tnteww.jp/tcms/ にアクセス。', 'ログイン情報を用いて、ログイン。'] },
+            { image: '/manual/MDF/MDF-2.png', lines: ['画像のように設定をして「一覧表示」を押下。', '対象日：[今日の日付+1日]ー[今日の日付+1月]', 'ステータス：すべてのチェックボックスをチェック。', '表示件数：100に設定。'] },
+            { image: '/manual/MDF/MDF-3.png', lines: ['画像のようにチェックボックスを含むすべてのデータをコピー（Ctrl+C）。'] },
+            { image: '/manual/MDF/MDF-4.png', lines: ['システムのデータ入力ページでMDFタブを開き、集荷予定日時の1行目のセルを選択。', '先ほどコピーしたデータを貼り付け（Ctrl+V）。'] },
+            { image: '/manual/MDF/MDF-5.png', lines: ['データ入力画面の右上にある「- 挿入」ボタンを押下。', '「保存する」ボタンを押下。'] },
+        ],
+    },
+    qdome: {
+        title: 'Q-dome マニュアル',
+        description: 'Q-domeに関する受付処理やシステム入力手順',
+        steps: [
+            { lines: ['https://scs.tnteww.jp/cte/qdome/ にアクセス。', 'ログイン情報を用いて、ログイン。'] },
+            { image: '/manual/Q-dome/Q-dome-2.png', lines: ['画像のように設定をして「一覧表示」を押下。', '対象日：[今日の日付+1日]ー[今日の日付+1月]', 'ステータス：すべてのチェックボックスをチェック。', '表示件数：100に設定。'] },
+            { image: '/manual/Q-dome/Q-dome-3.png', lines: ['画像のようにチェックボックスを含むすべてのデータをコピー（Ctrl+C）。'] },
+            { image: '/manual/Q-dome/Q-dome-4.png', lines: ['システムのデータ入力ページでQ-domeタブを開き、集荷予定日時の1行目のセルを選択。', '先ほどコピーしたデータを貼り付け（Ctrl+V）。'] },
+            { image: '/manual/Q-dome/Q-dome-5.png', lines: ['データ入力画面の右上にある「- 挿入」ボタンを押下。', '「保存する」ボタンを押下。'] },
+        ],
+    },
+    ipd: {
+        title: 'IPD マニュアル',
+        description: 'IPD検体に関するデータ入力およびイレギュラー対応手順',
+        steps: [
+            { lines: ['https://pdms.fdx-app.com/ にアクセス。', 'ログイン情報を用いて、ログイン。', 'サイドバーメニューの「オーダー一覧」ボタンを押下。'] },
+            { image: '/manual/IPD/IPD-2.png', lines: ['画面上部にある、「▷ 検索条件」ボタンを押下。'] },
+            { image: '/manual/IPD/IPD-3.png', lines: ['画像のように設定をして「検索」ボタンを押下。', '日付1：[集荷日][今日の日付+1日]', '日付2：[配達日][今日の日付+1日]'] },
+            { image: '/manual/IPD/IPD-4.png', lines: ['画像のようにすべてのデータをコピー（Ctrl+C）。'] },
+            { image: '/manual/IPD/IPD-5.png', lines: ['システムのデータ入力ページでIPDタブを開き、IDの1行目のセルを選択。', '先ほどコピーしたデータを貼り付け（Ctrl+V）。'] },
+            { image: '/manual/IPD/IPD-6.png', lines: ['データ入力画面の右上にある「- 挿入」ボタンを押下。', '「保存する」ボタンを押下。'] },
+        ],
+    },
+};
 
 const COLUMNS_DEFAULT = [
     '集荷予定\n日時', 'ステータス', '手配状況\n送信時間', '依頼', '至急', '集材種別',
@@ -49,7 +95,10 @@ const createEmptyData = (colCount: number) =>
 export default function DataEntry() {
     const supabase = createClient();
 
+    const specimenRole = useAppStore((s) => s.specimenRole);
     const [activeTab, setActiveTab] = useState('manual');
+    const [openManual, setOpenManual] = useState<ManualKey | null>(null);
+    const [manualCarouselIndex, setManualCarouselIndex] = useState(0);
     const [tabData, setTabData] = useState<Record<string, string[][]>>(() => {
         const initial: Record<string, string[][]> = {};
         for (const tab of TABS) initial[tab.id] = createEmptyData(getInitialCols(tab.id));
@@ -549,8 +598,15 @@ export default function DataEntry() {
         return w[idx] ?? 'w-[6%]';
     };
 
+    if (specimenRole === 'driver') {
+        return <div className="p-8 text-center text-muted-foreground">このページを表示する権限がありません。</div>;
+    }
+
     return (
-        <div className="flex flex-col h-full bg-slate-50 w-full overflow-hidden select-none -m-5 md:-m-7">
+        <div className="flex flex-col h-full bg-slate-50 w-full overflow-hidden select-none -mx-5 md:-mx-7 -mb-5 md:-mb-7">
+            <div className="flex-none bg-white px-4">
+                <ScheduleTabs />
+            </div>
             <div className="flex flex-none flex-col sm:flex-row items-center justify-between px-4 py-2 sm:py-3 bg-white border-b border-slate-200 gap-3 sm:gap-0">
                 <div className="flex items-center gap-3">
                     <Link href="/dashboard" className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
@@ -591,17 +647,83 @@ export default function DataEntry() {
                             <h2 className="text-lg font-bold text-slate-800">業務マニュアル</h2>
                             <p className="text-sm text-slate-500 mt-1">データ入力に関する各種業務マニュアルはこちらのドキュメントをご参照ください。</p>
                         </div>
-                        <div className="p-6 space-y-4">
-                            <div className="flex flex-col p-5 rounded-lg border border-slate-200 bg-white">
-                                <div className="flex items-center justify-between"><h3 className="font-semibold text-blue-600 text-base">MDF・Q-dome マニュアル</h3><ExternalLink size={18} className="text-slate-400" /></div>
-                                <p className="text-sm text-slate-500 mt-2">MDFおよびQ-domeに関する受付処理やシステム入力手順</p>
-                            </div>
-                            <div className="flex flex-col p-5 rounded-lg border border-slate-200 bg-white">
-                                <div className="flex items-center justify-between"><h3 className="font-semibold text-blue-600 text-base">IPD マニュアル</h3><ExternalLink size={18} className="text-slate-400" /></div>
-                                <p className="text-sm text-slate-500 mt-2">IPD検体に関するデータ入力およびイレギュラー対応手順</p>
-                            </div>
+                        <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {(Object.keys(MANUAL_CONTENT) as ManualKey[]).map((key) => (
+                                <button
+                                    key={key}
+                                    onClick={() => { setOpenManual(key); setManualCarouselIndex(0); }}
+                                    className="flex flex-col text-left p-5 rounded-lg border border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm transition-all"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="font-semibold text-blue-600 text-base">{MANUAL_CONTENT[key].title}</h3>
+                                        <ExternalLink size={18} className="text-slate-400" />
+                                    </div>
+                                    <p className="text-sm text-slate-500 mt-2">{MANUAL_CONTENT[key].description}</p>
+                                </button>
+                            ))}
                         </div>
                     </div>
+
+                    <Dialog open={!!openManual} onOpenChange={(v) => !v && setOpenManual(null)}>
+                        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+                            <DialogHeader>
+                                <DialogTitle>{openManual ? MANUAL_CONTENT[openManual].title : ''}</DialogTitle>
+                            </DialogHeader>
+                            {openManual && (() => {
+                                const manual = MANUAL_CONTENT[openManual];
+                                const steps = manual.steps;
+                                const slide = steps[manualCarouselIndex];
+                                return (
+                                    <div className="space-y-4">
+                                        <div className="rounded-lg border border-slate-200 overflow-hidden">
+                                            <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
+                                                <span className="text-xs font-bold text-slate-400">手順 {manualCarouselIndex + 1}</span>
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={() => setManualCarouselIndex(i => Math.max(0, i - 1))}
+                                                        disabled={manualCarouselIndex === 0}
+                                                        className="p-1 rounded hover:bg-slate-200 text-slate-500 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                                                    >
+                                                        <ChevronLeft size={16} />
+                                                    </button>
+                                                    <span className="text-xs text-slate-500 font-medium px-1 tabular-nums">{manualCarouselIndex + 1} / {steps.length}</span>
+                                                    <button
+                                                        onClick={() => setManualCarouselIndex(i => Math.min(steps.length - 1, i + 1))}
+                                                        disabled={manualCarouselIndex === steps.length - 1}
+                                                        className="p-1 rounded hover:bg-slate-200 text-slate-500 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                                                    >
+                                                        <ChevronRight size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            {slide.image && (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img src={slide.image} alt={`${manual.title} 手順${manualCarouselIndex + 1}`} className="w-full max-h-[50vh] object-contain bg-slate-100 border-b border-slate-200" />
+                                            )}
+                                            <div className="p-4 space-y-1">
+                                                {slide.lines.map((line, i) => (
+                                                    <p key={i} className="text-sm text-slate-700 leading-relaxed">{line}</p>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {steps.length > 1 && (
+                                            <div className="flex items-center justify-center gap-1.5">
+                                                {steps.map((_, i) => (
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => setManualCarouselIndex(i)}
+                                                        aria-label={`手順${i + 1}へ移動`}
+                                                        className={`w-1.5 h-1.5 rounded-full transition-colors ${i === manualCarouselIndex ? 'bg-blue-600' : 'bg-slate-300'}`}
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+                        </DialogContent>
+                    </Dialog>
                     <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-8">
                         <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/80">
                             <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Keyboard size={20} className="text-blue-600" /> キーボード操作・ショートカットキー一覧</h2>

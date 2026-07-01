@@ -12,6 +12,10 @@ interface AppState {
     setBranches: (branches: Branch[]) => void;
     specimenRole: SpecimenRole | null;
     setSpecimenRole: (role: SpecimenRole | null) => void;
+    branchId: string | null;
+    setBranchId: (branchId: string | null) => void;
+    userName: string | null;
+    setUserName: (name: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -25,4 +29,8 @@ export const useAppStore = create<AppState>((set) => ({
     setBranches: (branches) => set({ branches }),
     specimenRole: null,
     setSpecimenRole: (role) => set({ specimenRole: role }),
+    branchId: null,
+    setBranchId: (branchId) => set({ branchId }),
+    userName: null,
+    setUserName: (name) => set({ userName: name }),
 }));

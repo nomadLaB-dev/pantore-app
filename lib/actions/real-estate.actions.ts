@@ -187,3 +187,15 @@ export async function deleteRealEstate(id: string) {
 
     return { success: true }
 }
+
+export async function deleteAllRealEstates() {
+    const supabase = createClient()
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error('Unauthorized')
+
+    const { error } = await supabase.from('real_estates').delete().neq('id', '')
+    if (error) throw error
+
+    return { success: true }
+}
