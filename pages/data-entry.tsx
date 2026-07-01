@@ -10,6 +10,7 @@ import type { ScheduleRow } from '@/lib/formatSchedule';
 import { createClient } from '@/lib/supabase/client';
 import ScheduleTabs from '@/components/schedule-tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useAppStore } from '@/store';
 
 type ManualKey = 'mdf' | 'qdome' | 'ipd';
 
@@ -94,6 +95,7 @@ const createEmptyData = (colCount: number) =>
 export default function DataEntry() {
     const supabase = createClient();
 
+    const specimenRole = useAppStore((s) => s.specimenRole);
     const [activeTab, setActiveTab] = useState('manual');
     const [openManual, setOpenManual] = useState<ManualKey | null>(null);
     const [manualCarouselIndex, setManualCarouselIndex] = useState(0);
@@ -595,6 +597,10 @@ export default function DataEntry() {
         const w: Record<number, string> = { 0: 'w-[8%]', 2: 'w-[8%]', 6: 'w-[5%]', 7: 'w-[12%]', 8: 'w-[12%]', 9: 'w-[12%]', 13: 'w-[5%]' };
         return w[idx] ?? 'w-[6%]';
     };
+
+    if (specimenRole === 'driver') {
+        return <div className="p-8 text-center text-muted-foreground">このページを表示する権限がありません。</div>;
+    }
 
     return (
         <div className="flex flex-col h-full bg-slate-50 w-full overflow-hidden select-none -mx-5 md:-mx-7 -mb-5 md:-mb-7">

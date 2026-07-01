@@ -14,7 +14,11 @@ const TABS = [
 export default function ScheduleTabs() {
     const { pathname } = useRouter();
     const specimenRole = useAppStore((s) => s.specimenRole);
-    const tabs = specimenRole === 'base' ? TABS.filter((t) => t.href !== '/data-entry') : TABS;
+    const tabs = specimenRole === 'driver'
+        ? TABS.filter((t) => t.href === '/schedules')
+        : specimenRole === 'base'
+            ? TABS.filter((t) => t.href !== '/data-entry')
+            : TABS;
 
     return (
         <div className="flex items-center gap-1 border-b border-slate-200">

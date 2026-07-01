@@ -126,6 +126,9 @@ export default function SchedulesPage() {
     const supabase = createClient();
     const specimenRole = useAppStore((s) => s.specimenRole);
     const myBranchId = useAppStore((s) => s.branchId);
+    const myUserName = useAppStore((s) => s.userName);
+    const [driverDetailRow, setDriverDetailRow] = useState<ScheduleRow | null>(null);
+    const lastTapRef = useRef<{ id: string; time: number } | null>(null);
     const [rows, setRows] = useState<ScheduleRow[]>([]);
     const [search, setSearch] = useState('');
     const [filterType, setFilterType] = useState<string>('all');
@@ -366,14 +369,14 @@ export default function SchedulesPage() {
             ]);
             const branchList = (branchesRes.data || []).map((b: any) => ({ id: b.id, name: b.name, delivery_areas: b.delivery_areas || [] }));
             const courierList = (couriersRes.data || []).map((u: any) => ({ name: u.name, userCode: u.user_code || '', branchId: u.branch_id || '' }));
-            // 集材員名が選択されている場合は、その集材員の所属拠点を優先してエリア判定する
             const courierBranchMap: Record<string, string> = {};
             for (const c of courierList) {
                 if (c.name && c.branchId) courierBranchMap[c.name] = c.branchId;
             }
             const rowBranchId = (r: ScheduleRow) => (r.courierName && courierBranchMap[r.courierName]) || '';
-            // 拠点長は自身の拠点・支社に対応するエリア、または自拠点の集材員が割り当てられたデータのみ閲覧可能
-            const myBranch = specimenRole === 'base' ? branchList.find((b) => b.id === myBranchId) : null;
+            const myBranch = (specimenRole === 'base' || specimenRole === 'driver')
+                ? branchList.find((b) => b.id === myBranchId) ?? null
+                : null;
 
             if (schedulesRes.data && !schedulesRes.error) {
                 const facilityAreaMap: Record<string, string> = {};
@@ -381,12 +384,20 @@ export default function SchedulesPage() {
                     if (f.facility && f.area) facilityAreaMap[f.facility] = f.area;
                 }
                 let normalized = schedulesRes.data.map((d: any) => normalizeScheduleRow(d, facilityAreaMap));
-                if (myBranch) {
+                if (specimenRole === 'base' && myBranch) {
                     const allowedAreas = new Set(myBranch.delivery_areas);
                     normalized = normalized.filter((r) => {
                         const assignedBranchId = rowBranchId(r);
                         if (assignedBranchId) return assignedBranchId === myBranch.id;
                         return !!r.area && allowedAreas.has(r.area);
+                    });
+                } else if (specimenRole === 'driver' && myBranch) {
+                    // ドライバー：自拠点のエリアに属し、且つ自分に割り当てられた集配のみ表示
+                    const allowedAreas = new Set(myBranch.delivery_areas);
+                    normalized = normalized.filter((r) => {
+                        const inBranchArea = !!r.area && allowedAreas.has(r.area);
+                        const isMyCourier = r.courierName === myUserName;
+                        return inBranchArea && isMyCourier;
                     });
                 }
                 setRows(normalized);
@@ -557,6 +568,117 @@ export default function SchedulesPage() {
     }, [branches]);
 
     if (!mounted) return null;
+
+    // ── ドライバー専用モバイルビュー ───────────────────────────────────
+    if (specimenRole === 'driver') {
+        const DRIVER_COLS = [
+            { key: 'collectDate' as const, label: '集配日' },
+            { key: 'collectTime' as const, label: '集配時間' },
+            { key: 'area' as const, label: '集配エリア' },
+            { key: 'facilityName' as const, label: '集配施設名' },
+        ];
+        // タッチ端末でのダブルタップ検出（300ms以内の同一行2タップで開く）
+        const handleTap = (row: ScheduleRow) => {
+            const now = Date.now();
+            if (lastTapRef.current?.id === row.id && now - lastTapRef.current.time < 300) {
+                lastTapRef.current = null;
+                setDriverDetailRow(row);
+            } else {
+                lastTapRef.current = { id: row.id, time: now };
+            }
+        };
+        return (
+            <>
+                <div className="space-y-4 animate-fade-in">
+                    <ScheduleTabs />
+                    <div>
+                        <h1 className="text-lg font-bold">集配送予定リスト</h1>
+                        <p className="text-xs text-muted-foreground mt-0.5">合計 {rows.length} 件（行をダブルタップで詳細表示）</p>
+                    </div>
+                    {rows.length === 0 ? (
+                        <div className="py-16 text-center text-slate-400 bg-white rounded-xl border border-slate-200 shadow-sm">
+                            <Calendar size={36} className="mx-auto mb-3 opacity-30" />
+                            <p className="text-sm font-medium">割り当てられた集配データがありません</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {[...rows].sort((a, b) => {
+                                const dateA = a.collectDate || '';
+                                const dateB = b.collectDate || '';
+                                if (dateA !== dateB) return dateA.localeCompare(dateB);
+                                const timeA = (a.collectTime || '').split(' - ')[0] || '';
+                                const timeB = (b.collectTime || '').split(' - ')[0] || '';
+                                return timeA.localeCompare(timeB);
+                            }).map(row => {
+                                const meta = SYSTEM_META[row.systemType] ?? { label: row.systemType, color: 'bg-slate-100 text-slate-600 border-slate-200' };
+                                return (
+                                    <div
+                                        key={row.id}
+                                        className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3.5 select-none active:bg-blue-50 transition-colors"
+                                        onTouchEnd={(e) => { e.preventDefault(); handleTap(row); }}
+                                        onDoubleClick={() => setDriverDetailRow(row)}
+                                    >
+                                        {/* 1行目：集配日 ＋ 集配時間 */}
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-sm font-bold text-slate-800">{row.collectDate || '—'}</span>
+                                            <span className="text-sm text-slate-600">{row.collectTime || '—'}</span>
+                                        </div>
+                                        {/* 2行目：集配エリア（バッジ） */}
+                                        <div className="mb-1">
+                                            <span className={`px-2 py-0.5 rounded-md border text-[11px] font-bold ${meta.color}`}>{row.area || '—'}</span>
+                                        </div>
+                                        {/* 3行目：集配施設名 */}
+                                        <div>
+                                            <span className="text-sm text-slate-700">{row.facilityName || '—'}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* ドライバー詳細モーダル */}
+                {driverDetailRow && (
+                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4" onMouseDown={e => { if (e.target === e.currentTarget) setDriverDetailRow(null); }}>
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] flex flex-col">
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+                                <h2 className="text-base font-bold text-slate-800">集配スケジュール詳細</h2>
+                                <button onClick={() => setDriverDetailRow(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
+                                    <XIcon size={18} />
+                                </button>
+                            </div>
+                            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+                                {([
+                                    { label: 'システム種別', value: SYSTEM_META[driverDetailRow.systemType]?.label ?? driverDetailRow.systemType },
+                                    { label: '集配日', value: driverDetailRow.collectDate },
+                                    { label: '集配時間', value: driverDetailRow.collectTime },
+                                    { label: '集配エリア', value: driverDetailRow.area },
+                                    { label: '集配施設名', value: driverDetailRow.facilityName },
+                                    { label: '配送種別', value: driverDetailRow.deliveryType },
+                                    { label: '搬入拠点', value: driverDetailRow.base },
+                                    { label: 'UID', value: driverDetailRow.uid },
+                                    { label: '治験名', value: driverDetailRow.trialName },
+                                    { label: '訪問場所', value: driverDetailRow.visitPlace },
+                                    { label: '依頼受付日', value: driverDetailRow.requestDate },
+                                    { label: '依頼受付時間', value: driverDetailRow.requestTime },
+                                    { label: 'Box総数', value: driverDetailRow.boxCount },
+                                    { label: '備考', value: driverDetailRow.note },
+                                ] as { label: string; value: string }[])
+                                    .filter(({ value }) => value)
+                                    .map(({ label, value }) => (
+                                        <div key={label} className="flex items-start justify-between gap-4">
+                                            <span className="text-xs font-semibold text-slate-400 shrink-0 mt-0.5">{label}</span>
+                                            <span className="text-sm text-slate-800 text-right">{value}</span>
+                                        </div>
+                                    ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </>
+        );
+    }
 
     const filtered = rows
         .filter(r => {

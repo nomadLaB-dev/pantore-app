@@ -326,6 +326,10 @@ export default function SchedulesArchivePage() {
 
     if (!mounted) return null;
 
+    if (specimenRole === 'driver') {
+        return <div className="p-8 text-center text-muted-foreground">このページを表示する権限がありません。</div>;
+    }
+
     const filtered = rows.filter(r => {
         if (filterType !== 'all' && r.systemType !== filterType) return false;
         for (const [colKey, allowed] of Object.entries(columnFilters)) {

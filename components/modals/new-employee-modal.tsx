@@ -348,8 +348,27 @@ export function NewEmployeeModal({ open, onClose, employee, showLeaveDate, initi
                     </div>
                     {!isEdit && (
                         <div>
-                            <label className="text-sm font-medium mb-1.5 block">初期パスワード（任意）</label>
-                            <Input type="password" placeholder="設定するとAuthアカウントを同時作成します（8文字以上）" value={form.initialPassword} onChange={(e) => setForm({ ...form, initialPassword: e.target.value })} />
+                            <label className="text-sm font-medium mb-1.5 block">
+                                初期パスワード
+                                {roleOptions ? (
+                                    <span className="text-red-500 ml-1">*必須</span>
+                                ) : (
+                                    <span className="text-muted-foreground font-normal ml-1">（任意）</span>
+                                )}
+                            </label>
+                            <Input
+                                type="password"
+                                placeholder={roleOptions ? 'ログインに必要です（8文字以上）' : '設定するとAuthアカウントを同時作成します（8文字以上）'}
+                                value={form.initialPassword}
+                                onChange={(e) => setForm({ ...form, initialPassword: e.target.value })}
+                                className={roleOptions && form.initialPassword.length > 0 && form.initialPassword.length < 8 ? 'border-red-400' : ''}
+                            />
+                            {roleOptions && form.initialPassword.length > 0 && form.initialPassword.length < 8 && (
+                                <p className="text-xs text-red-500 mt-1">8文字以上で入力してください</p>
+                            )}
+                            {roleOptions && form.initialPassword.length === 0 && (
+                                <p className="text-xs text-muted-foreground mt-1">配送員はログインのためパスワードの設定が必要です</p>
+                            )}
                         </div>
                     )}
                 </div>
@@ -357,7 +376,14 @@ export function NewEmployeeModal({ open, onClose, employee, showLeaveDate, initi
                     <Button variant="outline" onClick={onClose}>キャンセル</Button>
                     <Button
                         className="bg-brand-500 hover:bg-brand-600 text-white"
-                        disabled={!form.name || !form.name_kana || !form.birthDate || !form.companyId || !form.email || !form.address || !form.emergencyContact || !form.category || ((form.category === 'part_time' || form.category === 'dispatch') ? !form.hourlyRate : false) || !form.weeklyHoursMax || !form.weeklyHoursMin || !form.hireDate || mutation.isPending}
+                        disabled={
+                            !form.name || !form.name_kana || !form.birthDate || !form.companyId || !form.email ||
+                            !form.address || !form.emergencyContact || !form.category ||
+                            ((form.category === 'part_time' || form.category === 'dispatch') ? !form.hourlyRate : false) ||
+                            !form.weeklyHoursMax || !form.weeklyHoursMin || !form.hireDate ||
+                            (!isEdit && !!roleOptions && form.initialPassword.length < 8) ||
+                            mutation.isPending
+                        }
                         onClick={() => mutation.mutate()}
                     >
                         {mutation.isPending ? '保存中…' : (isEdit ? '保存する' : '追加する')}
