@@ -5,11 +5,12 @@ import { useState } from 'react';
 import { Scale } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type TabId = 'payment_notice' | 'invoice';
+type TabId = 'payment_notice' | 'invoice_partner' | 'invoice_prime';
 
 const TABS: { id: TabId; label: string }[] = [
     { id: 'payment_notice', label: '支払い通知' },
-    { id: 'invoice', label: '請求' },
+    { id: 'invoice_partner', label: '請求（パートナー）' },
+    { id: 'invoice_prime', label: '請求（元請）' },
 ];
 
 export default function TekihoPage() {
@@ -56,11 +57,21 @@ export default function TekihoPage() {
                 </div>
             )}
 
-            {activeTab === 'invoice' && (
+            {activeTab === 'invoice_partner' && (
                 <div className="flex items-center justify-center py-24 text-muted-foreground">
                     <div className="text-center">
                         <Scale className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                        <p className="font-medium">請求</p>
+                        <p className="font-medium">請求（パートナー）</p>
+                        <p className="text-sm mt-1">準備中</p>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'invoice_prime' && (
+                <div className="flex items-center justify-center py-24 text-muted-foreground">
+                    <div className="text-center">
+                        <Scale className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                        <p className="font-medium">請求（元請）</p>
                         <p className="text-sm mt-1">準備中</p>
                     </div>
                 </div>
