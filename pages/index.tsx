@@ -74,9 +74,9 @@ export default function LandingPage() {
                 SpecimenChimeraは、企業の社員の稼働から、車両・不動産などの物理資産、契約期限までを劇的にシンプルに統合管理するモダンERPです。
               </p>
               <div className="flex flex-col sm:flex-row items-start gap-3">
-                <Link href="/register">
+                <Link href="/login">
                   <button className="h-13 px-7 py-3.5 bg-amber-700 hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-700 text-white rounded-full font-semibold text-base flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-amber-700/30">
-                    無料ではじめる
+                    ログイン
                     <ArrowRight className="w-5 h-5" />
                   </button>
                 </Link>

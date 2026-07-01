@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Layers, ArrowRight, Loader2, AlertCircle, Wheat, Eye, EyeOff } from 'lucide-react';
+import { Layers, ArrowRight, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAppStore } from '@/store';
@@ -157,19 +157,6 @@ export default function LoginPage() {
                     </form>
 
                     {/* Divider */}
-                    <div className="flex items-center gap-3 my-6">
-                        <div className="flex-1 h-px bg-amber-200 dark:bg-amber-800" />
-                        <span className="text-xs text-amber-500">または</span>
-                        <div className="flex-1 h-px bg-amber-200 dark:bg-amber-800" />
-                    </div>
-
-                    {/* Sign-up CTA */}
-                    <Link href="/register">
-                        <button className="w-full h-12 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700 rounded-xl font-medium flex items-center justify-center gap-2 transition-all">
-                            <Wheat className="w-4 h-4" />
-                            新しくはじめる
-                        </button>
-                    </Link>
 
                     <p className="mt-6 text-center text-xs text-amber-600/60 dark:text-amber-500/50">
                         <Link href="/" className="hover:text-amber-700 dark:hover:text-amber-400 underline-offset-2 hover:underline">
