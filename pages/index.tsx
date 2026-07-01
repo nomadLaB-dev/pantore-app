@@ -80,11 +80,6 @@ export default function LandingPage() {
                     <ArrowRight className="w-5 h-5" />
                   </button>
                 </Link>
-                <Link href="/login">
-                  <button className="h-13 px-7 py-3.5 bg-white/80 dark:bg-amber-950/50 hover:bg-white dark:hover:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700 rounded-full font-medium text-base flex items-center gap-2 transition-all hover:scale-105 active:scale-95 backdrop-blur-sm">
-                    ログイン
-                  </button>
-                </Link>
               </div>
             </motion.div>
           </div>
