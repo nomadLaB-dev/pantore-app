@@ -194,13 +194,15 @@ export default function Sidebar({
             {/* ── Nav ──────────────────────────────────────────────── */}
             <nav className="flex-1 py-2 px-3 space-y-0.5 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:rgba(251,191,36,0.2)_transparent] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-400/20 [&::-webkit-scrollbar-thumb:hover]:bg-amber-400/40]">
 
-                {/* ドライバーは集配送予定のみ表示 */}
+                {/* ドライバーは集配送予定とタイムカードのみ表示 */}
                 {isDriver ? (
                     <>
                         <SectionLabel label="予定管理" />
                         {specimenNavItems.map((item) => (
                             <NavLink key={item.href} item={item} pathname={pathname} />
                         ))}
+                        <SectionLabel label="勤怠" />
+                        <NavLink item={{ name: 'タイムカード', href: '/timecard', icon: Clock }} pathname={pathname} />
                     </>
                 ) : (
                     <>

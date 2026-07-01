@@ -77,10 +77,13 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
       setLayoutData({ tenantName, branchName, specimenRole, currentUser });
       setLoading(false);
 
-      // ドライバーは集配送予定ページのみアクセス可能
-      if (specimenRole === 'driver' && !window.location.pathname.startsWith('/schedules')) {
-        router.replace('/schedules');
-        return;
+      // ドライバーは集配送予定とタイムカードのみアクセス可能
+      if (specimenRole === 'driver') {
+        const p = window.location.pathname;
+        if (!p.startsWith('/schedules') && !p.startsWith('/timecard')) {
+          router.replace('/schedules');
+          return;
+        }
       }
     };
 
