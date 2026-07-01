@@ -1,9 +1,0 @@
-manufacturer,model,license_plate,license_plate_color,ownership_type,branch,tire_type,is_transport_bureau_applied,lease_company,lease_monthly_fee,lease_contract_start_date,lease_contract_end_date,acquisition_cost,purchase_date,first_registration_date,body_type,is_new_car
-スズキ,エブリイ,広島 480 さ 12-34,yellow,owned,広島本社,normal,true,,,,,1450000,2023-04-10,,passenger_compact,true
-ダイハツ,ハイゼットカーゴ,広島 480 す 56-78,black,leased,広島本社,studless,true,日産フィナンシャルサービス,42000,2024-03-01,2027-02-28,,,,,
-ホンダ,N-VAN,松山 480 あ 11-22,yellow,owned,松山事業所,normal,false,,,,,1680000,2022-11-20,,passenger_compact,true
-日産,NV100クリッパー,松山 480 い 33-44,yellow,owned,松山事業所,studless,true,,,,,1280000,2021-06-15,2018-09-01,passenger_compact,false
-マツダ,スクラムバン,高松 480 え 55-66,black,leased,高松事業所,normal,true,オリックス自動車,28000,2025-01-01,2028-12-31,,,,,
-三菱,ミニキャブバン,高松 480 お 77-88,yellow,owned,高松事業所,normal,false,,,,,1390000,2024-07-01,,passenger_compact,true
-スバル,サンバーバン,広島 480 か 99-00,black,leased,広島本社,studless,true,ホンダファイナンス,25000,2023-09-01,2026-08-31,,,,,
-スズキ,エブリイ,松山 480 き 21-09,yellow,owned,松山事業所,normal,true,,,,,1420000,2025-02-14,,passenger_compact,true
