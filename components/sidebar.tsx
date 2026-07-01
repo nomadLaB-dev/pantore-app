@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import {
     Layers, LayoutDashboard, Users, Car, Building2,
     Building, Settings2, LogOut, UserCircle,
-    CalendarDays,
+    CalendarDays, Scale,
     Clock, Bell, Sun, Moon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ const erpNavItems = [
     { name: '車両管理', href: '/vehicles', icon: Car },
     { name: '不動産管理', href: '/real-estates', icon: Building },
     { name: '勤怠管理', href: '/attendance', icon: Clock },
+    { name: '取適法', href: '/tekiho', icon: Scale },
 ];
 
 const peopleNavItems = [
