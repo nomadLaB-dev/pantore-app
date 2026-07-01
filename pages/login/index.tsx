@@ -156,13 +156,6 @@ export default function LoginPage() {
                         </button>
                     </form>
 
-                    {/* Divider */}
-
-                    <p className="mt-6 text-center text-xs text-amber-600/60 dark:text-amber-500/50">
-                        <Link href="/" className="hover:text-amber-700 dark:hover:text-amber-400 underline-offset-2 hover:underline">
-                            ← トップページへ
-                        </Link>
-                    </p>
                 </motion.div>
             </div>
         </div>
