@@ -650,7 +650,7 @@ export default function SchedulesPage() {
                                     <XIcon size={18} />
                                 </button>
                             </div>
-                            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+                            <div className="overflow-y-auto flex-1 px-4 py-3 space-y-1.5">
                                 {([
                                     { label: 'システム種別', value: SYSTEM_META[driverDetailRow.systemType]?.label ?? driverDetailRow.systemType },
                                     { label: '集配日', value: driverDetailRow.collectDate },
@@ -665,15 +665,22 @@ export default function SchedulesPage() {
                                     { label: '依頼受付日', value: driverDetailRow.requestDate },
                                     { label: '依頼受付時間', value: driverDetailRow.requestTime },
                                     { label: 'Box総数', value: driverDetailRow.boxCount },
-                                    { label: '備考', value: driverDetailRow.note },
                                 ] as { label: string; value: string }[])
                                     .filter(({ value }) => value)
                                     .map(({ label, value }) => (
-                                        <div key={label} className="flex items-start justify-between gap-4">
-                                            <span className="text-xs font-semibold text-slate-400 shrink-0 mt-0.5">{label}</span>
-                                            <span className="text-sm text-slate-800 text-right">{value}</span>
+                                        <div key={label} className="flex items-center justify-between gap-3 min-w-0">
+                                            <span className="text-[11px] font-semibold text-slate-400 shrink-0 whitespace-nowrap">{label}</span>
+                                            <span className="text-[11px] text-slate-800 text-right truncate">{value}</span>
                                         </div>
                                     ))}
+                                {driverDetailRow.note && (
+                                    <div className="pt-1.5 border-t border-slate-100">
+                                        <span className="text-[11px] font-semibold text-slate-400 block mb-1">備考</span>
+                                        <div className="text-[11px] text-slate-800 max-h-16 overflow-y-auto leading-relaxed break-words">
+                                            {driverDetailRow.note}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -803,7 +810,7 @@ export default function SchedulesPage() {
                                     <XIcon size={18} />
                                 </button>
                             </div>
-                            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+                            <div className="overflow-y-auto flex-1 px-4 py-3 space-y-1.5">
                                 {([
                                     { label: 'システム種別', value: SYSTEM_META[driverDetailRow.systemType]?.label ?? driverDetailRow.systemType },
                                     { label: '集配日', value: driverDetailRow.collectDate },
@@ -818,15 +825,22 @@ export default function SchedulesPage() {
                                     { label: '依頼受付日', value: driverDetailRow.requestDate },
                                     { label: '依頼受付時間', value: driverDetailRow.requestTime },
                                     { label: 'Box総数', value: driverDetailRow.boxCount },
-                                    { label: '備考', value: driverDetailRow.note },
                                 ] as { label: string; value: string }[])
                                     .filter(({ value }) => value)
                                     .map(({ label, value }) => (
-                                        <div key={label} className="flex items-start justify-between gap-4">
-                                            <span className="text-xs font-semibold text-slate-400 shrink-0 mt-0.5">{label}</span>
-                                            <span className="text-sm text-slate-800 text-right">{value}</span>
+                                        <div key={label} className="flex items-center justify-between gap-3 min-w-0">
+                                            <span className="text-[11px] font-semibold text-slate-400 shrink-0 whitespace-nowrap">{label}</span>
+                                            <span className="text-[11px] text-slate-800 text-right truncate">{value}</span>
                                         </div>
                                     ))}
+                                {driverDetailRow.note && (
+                                    <div className="pt-1.5 border-t border-slate-100">
+                                        <span className="text-[11px] font-semibold text-slate-400 block mb-1">備考</span>
+                                        <div className="text-[11px] text-slate-800 max-h-16 overflow-y-auto leading-relaxed break-words">
+                                            {driverDetailRow.note}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
