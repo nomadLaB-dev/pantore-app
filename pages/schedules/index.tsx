@@ -131,7 +131,8 @@ export default function SchedulesPage() {
     const lastTapRef = useRef<{ id: string; time: number } | null>(null);
     const [rows, setRows] = useState<ScheduleRow[]>([]);
     const [search, setSearch] = useState('');
-    const [filterType, setFilterType] = useState<string>('all');
+    const [filterTypes, setFilterTypes] = useState<string[]>([]);
+    const [showTypeDropdown, setShowTypeDropdown] = useState(false);
     const [visibleColumns, setVisibleColumns] = useState<string[]>(COLUMNS.map(c => c.key));
     const [showColumns, setShowColumns] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -160,6 +161,7 @@ export default function SchedulesPage() {
     const [selectedBranchTab, setSelectedBranchTab] = useState('');
     const [branches, setBranches] = useState<{ id: string; name: string; delivery_areas: string[] }[]>([]);
     const [availabilityRow, setAvailabilityRow] = useState<ScheduleRow | null>(null);
+    const [baseViewMode, setBaseViewMode] = useState<'branch' | 'mine'>('mine');
     const [savingAvailability, setSavingAvailability] = useState(false);
 
     const handlePdfUpload = async (file: File) => {
@@ -690,7 +692,7 @@ export default function SchedulesPage() {
                     if (!branch || !matchesBranch(r, branch)) return false;
                 }
             }
-            if (filterType !== 'all' && r.systemType !== filterType) return false;
+            if (filterTypes.length > 0 && !filterTypes.includes(r.systemType)) return false;
             for (const [colKey, allowed] of Object.entries(columnFilters)) {
                 if (allowed.size === 0) continue;
                 const val = (r[colKey as keyof ScheduleRow] || '') as string;
@@ -715,21 +717,156 @@ export default function SchedulesPage() {
             return 0;
         });
 
+    // ── 拠点長「自分の予定」ビュー ───────────────────────────────────────
+    if (specimenRole === 'base' && baseViewMode === 'mine') {
+        const myRows = [...rows]
+            .filter(r => r.courierName === myUserName)
+            .sort((a, b) => {
+                const dateA = a.collectDate || '';
+                const dateB = b.collectDate || '';
+                if (dateA !== dateB) return dateA.localeCompare(dateB);
+                const timeA = (a.collectTime || '').split(' - ')[0] || '';
+                const timeB = (b.collectTime || '').split(' - ')[0] || '';
+                return timeA.localeCompare(timeB);
+            });
+        const handleTap = (row: ScheduleRow) => {
+            const now = Date.now();
+            if (lastTapRef.current?.id === row.id && now - lastTapRef.current.time < 300) {
+                lastTapRef.current = null;
+                setDriverDetailRow(row);
+            } else {
+                lastTapRef.current = { id: row.id, time: now };
+            }
+        };
+        return (
+            <>
+                <div className="space-y-4 animate-fade-in">
+                    <ScheduleTabs />
+                    {/* 自分の予定 ／ 拠点全体 切り替え */}
+                    <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden w-fit">
+                        <button
+                            className="px-4 py-2 text-xs font-bold bg-blue-600 text-white"
+                        >
+                            自分の予定
+                        </button>
+                        <button
+                            onClick={() => setBaseViewMode('branch')}
+                            className="px-4 py-2 text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 transition-colors border-l border-slate-200"
+                        >
+                            拠点全体
+                        </button>
+                    </div>
+                    <div>
+                        <h1 className="text-lg font-bold">自分の予定</h1>
+                        <p className="text-xs text-muted-foreground mt-0.5">合計 {myRows.length} 件（行をダブルタップで詳細表示）</p>
+                    </div>
+                    {myRows.length === 0 ? (
+                        <div className="py-16 text-center text-slate-400 bg-white rounded-xl border border-slate-200 shadow-sm">
+                            <Calendar size={36} className="mx-auto mb-3 opacity-30" />
+                            <p className="text-sm font-medium">自分に割り当てられた集配データがありません</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {myRows.map(row => {
+                                const meta = SYSTEM_META[row.systemType] ?? { label: row.systemType, color: 'bg-slate-100 text-slate-600 border-slate-200' };
+                                return (
+                                    <div
+                                        key={row.id}
+                                        className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3.5 select-none active:bg-blue-50 transition-colors"
+                                        onTouchEnd={(e) => { e.preventDefault(); handleTap(row); }}
+                                        onDoubleClick={() => setDriverDetailRow(row)}
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-sm font-bold text-slate-800">{row.collectDate || '—'}</span>
+                                            <span className="text-sm text-slate-600">{row.collectTime || '—'}</span>
+                                        </div>
+                                        <div className="mb-1">
+                                            <span className={`px-2 py-0.5 rounded-md border text-[11px] font-bold ${meta.color}`}>{row.area || '—'}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-sm text-slate-700">{row.facilityName || '—'}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* 詳細モーダル */}
+                {driverDetailRow && (
+                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4" onMouseDown={e => { if (e.target === e.currentTarget) setDriverDetailRow(null); }}>
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] flex flex-col">
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+                                <h2 className="text-base font-bold text-slate-800">集配スケジュール詳細</h2>
+                                <button onClick={() => setDriverDetailRow(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
+                                    <XIcon size={18} />
+                                </button>
+                            </div>
+                            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+                                {([
+                                    { label: 'システム種別', value: SYSTEM_META[driverDetailRow.systemType]?.label ?? driverDetailRow.systemType },
+                                    { label: '集配日', value: driverDetailRow.collectDate },
+                                    { label: '集配時間', value: driverDetailRow.collectTime },
+                                    { label: '集配エリア', value: driverDetailRow.area },
+                                    { label: '集配施設名', value: driverDetailRow.facilityName },
+                                    { label: '配送種別', value: driverDetailRow.deliveryType },
+                                    { label: '搬入拠点', value: driverDetailRow.base },
+                                    { label: 'UID', value: driverDetailRow.uid },
+                                    { label: '治験名', value: driverDetailRow.trialName },
+                                    { label: '訪問場所', value: driverDetailRow.visitPlace },
+                                    { label: '依頼受付日', value: driverDetailRow.requestDate },
+                                    { label: '依頼受付時間', value: driverDetailRow.requestTime },
+                                    { label: 'Box総数', value: driverDetailRow.boxCount },
+                                    { label: '備考', value: driverDetailRow.note },
+                                ] as { label: string; value: string }[])
+                                    .filter(({ value }) => value)
+                                    .map(({ label, value }) => (
+                                        <div key={label} className="flex items-start justify-between gap-4">
+                                            <span className="text-xs font-semibold text-slate-400 shrink-0 mt-0.5">{label}</span>
+                                            <span className="text-sm text-slate-800 text-right">{value}</span>
+                                        </div>
+                                    ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </>
+        );
+    }
+
     return (
         <>
         <div className="space-y-6 animate-fade-in">
             <ScheduleTabs />
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* 拠点長用：自分の予定 ／ 拠点全体 切り替え */}
+            {specimenRole === 'base' && (
+                <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden w-fit">
+                    <button
+                        onClick={() => setBaseViewMode('mine')}
+                        className="px-4 py-2 text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+                    >
+                        自分の予定
+                    </button>
+                    <button
+                        className="px-4 py-2 text-xs font-bold bg-blue-600 text-white border-l border-slate-200"
+                    >
+                        拠点全体
+                    </button>
+                </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-foreground">集配送予定リスト</h1>
-                    <p className="text-sm text-muted-foreground mt-1">データ入力画面で保存した集配データの一覧です。</p>
+                    <p className="text-sm text-muted-foreground mt-1">集配データの一覧です。</p>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                    <button onClick={handleShowLatest} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
+                <div className="flex items-center gap-2">
+                    <button onClick={handleShowLatest} className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
                         <RefreshCw size={15} /> 最新を表示
                     </button>
-                    <button onClick={archivePastAndToday} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
+                    <button onClick={archivePastAndToday} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-semibold shadow-sm whitespace-nowrap">
                         翌日以降を表示
                     </button>
                 </div>
@@ -768,17 +905,59 @@ export default function SchedulesPage() {
                                 </button>
                             </div>
                         )}
-                        {(['all', 'M', 'Q', 'IP', 'I', 'F'] as const).map(t => (
+                        {/* デスクトップ：トグルボタン（複数選択可） */}
+                        <div className="hidden lg:flex items-center gap-2 flex-wrap">
                             <button
-                                key={t}
-                                onClick={() => setFilterType(t)}
+                                onClick={() => setFilterTypes([])}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                                    filterType === t ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                    filterTypes.length === 0 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                                 }`}
                             >
-                                {t === 'all' ? 'すべて' : (SYSTEM_META[t]?.label ?? t)}
+                                すべて
                             </button>
-                        ))}
+                            {(['M', 'Q', 'IP', 'I', 'F'] as const).map(t => (
+                                <button
+                                    key={t}
+                                    onClick={() => setFilterTypes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                                        filterTypes.includes(t) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    {SYSTEM_META[t]?.label ?? t}
+                                </button>
+                            ))}
+                        </div>
+                        {/* モバイル：複数選択ドロップダウン */}
+                        <div className="lg:hidden relative">
+                            <button
+                                onClick={() => setShowTypeDropdown(v => !v)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors whitespace-nowrap"
+                            >
+                                {filterTypes.length === 0 ? 'すべて' : filterTypes.map(t => SYSTEM_META[t]?.label ?? t).join(', ')}
+                                <span className="text-slate-400">▾</span>
+                            </button>
+                            {showTypeDropdown && (
+                                <div className="absolute left-0 top-full mt-1 z-30 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[130px]">
+                                    <button
+                                        onClick={() => { setFilterTypes([]); setShowTypeDropdown(false); }}
+                                        className={`w-full text-left px-4 py-2 text-xs font-bold transition-colors ${filterTypes.length === 0 ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-50'}`}
+                                    >
+                                        すべて
+                                    </button>
+                                    {(['M', 'Q', 'IP', 'I', 'F'] as const).map(t => (
+                                        <label key={t} className="flex items-center gap-2.5 px-4 py-2 cursor-pointer hover:bg-slate-50">
+                                            <input
+                                                type="checkbox"
+                                                checked={filterTypes.includes(t)}
+                                                onChange={() => setFilterTypes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                                                className="accent-blue-600"
+                                            />
+                                            <span className="text-xs font-bold text-slate-700">{SYSTEM_META[t]?.label ?? t}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                         <button
                             onClick={() => setShowColumns(!showColumns)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
@@ -883,7 +1062,8 @@ export default function SchedulesPage() {
                 </div>
             )}
 
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            {/* ── デスクトップ：テーブル表示 ── */}
+            <div className="hidden lg:block bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 {filtered.length === 0 ? (
                     <div className="py-20 text-center text-slate-400">
                         <Calendar size={40} className="mx-auto mb-3 opacity-30" />
@@ -994,6 +1174,49 @@ export default function SchedulesPage() {
                                 })}
                             </tbody>
                         </table>
+                    </div>
+                )}
+            </div>
+            {/* ── モバイル：カード表示 ── */}
+            <div className="lg:hidden">
+                {filtered.length === 0 ? (
+                    <div className="py-16 text-center text-slate-400 bg-white rounded-xl border border-slate-200 shadow-sm">
+                        <Calendar size={36} className="mx-auto mb-3 opacity-30" />
+                        <p className="text-sm font-medium">データがありません</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {filtered.map(row => {
+                            const meta = SYSTEM_META[row.systemType] ?? { label: row.systemType, color: 'bg-slate-100 text-slate-600 border-slate-200' };
+                            const handleMobileTap = () => {
+                                const now = Date.now();
+                                if (lastTapRef.current?.id === row.id && now - lastTapRef.current.time < 300) {
+                                    lastTapRef.current = null;
+                                    specimenRole === 'base' ? setAvailabilityRow(row) : openEdit(row);
+                                } else {
+                                    lastTapRef.current = { id: row.id, time: now };
+                                }
+                            };
+                            return (
+                                <div
+                                    key={row.id}
+                                    className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3.5 select-none active:bg-blue-50 transition-colors"
+                                    onTouchEnd={(e) => { e.preventDefault(); handleMobileTap(); }}
+                                    onDoubleClick={() => specimenRole === 'base' ? setAvailabilityRow(row) : openEdit(row)}
+                                >
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-bold text-slate-800">{row.collectDate || '—'}</span>
+                                        <span className="text-sm text-slate-600">{row.collectTime || '—'}</span>
+                                    </div>
+                                    <div className="mb-1">
+                                        <span className={`px-2 py-0.5 rounded-md border text-[11px] font-bold ${meta.color}`}>{row.area || '—'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-sm text-slate-700">{row.facilityName || '—'}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </div>
