@@ -55,7 +55,7 @@ function SectionLabel({ label }: { label: string }) {
     );
 }
 
-function UserMenu({ name, email, tenantName, branchName }: { name: string; email: string; tenantName?: string; branchName?: string }) {
+function UserMenu({ name, email, tenantName, branchName, hideTenantName }: { name: string; email: string; tenantName?: string; branchName?: string; hideTenantName?: boolean }) {
     const router = useRouter();
     const { theme, setTheme } = useTheme();
     const [open, setOpen] = useState(false);
@@ -81,8 +81,8 @@ function UserMenu({ name, email, tenantName, branchName }: { name: string; email
                     <Building className="w-3.5 h-3.5 text-amber-300" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-amber-100 truncate">{tenantName}</p>
-                    <p className="text-[10px] text-amber-300/50 truncate">{branchName || 'テナント'}</p>
+                    {!hideTenantName && <p className="text-xs font-semibold text-amber-100 truncate">{tenantName}</p>}
+                    <p className={`text-amber-300/50 truncate ${hideTenantName ? 'text-xs font-semibold text-amber-100' : 'text-[10px]'}`}>{branchName || 'テナント'}</p>
                 </div>
             </div>
 
@@ -243,7 +243,7 @@ export default function Sidebar({
             </nav>
 
             {/* ── User menu ────────────────────────────────────────── */}
-            <UserMenu name={currentUser?.name ?? ''} email={currentUser?.email ?? ''} tenantName={tenantName} branchName={branchName} />
+            <UserMenu name={currentUser?.name ?? ''} email={currentUser?.email ?? ''} tenantName={tenantName} branchName={branchName} hideTenantName={isBase || isDriver} />
         </>
     );
 

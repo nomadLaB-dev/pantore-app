@@ -84,13 +84,22 @@ export default function TimecardPage() {
         if (!employeeId || !tenantId || saving) return;
         setSaving(true);
         const time = new Date().toISOString();
-        const { error } = await supabase
-            .from('attendance_records')
-            .upsert(
+        // 現在のstatusを参照してイベント種別を決定
+        const eventType: Record<string, string> = {
+            working: status === 'not_started' ? 'clock_in' : 'break_end',
+            on_break: 'break_start',
+            finished: 'clock_out',
+        };
+        const [upsertRes] = await Promise.all([
+            supabase.from('attendance_records').upsert(
                 { tenant_id: tenantId, employee_id: employeeId, status: next, time, last_updated: time },
                 { onConflict: 'tenant_id,employee_id' }
-            );
-        if (!error) {
+            ),
+            eventType[next]
+                ? supabase.from('attendance_logs').insert({ tenant_id: tenantId, employee_id: employeeId, event_type: eventType[next], time })
+                : Promise.resolve({ error: null }),
+        ]);
+        if (!upsertRes.error) {
             setStatus(next);
             setStatusTime(time);
             setElapsed(formatElapsed(time));
